@@ -1,0 +1,493 @@
+---
+title: Native Automation
+description: Understand how Patrol enables interaction with native Android, iOS, and web platform features from your Flutter tests
+---
+
+Patrol's native automation capabilities allow you to interact with platform-specific UI elements and features that are outside the Flutter framework. This is what sets Patrol apart from standard Flutter integration tests.
+
+## The Platform Automator
+
+At the heart of Patrol's native automation is the `$.platform` object, which provides access to platform-specific automators:
+
+- **`$.platform.mobile`** - Cross-platform mobile automator (Android & iOS)
+- **`$.platform.android`** - Android-specific automator
+- **`$.platform.ios`** - iOS-specific automator  
+- **`$.platform.web`** - Web browser automator
+
+<Info>
+Use `$.platform.mobile` whenever possible to keep your tests cross-platform. Only use platform-specific automators when you need different behavior per platform.
+</Info>
+
+## How Native Automation Works
+
+Patrol's architecture bridges the gap between Flutter and native platforms:
+
+<Steps>
+
+<Step title="Test Code Execution">
+Your Dart test code runs in the Flutter test environment, just like standard integration tests.
+</Step>
+
+<Step title="Native Communication">
+When you call a native method (e.g., `$.platform.mobile.pressHome()`), Patrol sends a command over a local network connection to the native test instrumentation.
+</Step>
+
+<Step title="Native Execution">
+The native instrumentation receives the command and executes it using platform-specific automation frameworks:
+- **Android**: UI Automator 2
+- **iOS**: XCTest
+- **Web**: Playwright
+</Step>
+
+<Step title="Result Return">
+The result is sent back to your Dart test code, allowing you to continue with assertions or further actions.
+</Step>
+
+</Steps>
+
+<Warning>
+Native automation requires additional setup beyond standard Flutter integration tests. Make sure you've completed the [installation steps](/quickstart) for your target platforms.
+</Warning>
+
+## Cross-Platform Mobile Actions
+
+The `$.platform.mobile` automator provides actions that work identically on both Android and iOS:
+
+### Basic Navigation
+
+```dart System Navigation
+// Go to home screen
+await $.platform.mobile.pressHome();
+
+// Open recent apps / app switcher
+await $.platform.mobile.openQuickSettings();
+
+// Press back button (Android) or swipe back (iOS)
+await $.platform.mobile.pressBack();
+
+// Switch to the previous app
+await $.platform.mobile.pressDoubleRecentApps();
+```
+
+### Interacting with Native UI
+
+Patrol allows you to find and interact with native UI elements using selectors:
+
+<CodeGroup>
+
+```dart Simple Selector
+// Tap on a native view by text
+await $.platform.mobile.tap(
+  Selector(text: 'Allow'),
+);
+```
+
+```dart Text Contains
+// Tap on a view containing specific text
+await $.platform.mobile.tap(
+  Selector(textContains: 'Continue'),
+);
+```
+
+```dart Enter Text
+// Enter text into a native text field
+await $.platform.mobile.enterText(
+  Selector(text: 'Email address'),
+  text: 'user@example.com',
+);
+```
+
+```dart By Index
+// Enter text into the first text field
+await $.platform.mobile.enterTextByIndex(
+  'password123',
+  index: 0,
+);
+```
+
+</CodeGroup>
+
+### Platform-Specific Selectors
+
+When you need different selectors for Android and iOS, use `MobileSelector`:
+
+```dart
+await $.platform.mobile.tap(
+  MobileSelector(
+    android: AndroidSelector(
+      resourceName: 'com.example:id/submit_button',
+    ),
+    ios: IOSSelector(
+      identifier: 'submitButton',
+    ),
+  ),
+);
+```
+
+## Handling Permissions
+
+One of the most common use cases for native automation is handling system permission dialogs:
+
+<CodeGroup>
+
+```dart Grant Permission
+// Grant permission when system dialog appears
+await $.platform.mobile.grantPermissionWhenInUse();
+await $.platform.mobile.grantPermissionOnlyThisTime();
+await $.platform.mobile.denyPermission();
+```
+
+```dart Location Accuracy
+// Select location accuracy (iOS)
+await $.platform.mobile.selectFineLocation();
+await $.platform.mobile.selectCoarseLocation();
+```
+
+```dart Check Dialog Visibility
+// Conditionally handle permission dialog
+if (await $.platform.mobile.isPermissionDialogVisible()) {
+  await $.platform.mobile.grantPermissionWhenInUse();
+}
+
+// With custom timeout
+if (await $.platform.mobile.isPermissionDialogVisible(
+  timeout: Duration(seconds: 5),
+)) {
+  await $.platform.mobile.grantPermissionWhenInUse();
+}
+```
+
+</CodeGroup>
+
+<Warning>
+**iOS Language Requirement**: Patrol can only handle iOS permission dialogs when the device language is set to English (preferably US). This is because iOS doesn't provide a language-independent way to identify permission dialog buttons.
+
+For non-English devices, handle permissions manually:
+
+```dart
+await $.platform.ios.tap(
+  IOSSelector(text: 'Zezwól'),  // "Allow" in Polish
+  appId: 'com.apple.springboard',
+);
+```
+</Warning>
+
+## Working with Notifications
+
+Patrol provides powerful capabilities for testing notification interactions:
+
+```dart Notification Actions
+// Open notification shade/center
+await $.platform.mobile.openNotifications();
+
+// Tap notification by index (0-based)
+await $.platform.mobile.tapOnNotificationByIndex(0);
+
+// Tap notification by content
+await $.platform.mobile.tapOnNotificationBySelector(
+  Selector(textContains: 'New message from'),
+);
+
+// Close notification (iOS)
+await $.platform.ios.closeHeadsUpNotification();
+```
+
+## Android-Specific Automation
+
+The `$.platform.android` automator provides Android-only features:
+
+```dart Android Actions
+// Press hardware back button
+await $.platform.android.pressBack();
+
+// Press hardware home button  
+await $.platform.android.pressHome();
+
+// Open quick settings
+await $.platform.android.openQuickSettings();
+
+// Open a specific Android app
+await $.platform.android.openPlatformApp(
+  androidAppId: 'com.android.settings',
+);
+
+// Tap with Android-specific selector
+await $.platform.android.tap(
+  AndroidSelector(
+    resourceName: 'com.example:id/button',
+    text: 'Submit',
+    className: 'android.widget.Button',
+  ),
+);
+```
+
+## iOS-Specific Automation
+
+The `$.platform.ios` automator provides iOS-only features:
+
+```dart iOS Actions
+// Swipe back gesture (edge swipe)
+await $.platform.ios.swipeBack();
+
+// Close heads-up notification
+await $.platform.ios.closeHeadsUpNotification();
+
+// Open a specific iOS app
+await $.platform.ios.openPlatformApp(
+  iosAppId: 'com.apple.Preferences',
+);
+
+// Tap with iOS-specific selector
+await $.platform.ios.tap(
+  IOSSelector(
+    identifier: 'submitButton',
+    label: 'Submit',
+  ),
+);
+```
+
+<Warning>
+**App ID Requirement**: When interacting with iOS apps other than your Flutter app under test, you must specify the app's bundle identifier:
+
+```dart
+await $.platform.ios.tap(
+  IOSSelector(text: 'Add'),
+  appId: 'com.apple.MobileAddressBook',
+);
+```
+</Warning>
+
+## Web Automation
+
+Patrol 4.0 introduced comprehensive web automation using Playwright:
+
+### Basic Interactions
+
+<CodeGroup>
+
+```dart Element Selection
+// Select by text
+await $.platform.web.tap(WebSelector(text: 'Submit'));
+
+// Select by CSS selector
+await $.platform.web.tap(WebSelector(cssOrXpath: 'css=#submit-btn'));
+
+// Select by XPath
+await $.platform.web.tap(WebSelector(cssOrXpath: 'xpath=//button[@id="submit"]'));
+
+// Select by test ID
+await $.platform.web.tap(WebSelector(testId: 'login-button'));
+
+// Select by placeholder
+await $.platform.web.enterText(
+  WebSelector(placeholder: 'Enter email'),
+  text: 'user@example.com',
+);
+```
+
+```dart Scrolling
+// Scroll to element
+await $.platform.web.scrollTo(
+  WebSelector(text: 'Load more'),
+);
+```
+
+</CodeGroup>
+
+### Browser Features
+
+<CodeGroup>
+
+```dart Dialogs
+// Handle browser dialogs
+await $.platform.web.acceptNextDialog();
+await $.platform.web.dismissNextDialog();
+```
+
+```dart Cookies
+// Manage cookies
+await $.platform.web.addCookie(
+  name: 'sessionId',
+  value: 'abc123',
+  domain: 'example.com',
+);
+await $.platform.web.clearCookies();
+```
+
+```dart Dark Mode
+// Control dark mode
+await $.platform.web.enableDarkMode();
+await $.platform.web.disableDarkMode();
+```
+
+```dart Navigation
+// Browser navigation
+await $.platform.web.goBack();
+await $.platform.web.goForward();
+```
+
+</CodeGroup>
+
+### Advanced Web Features
+
+<CodeGroup>
+
+```dart Keyboard
+// Press single key
+await $.platform.web.pressKey(key: 'Enter');
+
+// Press key combination
+await $.platform.web.pressKeyCombo(keys: ['Control', 'a']);
+```
+
+```dart Clipboard
+// Clipboard operations
+await $.platform.web.setClipboard(text: 'Copied text');
+final content = await $.platform.web.getClipboard();
+```
+
+```dart Permissions
+// Grant browser permissions
+await $.platform.web.grantPermissions(
+  permissions: ['geolocation', 'notifications'],
+);
+await $.platform.web.clearPermissions();
+```
+
+```dart File Upload
+// Upload files
+await $.platform.web.uploadFile(
+  files: [
+    UploadFileData(
+      name: 'document.pdf',
+      content: pdfBytes,
+      mimeType: 'application/pdf',
+    ),
+  ],
+);
+```
+
+```dart Downloads
+// Verify file downloads
+final downloads = await $.platform.web.verifyFileDownloads();
+expect(downloads, hasLength(1));
+expect(downloads.first.name, 'report.pdf');
+```
+
+```dart Window
+// Resize browser window
+await $.platform.web.resizeWindow(
+  size: Size(1920, 1080),
+);
+```
+
+</CodeGroup>
+
+### Working with iFrames
+
+Web tests often need to interact with content inside iframes:
+
+```dart
+// Tap element inside an iframe
+await $.platform.web.tap(
+  WebSelector(text: 'Submit Payment'),
+  iframeSelector: WebSelector(cssOrXpath: 'css=#payment-iframe'),
+);
+```
+
+## Device Information
+
+Query information about the device running your tests:
+
+```dart Device Queries
+// Check if running on virtual device
+final isVirtual = await $.platform.mobile.isVirtualDevice();
+
+// Get OS version
+final osVersion = await $.platform.mobile.getOsVersion();
+if (osVersion >= 30) {
+  // Android 11+ specific behavior
+}
+```
+
+## Real-World Example
+
+Here's a complete test demonstrating native automation:
+
+```dart Complete Example
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'user can take and upload a photo',
+    ($) async {
+      await $.pumpWidgetAndSettle(MyApp());
+
+      // Navigate to profile
+      await $(#profileTab).tap();
+      await $(#editProfileButton).tap();
+
+      // Tap camera button
+      await $(#cameraButton).tap();
+
+      // Handle camera permission
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await $.platform.mobile.grantPermissionOnlyThisTime();
+      }
+
+      // Take photo (this opens native camera)
+      await $.platform.mobile.tap(Selector(text: 'Take Photo'));
+      
+      // Wait for camera to open (native UI)
+      await Future.delayed(Duration(seconds: 2));
+      
+      // Tap shutter button
+      await $.platform.mobile.tap(Selector(text: 'Capture'));
+      
+      // Confirm photo
+      await $.platform.mobile.tap(Selector(text: 'Use Photo'));
+
+      // Back in Flutter app - verify photo was set
+      await $('Photo uploaded successfully').waitUntilVisible();
+      expect($(#profilePhoto).visible, equals(true));
+    },
+  );
+}
+```
+
+## Limitations and Considerations
+
+<Warning>
+**Native automation has some important limitations:**
+
+1. **No Web Workers**: Web automation cannot interact with Web Workers
+2. **Slower than Flutter**: Native interactions are slower than pure Flutter widget interactions
+3. **Platform Differences**: Some features work differently across platforms
+4. **Flakiness**: Native automation can be more flaky than Flutter widget tests
+5. **Setup Complexity**: Requires additional native configuration compared to widget tests
+</Warning>
+
+<Tip>
+**Best Practices:**
+
+- Use native automation only when necessary (permissions, notifications, WebViews)
+- Prefer Flutter finders (`$`) for in-app interactions
+- Add appropriate waits before native interactions
+- Test on real devices when possible
+- Have fallback strategies for flaky native interactions
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+
+<Card title="Hot Restart" icon="bolt" href="/concepts/hot-restart">
+  Learn about fast iteration with patrol develop
+</Card>
+
+<Card title="Native Setup" icon="wrench" href="/native/setup">
+  Complete native platform configuration
+</Card>
+
+</CardGroup>

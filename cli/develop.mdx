@@ -1,0 +1,467 @@
+---
+title: patrol develop
+description: Develop integration tests with Hot Restart for rapid iteration
+---
+
+The `patrol develop` command enables rapid test development by leveraging Flutter's Hot Restart feature. Make changes to your tests and see results instantly without rebuilding.
+
+## Synopsis
+
+```bash
+patrol develop --target <test_file> [options]
+```
+
+## Description
+
+`patrol develop` builds your app once, then allows you to iterate quickly on test code using Hot Restart. After the initial build completes, press **R** to restart your tests with code changes applied instantly.
+
+This dramatically speeds up the test development workflow:
+
+- **No rebuilds** - Only the initial build is required
+- **Instant feedback** - Press R to restart with changes
+- **Live development** - Edit tests and see results immediately
+
+<Note>
+Hot Restart only restarts the Flutter part of your app. Native code changes require a full rebuild.
+</Note>
+
+## Basic Usage
+
+### Start developing a test
+
+```bash
+patrol develop --target patrol_test/login_test.dart
+```
+
+### Workflow
+
+<Steps>
+  <Step title="Start develop mode">
+    Run the command with your test file:
+    ```bash
+    patrol develop --target patrol_test/login_test.dart
+    ```
+  </Step>
+  
+  <Step title="Wait for initial build">
+    The first build takes the usual time. Once complete, the app launches and tests run.
+  </Step>
+  
+  <Step title="Edit your test">
+    Make changes to your test code in your editor.
+  </Step>
+  
+  <Step title="Press R to restart">
+    After Hot Restart activates, press **R** in the terminal to run your updated tests.
+  </Step>
+  
+  <Step title="Repeat">
+    Continue editing and restarting as needed.
+  </Step>
+</Steps>
+
+## Required Options
+
+<ParamField path="--target" type="string" required>
+  The test file to develop with Hot Restart. Only one target is allowed.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart
+  ```
+</ParamField>
+
+<Warning>
+Unlike `patrol test`, the develop command requires exactly one `--target` and does not support multiple targets.
+</Warning>
+
+## Device Selection
+
+<ParamField path="--device" type="string" default="first device">
+  Specify which device to run on.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --device "iPhone 15 Pro"
+  patrol develop --target patrol_test/app_test.dart --device emulator-5554
+  ```
+</ParamField>
+
+## Build Configuration
+
+### Build Mode
+
+<ParamField path="--debug" type="flag" default="true">
+  Run in debug mode (default and only supported mode).
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --debug
+  ```
+</ParamField>
+
+<Warning>
+The `--release` flag is not supported with develop mode. Hot Restart only works in debug mode.
+</Warning>
+
+### Flavors
+
+<ParamField path="--flavor" type="string">
+  Build a specific flavor of your app.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --flavor staging
+  ```
+</ParamField>
+
+### Build Versioning
+
+<ParamField path="--build-name" type="string">
+  Set custom build name (version).
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --build-name 1.2.3
+  ```
+</ParamField>
+
+<ParamField path="--build-number" type="string">
+  Set custom build number (version code).
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --build-number 123
+  ```
+</ParamField>
+
+### Dart Defines
+
+<ParamField path="--dart-define" type="string">
+  Pass environment variables to your app.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart \
+    --dart-define API_URL=https://staging.example.com
+  ```
+</ParamField>
+
+<ParamField path="--dart-define-from-file" type="string">
+  Load environment variables from a file.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart \
+    --dart-define-from-file config/dev.json
+  ```
+</ParamField>
+
+## Test Execution Options
+
+<ParamField path="--uninstall" type="flag" default="true">
+  Uninstall the app before starting.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --uninstall
+  patrol develop --target patrol_test/app_test.dart --no-uninstall
+  ```
+</ParamField>
+
+<ParamField path="--hide-test-steps" type="flag" default="false">
+  Hide individual test steps from output.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --hide-test-steps
+  ```
+</ParamField>
+
+<ParamField path="--clear-test-steps" type="flag" default="true">
+  Clear test steps after each test run.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --clear-test-steps
+  ```
+</ParamField>
+
+<ParamField path="--label" type="flag" default="true">
+  Display label overlay on the app.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --no-label
+  ```
+</ParamField>
+
+## Platform-Specific Options
+
+### Android
+
+<ParamField path="--package-name" type="string">
+  Override the Android package name.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart \
+    --package-name com.example.myapp
+  ```
+</ParamField>
+
+### iOS
+
+<ParamField path="--bundle-id" type="string">
+  Override the iOS bundle identifier.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart \
+    --bundle-id com.example.MyApp
+  ```
+</ParamField>
+
+<ParamField path="--ios" type="string" default="latest">
+  Specify iOS version for simulators.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --ios 17.5
+  ```
+</ParamField>
+
+## DevTools Integration
+
+<ParamField path="--open-devtools" type="flag" default="false">
+  Automatically open Patrol extension in DevTools when ready.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --open-devtools
+  ```
+</ParamField>
+
+## Advanced Options
+
+<ParamField path="--test-server-port" type="number" default="8081">
+  Port for the test instrumentation server.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --test-server-port 9001
+  ```
+</ParamField>
+
+<ParamField path="--app-server-port" type="number" default="8082">
+  Port for the app under test server.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --app-server-port 9002
+  ```
+</ParamField>
+
+<ParamField path="--check-compatibility" type="flag" default="true">
+  Verify dependency compatibility.
+  
+  ```bash
+  patrol develop --target patrol_test/app_test.dart --no-check-compatibility
+  ```
+</ParamField>
+
+## Examples
+
+<CodeGroup>
+
+```bash Basic
+# Start developing a test
+patrol develop --target patrol_test/login_test.dart
+```
+
+```bash With Device
+# Develop on specific device
+patrol develop \
+  --target patrol_test/app_test.dart \
+  --device "iPhone 15 Pro"
+```
+
+```bash With Flavor
+# Develop with staging flavor
+patrol develop \
+  --target patrol_test/app_test.dart \
+  --flavor staging
+```
+
+```bash With Environment
+# Pass environment variables
+patrol develop \
+  --target patrol_test/app_test.dart \
+  --dart-define API_URL=https://dev.example.com \
+  --dart-define DEBUG_MODE=true
+```
+
+```bash With DevTools
+# Auto-open DevTools
+patrol develop \
+  --target patrol_test/app_test.dart \
+  --open-devtools
+```
+
+</CodeGroup>
+
+## Demo
+
+Watch Hot Restart in action:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Z71ltoGbFw0" title="Patrol Hot Restart Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+## Caveats and Limitations
+
+`patrol develop` is powerful, but it has important limitations to understand.
+
+### Flutter vs Native Restart
+
+Flutter apps consist of two parts: native and Flutter. **Hot Restart only restarts the Flutter part**.
+
+When you press **R**:
+- ✅ Flutter code restarts (your `main()` runs again)
+- ❌ Native code does NOT restart
+- ❌ App data is NOT cleared
+- ❌ App is NOT uninstalled
+
+### Platform Support
+
+<Warning>
+**Physical iOS devices**: Hot Restart is unreliable on physical iOS devices due to a [Flutter bug](https://github.com/flutter/flutter/issues/122698). We recommend using simulators for develop mode.
+</Warning>
+
+<Warning>
+**macOS and Web**: These platforms are not currently supported with develop mode.
+</Warning>
+
+Supported platforms:
+- ✅ Android emulators
+- ✅ Android physical devices
+- ✅ iOS simulators
+- ❌ iOS physical devices (unreliable)
+- ❌ macOS
+- ❌ Web
+
+### State Persistence
+
+Because Hot Restart doesn't clear app state, you need to handle these scenarios:
+
+#### Permissions
+
+Once granted, permissions cannot be revoked without killing the app. When the app dies, Hot Restart stops.
+
+**Workaround**: Handle both granted and not-granted states in your tests.
+
+```dart
+patrol('permission test', (\$) async {
+  final status = await checkPermission();
+  
+  if (status.isGranted) {
+    // Already granted, skip request
+  } else {
+    // Request permission
+    await requestPermission();
+  }
+});
+```
+
+#### File System
+
+Files created in internal storage persist between Hot Restarts.
+
+**Workaround**: Clean up files at the start or end of your tests.
+
+```dart
+patrol('file test', (\$) async {
+  // Clean up from previous runs
+  await clearTestData();
+  
+  // Your test code
+  await createFile('test.txt');
+  
+  // Clean up for next run
+  await clearTestData();
+});
+```
+
+#### Shared Preferences
+
+Data saved to SharedPreferences persists between Hot Restarts.
+
+**Workaround**: Clear preferences in your test setup.
+
+```dart
+patrol('preferences test', (\$) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.clear();
+  
+  // Your test code
+});
+```
+
+#### Native State
+
+Native code that runs only on app launch won't re-execute on Hot Restart.
+
+**Impact**: If your app initializes native SDKs or services on startup, they won't be re-initialized.
+
+## Best Practices
+
+<Steps>
+  <Step title="Use simulators/emulators">
+    Avoid physical iOS devices. Use iOS simulators or Android emulators for reliable Hot Restart.
+  </Step>
+  
+  <Step title="Clean state in tests">
+    Add cleanup code to handle persisted state between restarts.
+    
+    ```dart
+    patrol('test', (\$) async {
+      await cleanupState();
+      // test code
+    });
+    ```
+  </Step>
+  
+  <Step title="Handle permission states">
+    Write tests that work whether permissions are granted or not.
+  </Step>
+  
+  <Step title="Test with full build">
+    Periodically run `patrol test` to verify tests work with clean state.
+  </Step>
+</Steps>
+
+## Hot Restart vs Hot Reload
+
+| Feature | Hot Restart | Hot Reload |
+|---------|-------------|------------|
+| Speed | Fast (~1s) | Very fast (&lt;1s) |
+| Preserves state | No | Yes |
+| Runs main() | Yes | No |
+| Supported by Patrol | Yes | No |
+
+For more details, see [this Stack Overflow answer](https://stackoverflow.com/q/61787776/7009800).
+
+## Troubleshooting
+
+### Hot Restart not activating
+
+If Hot Restart doesn't become available:
+
+1. Wait a few seconds after the app starts
+2. Check terminal for error messages
+3. Ensure you're using a supported platform (not physical iOS)
+4. Try restarting the develop command
+
+### Changes not applying
+
+If pressing R doesn't apply changes:
+
+1. Verify your file is saved
+2. Check for compilation errors
+3. Ensure changes are in Flutter code, not native code
+4. Try a full rebuild with `patrol test`
+
+### App crashes on restart
+
+If the app crashes when pressing R:
+
+1. Check for state-related issues (permissions, files, etc.)
+2. Review native code that may not handle restart well
+3. Add proper cleanup in test setup
+4. Check logs for error details
+
+## Related Commands
+
+- [patrol test](/cli/test) - Run tests with full builds
+- [patrol build](/cli/build) - Build test binaries
+- [patrol devices](/cli/devices) - List available devices

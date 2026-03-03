@@ -1,0 +1,545 @@
+---
+title: Advanced Techniques
+description: Master complex finder scenarios, custom predicates, and advanced Patrol features
+---
+
+This page covers advanced Patrol features for handling complex test scenarios that go beyond basic widget finding.
+
+## The `which()` Method
+
+When descendant/ancestor relationships aren't enough, use `which()` to find widgets by their properties.
+
+### Basic Usage
+
+The `which()` method filters widgets based on a predicate function:
+
+```dart
+await $(ElevatedButton)
+  .which<ElevatedButton>((button) => button.enabled)
+  .tap();
+```
+
+### Real-World Examples
+
+<Steps>
+  <Step title="Find enabled buttons">
+    ```dart
+    // Tap on the first enabled button
+    await $(ElevatedButton)
+      .which<ElevatedButton>((button) => button.enabled)
+      .tap();
+    ```
+  </Step>
+
+  <Step title="Find widgets by color">
+    ```dart
+    // Find button with red background
+    await $(ElevatedButton)
+      .which<ElevatedButton>(
+        (btn) => btn.style?.backgroundColor?.resolve({}) == Colors.red,
+      )
+      .tap();
+    ```
+  </Step>
+
+  <Step title="Find icons by color">
+    ```dart
+    // Assert error icon is red
+    await $(Icons.error)
+      .which<Icon>((widget) => widget.color == Colors.red)
+      .waitUntilVisible();
+    ```
+  </Step>
+
+  <Step title="Find text fields by content">
+    ```dart
+    // Enter text into empty field
+    await $(TextField)
+      .which<TextField>((field) => field.controller?.text.isEmpty ?? true)
+      .enterText('New text');
+    ```
+  </Step>
+</Steps>
+
+### Chaining Multiple Conditions
+
+Chain multiple `which()` calls to combine conditions:
+
+```dart
+// Find enabled red button
+await $(ElevatedButton)
+  .which<ElevatedButton>((button) => button.enabled)
+  .which<ElevatedButton>(
+    (btn) => btn.style?.backgroundColor?.resolve({}) == Colors.red,
+  )
+  .tap();
+```
+
+### Complex Property Checks
+
+```dart
+// Find button by font size
+await $(ElevatedButton)
+  .which<ElevatedButton>(
+    (button) => button.style?.textStyle?.resolve({})?.fontSize == 20,
+  )
+  .tap();
+
+// Find disabled button with specific text
+await $('Delete account')
+  .which<ElevatedButton>((button) => !button.enabled)
+  .which<ElevatedButton>(
+    (btn) => btn.style?.backgroundColor?.resolve({}) == Colors.red,
+  )
+  .waitUntilVisible();
+```
+
+<Tip>
+The type parameter `<T>` in `which<T>()` is important—it ensures type safety and gives you proper autocompletion for widget properties.
+</Tip>
+
+## Advanced Scrolling
+
+### Understanding `scrollTo()`
+
+The `scrollTo()` method is powerful but has important behavior to understand:
+
+<Steps>
+  <Step title="Waits for Scrollable">
+    Waits for at least 1 Scrollable widget (or your custom `view`) to become visible
+  </Step>
+
+  <Step title="Scrolls until visible">
+    Scrolls the widget in its scrolling direction until the target widget becomes visible
+  </Step>
+
+  <Step title="Succeeds or throws">
+    If the target becomes visible within timeout, it succeeds. Otherwise, throws an exception
+  </Step>
+</Steps>
+
+### Basic Scrolling
+
+```dart
+// Scroll to widget in first Scrollable
+await $('Delete account').scrollTo().tap();
+```
+
+### The Multiple Scrollable Problem
+
+<Warning>
+**Important**: By default, `scrollTo()` scrolls the **first** Scrollable widget found. This can cause problems when multiple Scrollables are visible!
+</Warning>
+
+Consider this app:
+
+```dart
+class App extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: Column(
+          children: [
+            Expanded(child: ListView(key: Key('listView1'))),
+            Expanded(
+              child: ListView.builder(
+                key: Key('listView2'),
+                itemCount: 101,
+                itemBuilder: (context, index) => Text('index: $index'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+This won't work:
+
+```dart
+// ❌ Will timeout - scrolls wrong ListView!
+await $('index: 100').scrollTo().tap();
+```
+
+The solution is to specify which Scrollable:
+
+```dart
+// ✅ Explicitly specify the second ListView
+await $('index: 100')
+  .scrollTo(view: $(#listView2).$(Scrollable))
+  .tap();
+```
+
+<Note>
+**Why `$(#listView2).$(Scrollable)`?**
+
+ListView doesn't extend Scrollable—it builds a Scrollable widget internally. This is a [known Flutter issue](https://github.com/flutter/flutter/issues/88762).
+</Note>
+
+### Scrolling Configuration
+
+Customize scroll behavior with these parameters:
+
+```dart
+await $('Far item').scrollTo(
+  // Specify which Scrollable to use
+  view: $(#myScrollView).$(Scrollable),
+  
+  // Pixels to scroll per iteration
+  step: 128.0,
+  
+  // Scroll direction (auto-detected by default)
+  scrollDirection: AxisDirection.down,
+  
+  // Maximum scroll attempts
+  maxScrolls: 50,
+  
+  // Time between scrolls
+  settleBetweenScrollsTimeout: Duration(seconds: 5),
+  
+  // Drag duration per scroll
+  dragDuration: Duration(milliseconds: 100),
+  
+  // How to pump frames
+  settlePolicy: SettlePolicy.trySettle,
+  
+  // Where to check visibility
+  alignment: Alignment.center,
+);
+```
+
+### Scrolling with Alignment
+
+When widgets are partially visible, specify where to check:
+
+```dart
+// Check visibility at left edge
+await $(ElevatedButton)
+  .scrollTo(alignment: Alignment.centerLeft)
+  .tap();
+```
+
+## Settle Policies
+
+Settle policies control how Patrol pumps frames after actions.
+
+### Understanding Frame Pumping
+
+In Flutter testing, "pumping" means rendering frames. After an action (like tapping), you need to pump frames to let the UI update.
+
+### The Three Policies
+
+<CodeGroup>
+
+```dart SettlePolicy.settle
+// Pumps frames until none are pending
+// Throws if timeout is reached
+await $('Button').tap(settlePolicy: SettlePolicy.settle);
+```
+
+```dart SettlePolicy.trySettle
+// Pumps frames until none are pending
+// Does NOT throw if timeout is reached
+await $('Button').tap(settlePolicy: SettlePolicy.trySettle);
+```
+
+```dart SettlePolicy.noSettle
+// Pumps a single frame only
+await $('Button').tap(settlePolicy: SettlePolicy.noSettle);
+```
+
+</CodeGroup>
+
+### When to Use Each Policy
+
+<CardGroup cols={3}>
+  <Card title="settle" icon="check">
+    **Use when**: UI should stabilize
+    
+    **Best for**: Most actions in apps without infinite animations
+  </Card>
+  
+  <Card title="trySettle" icon="clock">
+    **Use when**: Infinite animations present
+    
+    **Best for**: Apps with continuous animations, recommended as default
+  </Card>
+  
+  <Card title="noSettle" icon="forward">
+    **Use when**: You need precise control
+    
+    **Best for**: Testing mid-animation states
+  </Card>
+</CardGroup>
+
+### Infinite Animation Example
+
+```dart
+patrolWidgetTest(
+  'handles loading spinner',
+  config: PatrolTesterConfig(
+    settlePolicy: SettlePolicy.trySettle,
+  ),
+  ($) async {
+    await $.pumpWidgetAndSettle(const AppWithInfiniteAnimation());
+    
+    // Won't throw even though spinner never settles
+    await $(#loginButton).tap();
+  },
+);
+```
+
+<Info>
+`SettlePolicy.trySettle` will be the default in future Patrol releases because it works with both finite and infinite animations.
+</Info>
+
+## How Patrol's `tap()` Differs from Flutter's
+
+Patrol's `tap()` is fundamentally different from Flutter's default behavior.
+
+### Flutter's Default Behavior
+
+```dart
+// ❌ Fails immediately if widget not visible
+await tester.tap(find.byKey(Key('addComment')).first);
+await tester.pumpAndSettle();
+```
+
+Problems:
+1. Fails immediately if widget not found
+2. Doesn't check if widget is visible to user
+3. Requires manual `pumpAndSettle()`
+
+### Patrol's Smart Behavior
+
+```dart
+// ✅ Waits for widget to become visible
+await $(#addComment).tap();
+```
+
+Benefits:
+1. Waits until widget is visible (with timeout)
+2. Checks actual visibility, not just existence
+3. Automatically pumps frames
+
+### The Traditional Way (Verbose)
+
+```dart
+// This is what you'd need without Patrol:
+while (find.byKey(Key('addComment')).first.evaluate().isEmpty) {
+  await tester.pump(Duration(milliseconds: 100));
+}
+await tester.tap(find.byKey(Key('addComment')).first);
+await tester.pumpAndSettle();
+```
+
+### The Patrol Way (Concise)
+
+```dart
+// All the above, in one line:
+await $(#addComment).tap();
+```
+
+## Visibility vs Existence
+
+Understanding the difference is crucial:
+
+### Existence
+
+A widget exists if it's in the widget tree, even if off-screen:
+
+```dart
+// Check existence (might be off-screen)
+expect($('Bottom item').exists, true);
+
+// Wait for existence
+await $('Background widget').waitUntilExists();
+```
+
+### Visibility
+
+A widget is visible if it's on-screen and hit-testable:
+
+```dart
+// Check visibility (must be on-screen)
+expect($('Bottom item').visible, false);
+
+// Wait for visibility
+await $('Bottom item').waitUntilVisible();
+```
+
+<Info>
+If a widget is visible, it always exists. But an existing widget might not be visible!
+</Info>
+
+### Visibility with Alignment
+
+Some widgets (like Row or Column) might be partially visible:
+
+```dart
+class Foo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        Text('Foo'),
+        SizedBox(height: 48),  // Empty space in center
+        Text('Bar'),
+      ],
+    );
+  }
+}
+
+// This fails - center is empty
+await $(Foo).waitUntilVisible();
+
+// This works - checks top instead
+await $(Foo).waitUntilVisible(alignment: Alignment.topCenter);
+```
+
+## Timeout Configuration
+
+Control timeouts globally or per-action:
+
+### Global Timeout
+
+```dart
+patrolWidgetTest(
+  'test with custom timeouts',
+  config: PatrolTesterConfig(
+    visibleTimeout: Duration(seconds: 20),
+    existsTimeout: Duration(seconds: 15),
+    settleTimeout: Duration(seconds: 10),
+  ),
+  ($) async {
+    // All actions use these timeouts
+  },
+);
+```
+
+### Per-Action Timeout
+
+```dart
+// Override timeout for specific action
+await $(#slowLoadingWidget).tap(
+  visibleTimeout: Duration(seconds: 30),
+);
+
+await $('Eventually appears').waitUntilVisible(
+  timeout: Duration(minutes: 1),
+);
+```
+
+## Mixing Patrol and Flutter APIs
+
+Patrol builds on `flutter_test`, so you can freely mix both:
+
+```dart
+patrolWidgetTest('mixed approach', (PatrolTester $) async {
+  // Use Patrol's pumpWidget
+  await $.pumpWidgetAndSettle(const MyApp());
+  
+  // Use Flutter's semantics finder with Patrol syntax
+  await $(find.bySemanticsLabel('Submit')).tap();
+  
+  // Access WidgetTester directly
+  final WidgetTester tester = $.tester;
+  await tester.drag(find.byType(ListView), Offset(0, -200));
+  
+  // Back to Patrol syntax
+  await $('Success').waitUntilVisible();
+});
+```
+
+## Complete Advanced Example
+
+Here's a comprehensive example using advanced techniques:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:patrol_finders/patrol_finders.dart';
+
+void main() {
+  patrolWidgetTest(
+    'advanced test with multiple techniques',
+    config: PatrolTesterConfig(
+      settlePolicy: SettlePolicy.trySettle,
+      visibleTimeout: Duration(seconds: 20),
+    ),
+    ($) async {
+      await $.pumpWidgetAndSettle(const ComplexApp());
+
+      // Scroll in specific ListView
+      await $('Item 99')
+        .scrollTo(view: $(#secondList).$(Scrollable))
+        .tap();
+
+      // Find enabled button by property
+      await $(ElevatedButton)
+        .which<ElevatedButton>((btn) => btn.enabled)
+        .which<ElevatedButton>(
+          (btn) => btn.style?.backgroundColor?.resolve({}) == Colors.blue,
+        )
+        .tap();
+
+      // Complex chaining with containing
+      await $(Card)
+        .containing($('Premium'))
+        .$(#upgradeButton)
+        .tap();
+
+      // Wait with custom timeout
+      await $('Success!')
+        .waitUntilVisible(timeout: Duration(seconds: 30));
+
+      // Check visibility at specific alignment
+      expect(
+        $(#partialWidget).isVisibleAt(alignment: Alignment.topLeft),
+        true,
+      );
+
+      // Tap with custom settle policy
+      await $('Confirm').tap(
+        settlePolicy: SettlePolicy.noSettle,
+        alignment: Alignment.bottomRight,
+      );
+    },
+  );
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use trySettle" icon="shield">
+    Set `SettlePolicy.trySettle` as default to handle apps with continuous animations
+  </Card>
+  
+  <Card title="Specify Scrollables" icon="scroll">
+    Always specify `view` when multiple Scrollables are present
+  </Card>
+  
+  <Card title="Type your which()" icon="code">
+    Always provide the type parameter to `which<T>()` for type safety
+  </Card>
+  
+  <Card title="Check visibility" icon="eye">
+    Use `visible` instead of `exists` when you care about user visibility
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="book" href="/api-reference">
+    Explore the complete API documentation
+  </Card>
+  
+  <Card title="Back to Overview" icon="arrow-left" href="/finders/overview">
+    Review the fundamentals
+  </Card>
+</CardGroup>

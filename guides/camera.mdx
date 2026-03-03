@@ -1,0 +1,498 @@
+---
+title: Testing Camera
+description: Learn how to test camera functionality in your Flutter app with Patrol
+---
+
+Testing camera functionality is essential for apps that capture photos or videos. Patrol provides native automation to interact with the device camera, take photos, and verify the captured images are properly handled by your app.
+
+## Overview
+
+Patrol enables camera testing by:
+- Opening the native camera app
+- Taking photos using device camera
+- Handling camera permissions
+- Using custom selectors for different devices
+- Testing both Android and iOS camera flows
+
+## Key Methods
+
+<CardGroup cols={2}>
+  <Card title="takeCameraPhoto" icon="camera">
+    Automatically tap shutter and confirm button to take a photo
+  </Card>
+  <Card title="grantPermissionWhenInUse" icon="shield-check">
+    Grant camera permission when requested
+  </Card>
+  <Card title="Custom Selectors" icon="sliders">
+    Provide custom selectors for unsupported devices
+  </Card>
+</CardGroup>
+
+## How takeCameraPhoto Works
+
+The `takeCameraPhoto()` method performs two actions:
+1. **Tap on shutter button** - Takes the photo
+2. **Tap on confirm button** - Confirms and saves the photo
+
+### Default Selectors
+
+Patrol uses different native selectors depending on the platform:
+
+| Platform | Shutter Button | Confirm Button |
+|----------|----------------|----------------|
+| Physical Android | `com.google.android.GoogleCamera:id/shutter_button` | `com.google.android.GoogleCamera:id/done_button` |
+| Emulator Android | `com.android.camera2:id/shutter_button` | `com.android.camera2:id/done_button` |
+| Simulator and Physical iOS | `PhotoCapture` | `Done` |
+
+<Info>
+The default selectors work without customization on iOS devices and most Android emulators and Pixel physical devices. For other Android devices, you may need to provide custom selectors.
+</Info>
+
+## Basic Camera Testing
+
+<Steps>
+  <Step title="Setup camera permissions">
+    Request and grant camera permission:
+    
+    ```dart
+    import 'package:patrol/patrol.dart';
+    
+    void main() {
+      patrolTest('takes a photo', ($) async {
+        await $.pumpWidgetAndSettle(const MyApp());
+        
+        // Tap button in your app that opens camera
+        await $.tap(#openCameraButton);
+        
+        // Grant camera permission if requested
+        if (await $.platform.mobile.isPermissionDialogVisible()) {
+          await $.platform.mobile.grantPermissionWhenInUse();
+        }
+      });
+    }
+    ```
+  </Step>
+  
+  <Step title="Take the photo">
+    Use `takeCameraPhoto()` to take a photo:
+    
+    ```dart
+    // Take photo with default selectors
+    await $.platform.mobile.takeCameraPhoto();
+    ```
+  </Step>
+  
+  <Step title="Verify in your app">
+    Verify that your app received and processed the photo:
+    
+    ```dart
+    // Verify photo appears in your app
+    await $('Photo captured successfully').waitUntilVisible();
+    
+    // Or verify image widget exists
+    expect($(Image).exists, true);
+    ```
+  </Step>
+</Steps>
+
+## Complete Examples
+
+### Basic Camera Test
+
+Simple test using default selectors:
+
+```dart title="patrol_test/camera_basic_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'takes a photo using default camera selectors',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      // Open camera from your app
+      await $.tap(#addPhotoButton);
+      
+      // Grant permission if needed
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await $.platform.mobile.grantPermissionWhenInUse();
+      }
+      
+      // Take photo using default selectors
+      await $.platform.mobile.takeCameraPhoto();
+      
+      // Verify photo was captured
+      await $('Photo saved').waitUntilVisible();
+      expect($(Image).exists, true);
+    },
+  );
+}
+```
+
+### Camera Test with Custom Selectors
+
+For devices that don't work with default selectors:
+
+```dart title="patrol_test/camera_custom_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'takes a photo with custom selectors',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      await $.tap(#addPhotoButton);
+      
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await $.platform.mobile.grantPermissionWhenInUse();
+      }
+      
+      // Use custom selectors for specific device
+      await $.platform.mobile.takeCameraPhoto(
+        shutterButtonSelector: NativeSelector(
+          android: AndroidSelector(
+            resourceName: 'com.oplus.camera:id/shutter_button',
+          ),
+          ios: IOSSelector(label: 'Take Picture'),
+        ),
+        doneButtonSelector: NativeSelector(
+          android: AndroidSelector(
+            resourceName: 'com.oplus.camera:id/done_button',
+          ),
+          ios: IOSSelector(label: 'Done'),
+        ),
+      );
+      
+      await $('Photo saved').waitUntilVisible();
+    },
+  );
+}
+```
+
+### Multiple Photos Test
+
+Test taking multiple photos in sequence:
+
+```dart title="patrol_test/camera_multiple_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'takes multiple photos',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      // Grant permission once
+      await $.tap(#addPhotoButton);
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await $.platform.mobile.grantPermissionWhenInUse();
+      }
+      
+      // Take first photo
+      await $.platform.mobile.takeCameraPhoto();
+      await $.pumpAndSettle();
+      
+      // Verify first photo
+      expect($(#photoCount).text, '1');
+      
+      // Take second photo
+      await $.tap(#addPhotoButton);
+      await $.platform.mobile.takeCameraPhoto();
+      await $.pumpAndSettle();
+      
+      // Verify second photo
+      expect($(#photoCount).text, '2');
+      
+      // Verify both photos are displayed
+      expect($(Image).count, equals(2));
+    },
+  );
+}
+```
+
+### Camera with Timeout
+
+Handle slow camera loading:
+
+```dart title="patrol_test/camera_timeout_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'takes photo with custom timeout',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      await $.tap(#addPhotoButton);
+      
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await $.platform.mobile.grantPermissionWhenInUse();
+      }
+      
+      // Wait longer for camera to initialize
+      await Future<void>.delayed(const Duration(seconds: 3));
+      
+      // Take photo with custom timeout
+      await $.platform.mobile.takeCameraPhoto(
+        timeout: Duration(seconds: 15),
+      );
+      
+      await $('Photo saved').waitUntilVisible();
+    },
+  );
+}
+```
+
+## Finding Custom Selectors
+
+If the default selectors don't work on your device, use the Patrol DevTools Extension:
+
+<Steps>
+  <Step title="Install DevTools Extension">
+    Install the [Patrol DevTools Extension](https://patrol.leancode.co/documentation/patrol-devtools-extension) for your IDE.
+  </Step>
+  
+  <Step title="Open camera manually">
+    Run your app and manually open the camera.
+  </Step>
+  
+  <Step title="Inspect native elements">
+    Use DevTools to inspect the shutter button and done button to find their resource IDs or labels.
+  </Step>
+  
+  <Step title="Use in your test">
+    Use the found selectors in your test:
+    
+    ```dart
+    await $.platform.mobile.takeCameraPhoto(
+      shutterButtonSelector: NativeSelector(
+        android: AndroidSelector(
+          resourceName: 'your.camera.app:id/capture_button',
+        ),
+      ),
+    );
+    ```
+  </Step>
+</Steps>
+
+## Platform-Specific Behavior
+
+<Tabs>
+  <Tab title="Android">
+    ### Android Camera Apps
+    
+    Different Android devices use different camera apps:
+    - Google Camera (Pixel devices)
+    - Samsung Camera
+    - OnePlus Camera
+    - Generic Camera2 API app
+    
+    **Emulator vs Physical Device:**
+    - Emulators typically use `com.android.camera2` camera app
+    - Physical devices vary by manufacturer
+    
+    ```dart
+    // Common Android camera selectors
+    
+    // Google Camera (Pixel)
+    AndroidSelector(
+      resourceName: 'com.google.android.GoogleCamera:id/shutter_button',
+    )
+    
+    // Generic Camera2
+    AndroidSelector(
+      resourceName: 'com.android.camera2:id/shutter_button',
+    )
+    
+    // Samsung Camera
+    AndroidSelector(
+      resourceName: 'com.sec.android.app.camera:id/shutter_button',
+    )
+    ```
+  </Tab>
+  
+  <Tab title="iOS">
+    ### iOS Camera
+    
+    iOS camera interface is more consistent across devices:
+    - Shutter button labeled `PhotoCapture` or `Take Picture`
+    - Done button labeled `Done` or `Use Photo`
+    
+    **Simulator vs Physical Device:**
+    - Simulator camera shows a static test image
+    - Physical devices use actual camera hardware
+    
+    ```dart
+    // iOS camera selectors
+    
+    // Shutter button
+    IOSSelector(label: 'PhotoCapture')
+    // or
+    IOSSelector(label: 'Take Picture')
+    
+    // Done button
+    IOSSelector(label: 'Done')
+    // or
+    IOSSelector(label: 'Use Photo')
+    ```
+    
+    <Info>
+    The default iOS selectors work on both simulators and physical devices without customization.
+    </Info>
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always handle camera permissions">
+    Check for and grant camera permissions before taking photos:
+    
+    ```dart
+    if (await $.platform.mobile.isPermissionDialogVisible()) {
+      await $.platform.mobile.grantPermissionWhenInUse();
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Add delays for camera initialization">
+    Camera apps need time to initialize:
+    
+    ```dart
+    await $.tap(#openCamera);
+    
+    // Wait for camera to initialize
+    await Future<void>.delayed(const Duration(seconds: 2));
+    
+    await $.platform.mobile.takeCameraPhoto();
+    ```
+  </Accordion>
+  
+  <Accordion title="Test on target devices">
+    Camera behavior varies significantly by device. Test on:
+    - Your target physical devices
+    - Both Android emulators and iOS simulators
+    - Different OS versions
+  </Accordion>
+  
+  <Accordion title="Use appropriate timeouts">
+    Camera operations can be slow. Use generous timeouts:
+    
+    ```dart
+    await $.platform.mobile.takeCameraPhoto(
+      timeout: Duration(seconds: 15),
+    );
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Common Camera Flows
+
+<CodeGroup>
+
+```dart Simple Photo Capture
+patrolTest('captures photo', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  await $.tap(#cameraButton);
+  
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    await $.platform.mobile.grantPermissionWhenInUse();
+  }
+  
+  await $.platform.mobile.takeCameraPhoto();
+  await $('Photo saved').waitUntilVisible();
+});
+```
+
+```dart Profile Picture Upload
+patrolTest('updates profile picture', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  
+  // Navigate to profile
+  await $.tap(#profileTab);
+  await $.tap(#editProfilePicture);
+  await $.tap(#takePhotoOption);
+  
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    await $.platform.mobile.grantPermissionWhenInUse();
+  }
+  
+  await $.platform.mobile.takeCameraPhoto();
+  
+  // Verify upload
+  await $('Profile updated').waitUntilVisible();
+  expect($(#profileImage).exists, true);
+});
+```
+
+```dart Document Scanner
+patrolTest('scans document', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  await $.tap(#scanDocumentButton);
+  
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    await $.platform.mobile.grantPermissionWhenInUse();
+  }
+  
+  // Take photo of document
+  await $.platform.mobile.takeCameraPhoto();
+  
+  // Verify document processing
+  await $('Document scanned').waitUntilVisible();
+  await $('Extract text').tap();
+  await $('Text extracted').waitUntilVisible();
+});
+```
+
+</CodeGroup>
+
+<Warning>
+Due to device differences, `takeCameraPhoto()` may not work on 100% of devices. Always test on your target devices and provide custom selectors when needed.
+</Warning>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Camera doesn't open">
+    - Verify camera permission is granted
+    - Check if device has a working camera (emulators need camera emulation enabled)
+    - Ensure your app correctly implements camera opening
+    - Try adding a delay after tapping the camera button
+  </Accordion>
+  
+  <Accordion title="Shutter button not found">
+    - Device may use a different camera app
+    - Use Patrol DevTools to find the correct selector
+    - Provide custom `shutterButtonSelector`
+    - Verify camera has fully loaded before taking photo
+  </Accordion>
+  
+  <Accordion title="Photo not appearing in app">
+    - Verify your app's image handling code
+    - Check that done/confirm button was tapped
+    - Ensure app has permission to save photos
+    - Add `$.pumpAndSettle()` after taking photo
+  </Accordion>
+  
+  <Accordion title="Test flaky on CI">
+    - Emulators may have unreliable camera emulation
+    - Increase timeouts for camera initialization
+    - Consider mocking camera for unit tests
+    - Use physical devices for integration tests
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+For faster and more reliable tests, consider mocking the camera functionality for most test cases, and only test actual camera integration on a subset of critical tests.
+</Tip>
+
+## Related Resources
+
+- [camera package](https://pub.dev/packages/camera)
+- [image_picker package](https://pub.dev/packages/image_picker)
+- [Patrol DevTools Extension](https://patrol.leancode.co/documentation/patrol-devtools-extension)

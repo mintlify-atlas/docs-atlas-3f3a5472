@@ -1,0 +1,378 @@
+---
+title: Firebase Test Lab
+description: Run Patrol tests on Firebase Test Lab for Android and iOS devices
+---
+
+Firebase Test Lab is a popular cloud-based testing infrastructure that allows you to test your Flutter apps on a wide range of real and virtual devices. This guide shows you how to run Patrol tests on Firebase Test Lab.
+
+<Info>
+  Before you proceed with the steps listed below, make sure that you've completed the [native setup](/native-setup) guide.
+</Info>
+
+## Overview
+
+Firebase Test Lab is Google's cloud-based testing infrastructure that provides access to physical and virtual devices. It's particularly popular in the Flutter community due to its integration with Google Cloud Platform and competitive pricing.
+
+<Tip>
+  While this guide focuses on Firebase Test Lab, the same approach works with other device farms like [AWS Device Farm](https://aws.amazon.com/device-farm/) or [Azure DevTest Labs](https://azure.microsoft.com/en-us/products/devtest-lab/).
+</Tip>
+
+## Prerequisites
+
+<Steps>
+  <Step title="Install gcloud CLI">
+    You need the `gcloud` command-line tool to interact with Firebase Test Lab. Install it from the [official documentation](https://cloud.google.com/sdk/docs/install).
+
+    After installation, authenticate with your Google Cloud account:
+
+    ```bash
+    gcloud auth login
+    ```
+  </Step>
+
+  <Step title="Enable Firebase Test Lab API">
+    Make sure the Firebase Test Lab API is enabled for your project:
+
+    ```bash
+    gcloud services enable testing.googleapis.com
+    ```
+  </Step>
+
+  <Step title="Set up Firebase project">
+    Configure your default project:
+
+    ```bash
+    gcloud config set project YOUR_PROJECT_ID
+    ```
+  </Step>
+</Steps>
+
+## Running Tests on Android
+
+<Steps>
+  <Step title="Build APKs">
+    Patrol needs to build two APKs for Android testing:
+    - The app under test (your Flutter app)
+    - The test instrumentation app (contains the test code)
+
+    Build both with a single command:
+
+    ```bash
+    patrol build android --target integration_test/example_test.dart
+    ```
+
+    <Info>
+      You can specify multiple test files by using comma separation:
+      ```bash
+      patrol build android --target integration_test/app_test.dart,integration_test/login_test.dart
+      ```
+    </Info>
+  </Step>
+
+  <Step title="Run tests on Firebase Test Lab">
+    Use the `gcloud` CLI to upload and run your tests:
+
+    ```bash
+    gcloud firebase test android run \
+      --type instrumentation \
+      --use-orchestrator \
+      --app build/app/outputs/apk/debug/app-debug.apk \
+      --test build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+      --timeout 10m \
+      --device model=MediumPhone.arm,version=34,locale=en,orientation=portrait \
+      --record-video \
+      --environment-variables clearPackageData=true
+    ```
+
+    <Note>
+      **Understanding the flags:**
+      - `--type instrumentation` - Specifies that this is an instrumentation test
+      - `--use-orchestrator` - Enables Android Test Orchestrator for isolated test execution
+      - `--app` - Path to your app APK
+      - `--test` - Path to your test APK
+      - `--timeout` - Maximum test execution time
+      - `--device` - Device configuration (model, OS version, locale, orientation)
+      - `--record-video` - Records video of the test execution
+      - `--environment-variables clearPackageData=true` - Clears app data between tests
+    </Note>
+  </Step>
+
+  <Step title="View results">
+    After the test completes, gcloud will output a link to view detailed results in the Firebase Console, including videos, logs, and screenshots.
+  </Step>
+</Steps>
+
+### Advanced Android Configuration
+
+<Accordion title="Testing on multiple devices">
+  You can test on multiple devices in parallel by specifying multiple `--device` flags:
+
+  ```bash
+  gcloud firebase test android run \
+    --type instrumentation \
+    --use-orchestrator \
+    --app build/app/outputs/apk/debug/app-debug.apk \
+    --test build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+    --device model=MediumPhone.arm,version=34 \
+    --device model=Pixel6,version=33 \
+    --device model=MediumTablet.arm,version=32
+  ```
+</Accordion>
+
+<Accordion title="Managing permissions">
+  By default, all permissions are granted automatically on Firebase Test Lab. To control this behavior, use the alpha version of gcloud:
+
+  ```bash
+  gcloud alpha firebase test android run \
+    --type instrumentation \
+    --use-orchestrator \
+    --app build/app/outputs/apk/debug/app-debug.apk \
+    --test build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+    --grant-permissions=none
+  ```
+
+  Learn more in the [gcloud documentation](https://cloud.google.com/sdk/gcloud/reference/alpha/firebase/test/android/run#--grant-permissions).
+</Accordion>
+
+<Accordion title="Automated script">
+  Create a shell script to avoid typing long commands. Here's an example:
+
+  ```bash title="run_android_testlab.sh"
+  #!/bin/bash
+  set -e
+
+  # Build APKs
+  echo "Building APKs..."
+  patrol build android --target integration_test/app_test.dart
+
+  # Run on Firebase Test Lab
+  echo "Running tests on Firebase Test Lab..."
+  gcloud firebase test android run \
+    --type instrumentation \
+    --use-orchestrator \
+    --app build/app/outputs/apk/debug/app-debug.apk \
+    --test build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+    --timeout 10m \
+    --device model=MediumPhone.arm,version=34,locale=en,orientation=portrait \
+    --record-video \
+    --environment-variables clearPackageData=true
+
+  echo "Test execution complete!"
+  ```
+
+  Make it executable:
+  ```bash
+  chmod +x run_android_testlab.sh
+  ```
+
+  See the [Patrol example app's script](https://github.com/leancodepl/patrol/blob/master/dev/e2e_app/run_android_testlab) for a production-ready version.
+</Accordion>
+
+## Running Tests on iOS
+
+<Steps>
+  <Step title="Build iOS apps">
+    Patrol needs to build two iOS apps:
+    - The app under test (your Flutter app)
+    - The test instrumentation app (contains the test code)
+
+    **For simulators:**
+    ```bash
+    patrol build ios --target integration_test/example_test.dart --debug --simulator
+    ```
+
+    **For physical devices:**
+    ```bash
+    patrol build ios --target integration_test/example_test.dart --release
+    ```
+
+    The command outputs the paths to the built artifacts:
+    ```
+    ✓ Completed building app with entrypoint example_test.dart for iOS device (31.5s)
+    build/ios_integ/Build/Products/Release-iphoneos/Runner.app (app under test)
+    build/ios_integ/Build/Products/Release-iphoneos/RunnerUITests-Runner.app (test instrumentation app)
+    build/ios_integ/Build/Products/Runner_iphoneos16.2-arm64.xctestrun (xctestrun file)
+    ```
+  </Step>
+
+  <Step title="Create test archive">
+    Firebase Test Lab requires all test files to be packaged in a zip archive:
+
+    ```bash
+    pushd build/ios_integ/Build/Products
+    zip -r ios_tests.zip Release-iphoneos Runner_iphoneos16.2-arm64.xctestrun
+    popd
+    ```
+
+    <Warning>
+      Make sure to include both the `Release-iphoneos` directory and the `.xctestrun` file in the zip archive.
+    </Warning>
+  </Step>
+
+  <Step title="Run tests on Firebase Test Lab">
+    Upload and execute the tests:
+
+    ```bash
+    gcloud firebase test ios run \
+      --test build/ios_integ/Build/Products/ios_tests.zip \
+      --device model=iphone14pro,version=16.6,locale=en_US,orientation=portrait \
+      --timeout 10m
+    ```
+
+    <Info>
+      If your `.xctestrun` file has a different iOS version in its name than the device you're testing on, simply rename the file to match. For example, if testing on iOS 16.6 but your file is named `Runner_iphoneos16.2-arm64.xctestrun`, rename it to `Runner_iphoneos16.6-arm64.xctestrun`.
+    </Info>
+  </Step>
+
+  <Step title="View results">
+    The gcloud CLI will output a link to view detailed test results in the Firebase Console.
+  </Step>
+</Steps>
+
+### Advanced iOS Configuration
+
+<Accordion title="Testing on multiple devices">
+  Test on multiple iOS devices in parallel:
+
+  ```bash
+  gcloud firebase test ios run \
+    --test build/ios_integ/Build/Products/ios_tests.zip \
+    --device model=iphone14pro,version=16.6 \
+    --device model=iphone13,version=15.7 \
+    --device model=ipadpro11,version=16.6
+  ```
+</Accordion>
+
+<Accordion title="Automated script">
+  Create a shell script for iOS testing:
+
+  ```bash title="run_ios_testlab.sh"
+  #!/bin/bash
+  set -e
+
+  TARGET=${1:-integration_test/app_test.dart}
+  IOS_VERSION="16.6"
+
+  # Build iOS apps
+  echo "Building iOS apps..."
+  patrol build ios --target "$TARGET" --release
+
+  # Create test archive
+  echo "Creating test archive..."
+  pushd build/ios_integ/Build/Products
+  
+  # Find the xctestrun file and rename if necessary
+  XCTESTRUN=$(find . -name "*.xctestrun" | head -n 1)
+  NEW_XCTESTRUN="Runner_iphoneos${IOS_VERSION}-arm64.xctestrun"
+  
+  if [ "$XCTESTRUN" != "./$NEW_XCTESTRUN" ]; then
+    mv "$XCTESTRUN" "$NEW_XCTESTRUN"
+  fi
+  
+  zip -r ios_tests.zip Release-iphoneos "$NEW_XCTESTRUN"
+  popd
+
+  # Run on Firebase Test Lab
+  echo "Running tests on Firebase Test Lab..."
+  gcloud firebase test ios run \
+    --test build/ios_integ/Build/Products/ios_tests.zip \
+    --device model=iphone14pro,version=${IOS_VERSION},locale=en_US,orientation=portrait \
+    --timeout 10m
+
+  echo "Test execution complete!"
+  ```
+
+  Make it executable:
+  ```bash
+  chmod +x run_ios_testlab.sh
+  ```
+
+  See the [Patrol example app's script](https://github.com/leancodepl/patrol/blob/master/dev/e2e_app/run_ios_testlab) for more examples.
+</Accordion>
+
+## Available Devices
+
+To see all available devices and OS versions:
+
+<CodeGroup>
+```bash Android
+gcloud firebase test android models list
+```
+
+```bash iOS
+gcloud firebase test ios models list
+```
+</CodeGroup>
+
+You can also browse available devices in the [Firebase Console](https://console.firebase.google.com/project/_/testlab/devices).
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Test Orchestrator" icon="flask">
+    Always use `--use-orchestrator` on Android to ensure tests run in isolation and don't affect each other.
+  </Card>
+
+  <Card title="Clear Package Data" icon="broom">
+    Set `clearPackageData=true` to ensure a clean state between test runs. Note this only clears your app's data, not system data.
+  </Card>
+
+  <Card title="Record Videos" icon="video">
+    Enable `--record-video` to capture test execution for debugging failures.
+  </Card>
+
+  <Card title="Set Timeouts" icon="clock">
+    Use reasonable `--timeout` values to avoid hanging tests consuming resources unnecessarily.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Tests timeout or don't start">
+    - Verify both APKs/apps were built correctly
+    - Check that the device model and OS version are available
+    - Increase the `--timeout` value
+    - Check the Firebase Console logs for detailed error messages
+  </Accordion>
+
+  <Accordion title="iOS .xctestrun version mismatch">
+    If you see errors about incompatible iOS versions, rename your `.xctestrun` file to match the target device's iOS version:
+
+    ```bash
+    mv Runner_iphoneos16.2-arm64.xctestrun Runner_iphoneos16.6-arm64.xctestrun
+    ```
+  </Accordion>
+
+  <Accordion title="Permission denied errors">
+    Make sure you're authenticated with gcloud:
+    ```bash
+    gcloud auth login
+    gcloud auth application-default login
+    ```
+
+    And verify your project is set correctly:
+    ```bash
+    gcloud config list
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CI/CD Integration" icon="circle-nodes" href="/ci-cd">
+    Learn how to integrate Firebase Test Lab into your CI/CD pipeline
+  </Card>
+
+  <Card title="BrowserStack" icon="browsers" href="/integrations/browserstack">
+    Explore alternative cloud testing platforms
+  </Card>
+</CardGroup>
+
+## Resources
+
+- [Firebase Test Lab Documentation](https://firebase.google.com/docs/test-lab)
+- [gcloud Android Test Reference](https://cloud.google.com/sdk/gcloud/reference/firebase/test/android/run)
+- [gcloud iOS Test Reference](https://cloud.google.com/sdk/gcloud/reference/firebase/test/ios/run)
+- [Patrol Example Scripts](https://github.com/leancodepl/patrol/tree/master/dev/e2e_app)

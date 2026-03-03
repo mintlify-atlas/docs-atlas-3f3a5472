@@ -1,0 +1,467 @@
+---
+title: Native Automation Setup
+description: Configure your Flutter project to use Patrol's native automation features
+---
+
+Native automation requires additional setup beyond the basic Patrol installation. This guide walks you through configuring your project for Android, iOS, and Web.
+
+<Info>
+If you haven't installed Patrol yet, start with the [main installation guide](/quickstart).
+</Info>
+
+## Prerequisites
+
+Before setting up native automation, ensure you have:
+
+<Steps>
+  <Step title="Patrol CLI installed">
+    ```bash
+    flutter pub global activate patrol_cli
+    ```
+  </Step>
+  
+  <Step title="Patrol package added">
+    ```bash
+    flutter pub add patrol --dev
+    ```
+  </Step>
+  
+  <Step title="pubspec.yaml configured">
+    ```yaml title="pubspec.yaml"
+    patrol:
+      app_name: My App
+      android:
+        package_name: com.example.myapp
+      ios:
+        bundle_id: com.example.MyApp
+    ```
+  </Step>
+</Steps>
+
+## Platform-Specific Setup
+
+Native automation requires integration with native test frameworks. Choose your platform:
+
+<Tabs>
+  <Tab title="Android">
+    ## Android Setup
+
+    Native automation on Android uses [UiAutomator](https://developer.android.com/training/testing/other-components/ui-automator) through Patrol's custom test runner.
+
+    <Steps>
+      <Step title="Create test directory">
+        Create the androidTest directory structure:
+        
+        ```bash
+        mkdir -p android/app/src/androidTest/java/com/example/myapp
+        ```
+        
+        <Warning>
+        Replace `com/example/myapp` with your app's package name path.
+        </Warning>
+      </Step>
+
+      <Step title="Create MainActivityTest.java">
+        Create `android/app/src/androidTest/java/com/example/myapp/MainActivityTest.java`:
+
+        ```java title="MainActivityTest.java"
+        package com.example.myapp; // replace with your package
+
+        import androidx.test.platform.app.InstrumentationRegistry;
+        import org.junit.Test;
+        import org.junit.runner.RunWith;
+        import org.junit.runners.Parameterized;
+        import org.junit.runners.Parameterized.Parameters;
+        import pl.leancode.patrol.PatrolJUnitRunner;
+
+        @RunWith(Parameterized.class)
+        public class MainActivityTest {
+            @Parameters(name = "{0}")
+            public static Object[] testCases() {
+                PatrolJUnitRunner instrumentation = (PatrolJUnitRunner) InstrumentationRegistry.getInstrumentation();
+                instrumentation.setUp(MainActivity.class);
+                instrumentation.waitForPatrolAppService();
+                return instrumentation.listDartTests();
+            }
+
+            public MainActivityTest(String dartTestName) {
+                this.dartTestName = dartTestName;
+            }
+
+            private final String dartTestName;
+
+            @Test
+            public void runDartTest() {
+                PatrolJUnitRunner instrumentation = (PatrolJUnitRunner) InstrumentationRegistry.getInstrumentation();
+                instrumentation.runDartTest(dartTestName);
+            }
+        }
+        ```
+
+        <Info>
+        If your AndroidManifest.xml uses `android:name="io.flutter.embedding.android.FlutterActivity"`, 
+        replace `MainActivity.class` with `io.flutter.embedding.android.FlutterActivity.class`.
+        </Info>
+      </Step>
+
+      <Step title="Configure build.gradle.kts">
+        Edit `android/app/build.gradle.kts` and add to `defaultConfig`:
+
+        ```kotlin title="android/app/build.gradle.kts"
+        android {
+            defaultConfig {
+                // ...
+                testInstrumentationRunner = "pl.leancode.patrol.PatrolJUnitRunner"
+                testInstrumentationRunnerArguments["clearPackageData"] = "true"
+            }
+
+            testOptions {
+                execution = "ANDROIDX_TEST_ORCHESTRATOR"
+            }
+        }
+
+        dependencies {
+            // ...
+            androidTestUtil("androidx.test:orchestrator:1.5.1")
+        }
+        ```
+      </Step>
+
+      <Step title="Handle ProGuard (if enabled)">
+        <Warning>
+        ProGuard can cause `ClassNotFoundException` issues. Either keep Patrol packages or disable ProGuard for debug builds:
+        </Warning>
+
+        ```kotlin title="android/app/build.gradle.kts"
+        buildTypes {
+            getByName("debug") {
+                isMinifyEnabled = false
+                isShrinkResources = false
+            }
+        }
+        ```
+      </Step>
+
+      <Step title="Verify setup">
+        Run a test to verify everything works:
+        
+        ```bash
+        patrol test --target patrol_test/example_test.dart
+        ```
+      </Step>
+    </Steps>
+
+    ### Groovy Build Files
+
+    If your project uses Groovy (`.gradle` files instead of `.gradle.kts`):
+
+    ```groovy title="android/app/build.gradle"
+    android {
+        defaultConfig {
+            // ...
+            testInstrumentationRunner "pl.leancode.patrol.PatrolJUnitRunner"
+            testInstrumentationRunnerArguments clearPackageData: "true"
+        }
+
+        testOptions {
+            execution "ANDROIDX_TEST_ORCHESTRATOR"
+        }
+    }
+
+    dependencies {
+        // ...
+        androidTestUtil "androidx.test:orchestrator:1.5.1"
+    }
+    ```
+  </Tab>
+
+  <Tab title="iOS">
+    ## iOS Setup
+
+    Native automation on iOS uses [XCTest](https://developer.apple.com/documentation/xctest) UI testing.
+
+    <Steps>
+      <Step title="Open Xcode workspace">
+        ```bash
+        open ios/Runner.xcworkspace
+        ```
+      </Step>
+
+      <Step title="Create UI test target">
+        1. Select `File > New > Target...`
+        2. Choose `UI Testing Bundle`
+        3. Set `Product Name` to `RunnerUITests`
+        4. Set `Organization Identifier` to match Runner (e.g., `com.example.MyApp`)
+        5. Ensure `Target to be Tested` is set to `Runner`
+        6. Set language to `Objective-C`
+        7. Click `Finish`
+
+        ![iOS test target creation](/assets/ios_test_target.png)
+      </Step>
+
+      <Step title="Delete launch tests">
+        Delete `RunnerUITestsLaunchTests.m` through Xcode (Move to Trash).
+      </Step>
+
+      <Step title="Set deployment target">
+        In Build Settings, ensure `iOS Deployment Target` for `RunnerUITests` matches `Runner`.
+        
+        <Info>
+        Minimum supported iOS version is 13.0.
+        </Info>
+      </Step>
+
+      <Step title="Update RunnerUITests.m">
+        Replace contents of `ios/RunnerUITests/RunnerUITests.m`:
+
+        ```objective-c title="ios/RunnerUITests/RunnerUITests.m"
+        @import XCTest;
+        @import patrol;
+        @import ObjectiveC.runtime;
+
+        PATROL_INTEGRATION_TEST_IOS_RUNNER(RunnerUITests)
+        ```
+      </Step>
+
+      <Step title="Update Podfile">
+        Add the test target to `ios/Podfile`:
+
+        ```ruby title="ios/Podfile"
+        target 'Runner' do
+          # Existing configuration...
+
+          target 'RunnerUITests' do
+            inherit! :complete
+          end
+        end
+        ```
+      </Step>
+
+      <Step title="Build iOS configuration">
+        ```bash
+        flutter build ios --config-only patrol_test/example_test.dart
+        ```
+      </Step>
+
+      <Step title="Install pods">
+        ```bash
+        cd ios
+        pod install --repo-update
+        ```
+      </Step>
+
+      <Step title="Configure build phases">
+        In Xcode, go to `RunnerUITests > Build Phases`:
+
+        1. Add two "Run Script Phase" build phases
+        2. Name them `xcode_backend build` and `xcode_backend embed_and_thin`
+        3. Order them as: Dependencies → `xcode_backend build` → Compile Sources → Resources → `xcode_backend embed_and_thin`
+
+        ![Build phases order](/assets/ios_runner_build_phases.png)
+      </Step>
+
+      <Step title="Add build scripts">
+        **xcode_backend build**:
+        ```bash
+        /bin/sh "$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh" build
+        ```
+
+        **xcode_backend embed_and_thin**:
+        ```bash
+        /bin/sh "$FLUTTER_ROOT/packages/flutter_tools/bin/xcode_backend.sh" embed_and_thin
+        ```
+      </Step>
+
+      <Step title="Disable parallel execution">
+        <Warning>
+        Parallel execution breaks Patrol. Disable it for all schemes.
+        </Warning>
+
+        1. Product > Scheme > Edit Scheme
+        2. Go to Test tab
+        3. Uncheck "Execute in parallel"
+        4. Repeat for all schemes if you have multiple
+      </Step>
+
+      <Step title="Disable script sandboxing">
+        In `RunnerUITests > Build Settings`, search for "User Script Sandboxing" and set to **No**.
+      </Step>
+
+      <Step title="Match configuration sets">
+        Ensure `RunnerUITests` has the same Configuration Set as `Runner` for each build configuration.
+
+        ![Configuration sets](/assets/ios_runner_configs.png)
+      </Step>
+
+      <Step title="Verify setup">
+        ```bash
+        patrol test --target patrol_test/example_test.dart
+        ```
+      </Step>
+    </Steps>
+
+    ### Physical iOS Devices
+
+    Testing on physical iOS devices requires additional setup. See the [Physical iOS Devices Setup](/documentation/physical-ios-devices-setup) guide.
+  </Tab>
+
+  <Tab title="Web">
+    ## Web Setup
+
+    Native automation for Flutter Web uses Playwright to control the browser.
+
+    <Steps>
+      <Step title="Install Node.js">
+        Ensure Node.js and npm are installed:
+        
+        ```bash
+        node --version
+        npm --version
+        ```
+      </Step>
+
+      <Step title="Verify with patrol doctor">
+        ```bash
+        patrol doctor
+        ```
+        
+        Look for the Web section showing Node.js and npm are found.
+      </Step>
+
+      <Step title="Run web tests">
+        ```bash
+        patrol test --target patrol_test/example_test.dart --platform web
+        ```
+        
+        Patrol will automatically:
+        - Install Playwright dependencies
+        - Set up browser drivers
+        - Launch your app in a browser
+        - Run the tests
+      </Step>
+    </Steps>
+
+    <Info>
+    Web automation requires no code changes in your Flutter project. Just ensure Node.js is installed and run tests with `--platform web`.
+    </Info>
+  </Tab>
+</Tabs>
+
+## Configuration Options
+
+### Native Automator Config
+
+You can customize native automation behavior in your tests:
+
+```dart title="patrol_test/example_test.dart"
+import 'package:patrol/patrol.dart';
+
+PatrolTesterConfig patrolConfig = PatrolTesterConfig(
+  platformConfig: PlatformAutomatorConfig.fromOptions(
+    // Connection timeout (must be > findTimeout)
+    connectionTimeout: const Duration(seconds: 30),
+    
+    // Time to wait for native views to appear
+    findTimeout: const Duration(seconds: 10),
+    
+    // How keyboard behaves when entering text
+    keyboardBehavior: KeyboardBehavior.showAndDismiss,
+    
+    // Android package name
+    packageName: 'com.example.myapp',
+    
+    // iOS bundle identifier
+    bundleId: 'com.example.MyApp',
+    
+    // App names for notification handling
+    androidAppName: 'My App',
+    iosAppName: 'My App',
+  ),
+);
+
+void main() {
+  patrolTest(
+    'test with custom config',
+    config: patrolConfig,
+    ($) async {
+      // Your test code
+    },
+  );
+}
+```
+
+### Keyboard Behavior
+
+Control how the keyboard is handled when entering text:
+
+```dart
+// Show keyboard when entering text, dismiss after
+KeyboardBehavior.showAndDismiss  // Default
+
+// Alternative keyboard behaviors
+KeyboardBehavior.alternative  // Platform-specific alternative
+```
+
+## Troubleshooting
+
+### Android
+
+<AccordionGroup>
+  <Accordion title="ClassNotFoundException: PatrolJUnitRunner">
+    Ensure you've added `patrol` to your `pubspec.yaml` dev_dependencies and run:
+    ```bash
+    flutter pub get
+    ```
+  </Accordion>
+
+  <Accordion title="Tests not found">
+    Verify your `patrol_test` directory exists and contains `.dart` test files.
+  </Accordion>
+
+  <Accordion title="ProGuard errors">
+    Disable ProGuard for debug builds or configure keep rules for Patrol classes.
+  </Accordion>
+</AccordionGroup>
+
+### iOS
+
+<AccordionGroup>
+  <Accordion title="Module 'patrol' not found">
+    Ensure you ran `pod install` in the ios directory after updating Podfile.
+  </Accordion>
+
+  <Accordion title="Tests run in parallel and fail">
+    Disable parallel execution in all Xcode schemes (Edit Scheme > Test > uncheck "Execute in parallel").
+  </Accordion>
+
+  <Accordion title="Build phase errors">
+    Verify the xcode_backend scripts are in the correct order and User Script Sandboxing is disabled.
+  </Accordion>
+</AccordionGroup>
+
+### Web
+
+<AccordionGroup>
+  <Accordion title="Node.js not found">
+    Install Node.js from [nodejs.org](https://nodejs.org) or use a version manager like nvm.
+  </Accordion>
+
+  <Accordion title="Browser driver issues">
+    Let Patrol install drivers automatically on first run, or manually run:
+    ```bash
+    npx playwright install
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/native/usage">
+    Learn how to use the native automation API
+  </Card>
+  
+  <Card title="Write Your First Test" icon="pen" href="/documentation/write-your-first-test">
+    Create your first Patrol test with native automation
+  </Card>
+</CardGroup>

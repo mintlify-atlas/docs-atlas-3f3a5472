@@ -1,0 +1,163 @@
+---
+title: NativeAutomator (Deprecated)
+description: Legacy interface for native platform automation - use PlatformAutomator instead
+---
+
+<Warning>
+  `NativeAutomator` is deprecated and will be removed in a future release. Use `PlatformAutomator` instead via `$.platform` or `$.platformAutomator`.
+</Warning>
+
+`NativeAutomator` was the original interface for interacting with native platform features. It has been superseded by `PlatformAutomator` which provides a more unified cross-platform API.
+
+## Migration Guide
+
+### Old API (Deprecated)
+
+```dart
+patrolTest('old way', ($) async {
+  // Using deprecated NativeAutomator
+  await $.native.tap(Selector(text: 'Allow'));
+  await $.native.pressHome();
+  await $.native.grantPermissionWhenInUse();
+});
+```
+
+### New API (Recommended)
+
+```dart
+patrolTest('new way', ($) async {
+  // Using PlatformAutomator
+  await $.platform.tap(Selector(text: 'Allow'));
+  await $.platform.mobile.pressHome();
+  await $.platform.mobile.grantPermissionWhenInUse();
+});
+```
+
+## Key Differences
+
+The new `PlatformAutomator` provides:
+
+1. **Platform-specific namespaces**: Methods are organized under `android`, `ios`, `web`, and `mobile`
+2. **Better type safety**: Platform-specific selectors and methods
+3. **Web support**: Includes web automation capabilities
+4. **Clearer organization**: Related methods grouped by platform
+
+## Accessing NativeAutomator
+
+If you must use the deprecated API:
+
+```dart
+patrolTest('using deprecated API', ($) async {
+  // Via $.native shorthand
+  await $.native.pressHome();
+  
+  // Via $.nativeAutomator
+  await $.nativeAutomator.openApp();
+});
+```
+
+## Common Operations
+
+Here's how common operations map to the new API:
+
+### Device Interactions
+
+<CodeGroup>
+```dart Old (Deprecated)
+await $.native.pressHome();
+await $.native.pressBack();
+await $.native.openNotifications();
+```
+
+```dart New (Recommended)
+await $.platform.mobile.pressHome();
+await $.platform.android.pressBack();
+await $.platform.mobile.openNotifications();
+```
+</CodeGroup>
+
+### Native Element Interaction
+
+<CodeGroup>
+```dart Old (Deprecated)
+await $.native.tap(Selector(text: 'Allow'));
+await $.native.enterText(
+  Selector(resourceId: 'username'),
+  text: 'user@example.com',
+);
+```
+
+```dart New (Recommended)
+await $.platform.tap(Selector(text: 'Allow'));
+await $.platform.mobile.enterText(
+  Selector(resourceId: 'username'),
+  text: 'user@example.com',
+);
+```
+</CodeGroup>
+
+### Permissions
+
+<CodeGroup>
+```dart Old (Deprecated)
+await $.native.grantPermissionWhenInUse();
+await $.native.denyPermission();
+```
+
+```dart New (Recommended)
+await $.platform.mobile.grantPermissionWhenInUse();
+await $.platform.mobile.denyPermission();
+```
+</CodeGroup>
+
+### Settings & State
+
+<CodeGroup>
+```dart Old (Deprecated)
+await $.native.enableDarkMode();
+await $.native.enableWifi();
+await $.native.enableAirplaneMode();
+```
+
+```dart New (Recommended)
+await $.platform.mobile.enableDarkMode();
+await $.platform.mobile.enableWifi();
+await $.platform.mobile.enableAirplaneMode();
+```
+</CodeGroup>
+
+## Why the Change?
+
+The `PlatformAutomator` API provides:
+
+- **Better organization**: Platform-specific methods are clearly separated
+- **Type safety**: Each platform has its own selector types
+- **Future-proof**: Easier to add new platforms and features
+- **Clearer semantics**: Method names indicate which platforms they support
+
+## NativeView Class
+
+The `NativeView` class is still used to represent native UI elements:
+
+```dart
+class NativeView {
+  String? className;
+  String? text;
+  String? contentDescription;
+  bool focused;
+  bool enabled;
+  int? childCount;
+  String? resourceName;
+  String? applicationPackage;
+  List<NativeView> children;
+}
+```
+
+This class remains unchanged and works with both the old and new APIs.
+
+## See Also
+
+- [PlatformAutomator](/api/patrol-tester) - Recommended replacement
+- [AndroidAutomator](/api/android-automator) - Android-specific methods
+- [IOSAutomator](/api/ios-automator) - iOS-specific methods
+- [WebAutomator](/api/web-automator) - Web-specific methods

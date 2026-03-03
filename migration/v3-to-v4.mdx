@@ -1,0 +1,457 @@
+---
+title: Migrating from Patrol 3.x to 4.x
+description: Guide to upgrading from Patrol 3.x to 4.x with breaking changes and migration steps
+---
+
+Patrol 4.0 introduces significant improvements including web support, the new Platform Automation API, and enhanced testing capabilities. This guide will help you migrate your existing Patrol 3.x tests to 4.x.
+
+<Info>
+  Check out the [Patrol 4.0 release announcement](https://leancode.co/blog/patrol-4-0-release) for a complete overview of new features.
+</Info>
+
+## What's New in Patrol 4.0
+
+Patrol 4.0 brings several major improvements:
+
+- **Web Testing Support**: Test your Flutter web applications with Patrol
+- **Platform Automation API**: Unified API replacing the legacy `native` and `native2` APIs
+- **VS Code Extension**: Enhanced development experience with debugging and test running capabilities
+- **New Default Test Directory**: Changed from `integration_test/` to `patrol_test/`
+- **Improved Device Selection**: Interactive device prompts and better CI support
+
+## Breaking Changes
+
+<Warning>
+  The legacy Native Automation APIs (`$.native` and `$.native2`) are deprecated and will be removed in a future release. Migrate to `$.platform` as soon as possible.
+</Warning>
+
+### 1. Platform Automation API
+
+The biggest change in Patrol 4.0 is the introduction of the Platform Automation API, which replaces the legacy `$.native` and `$.native2` entry points.
+
+<Steps>
+
+<Step title="Update Native Automation Calls">
+
+**Before (Patrol 3.x):**
+```dart
+// Using $.native
+await $.native.tap(Selector(text: 'Allow'));
+await $.native.pressBack();
+
+// Using $.native2
+await $.native2.pressHome();
+await $.native2.tap(
+  NativeSelector(
+    android: AndroidSelector(resourceName: 'com.example:id/button'),
+    ios: IOSSelector(identifier: 'submitButton'),
+  ),
+);
+```
+
+**After (Patrol 4.x):**
+```dart
+// Cross-platform mobile actions
+await $.platform.mobile.tap(Selector(text: 'Allow'));
+await $.platform.mobile.pressHome();
+
+// Platform-specific actions
+await $.platform.android.pressBack();
+
+// Using MobileSelector
+await $.platform.mobile.tap(
+  MobileSelector(
+    android: AndroidSelector(resourceName: 'com.example:id/button'),
+    ios: IOSSelector(identifier: 'submitButton'),
+  ),
+);
+```
+
+</Step>
+
+<Step title="Update Selector Types">
+
+Replace `NativeSelector` with the appropriate new selector type:
+
+- `MobileSelector(...)` - For different Android/iOS selectors
+- `Selector(...)` - For same selector across platforms
+- `PlatformSelector(...)` - For Android/iOS/Web selectors
+
+**Before:**
+```dart
+await $.native2.tap(
+  NativeSelector(
+    android: AndroidSelector(text: 'Submit'),
+    ios: IOSSelector(text: 'Submit'),
+  ),
+);
+```
+
+**After:**
+```dart
+await $.platform.mobile.tap(
+  MobileSelector(
+    android: AndroidSelector(text: 'Submit'),
+    ios: IOSSelector(text: 'Submit'),
+  ),
+);
+
+// Or simply use Selector for text-based selectors
+await $.platform.mobile.tap(Selector(text: 'Submit'));
+```
+
+</Step>
+
+<Step title="Update Configuration Classes">
+
+**Before:**
+```dart
+final nativeConfig = NativeAutomatorConfig(
+  keyboardBehavior: KeyboardBehavior.alternative,
+);
+
+final automator = NativeAutomator(config: nativeConfig);
+await automator.enableWifi();
+```
+
+**After:**
+```dart
+final platformConfig = PlatformAutomatorConfig.fromOptions(
+  keyboardBehavior: KeyboardBehavior.alternative,
+);
+
+final automator = PlatformAutomator(config: platformConfig);
+await automator.mobile.enableWifi();
+```
+
+</Step>
+
+</Steps>
+
+### 2. Test Directory Change
+
+<Warning>
+  The default test directory has changed from `integration_test/` to `patrol_test/` to avoid conflicts with Flutter's official integration test package.
+</Warning>
+
+<Steps>
+
+<Step title="Choose Your Migration Path">
+
+You have two options:
+
+**Option 1: Rename your test directory (Recommended)**
+
+```bash
+mv integration_test patrol_test
+```
+
+Update your `.gitignore`:
+```text title=".gitignore"
+# Replace
+integration_test/test_bundle.dart
+
+# With
+patrol_test/test_bundle.dart
+```
+
+**Option 2: Configure Patrol to use the old directory**
+
+Add configuration to your `pubspec.yaml`:
+
+```yaml title="pubspec.yaml"
+patrol:
+  app_name: My App
+  test_directory: integration_test  # Keep using old directory
+  android:
+    package_name: com.example.myapp
+  ios:
+    bundle_id: com.example.MyApp
+```
+
+</Step>
+
+</Steps>
+
+### 3. Device Selection Changes
+
+Patrol 4.x now prompts for device selection interactively. This improves the development experience but requires changes in CI environments.
+
+<CodeGroup>
+
+```bash CI Environment
+# Pass the device explicitly
+patrol test --device <device-id>
+
+# Or set CI environment variable
+export CI=true
+patrol test
+```
+
+```bash Local Development
+# Interactive prompt will appear
+patrol test
+
+# Or specify device
+patrol test -d emulator-5554
+```
+
+</CodeGroup>
+
+<Info>
+  When `CI=true` is set, Patrol will automatically select an available device without prompting.
+</Info>
+
+## Migration Checklist
+
+Use this checklist to ensure a smooth migration:
+
+<Steps>
+
+<Step title="Update Dependencies">
+
+```bash
+# Update Patrol CLI
+patrol update
+
+# Update patrol package in pubspec.yaml
+flutter pub upgrade patrol
+```
+
+</Step>
+
+<Step title="Rename Test Directory">
+
+```bash
+mv integration_test patrol_test
+```
+
+Or configure `test_directory` in `pubspec.yaml` to keep using `integration_test/`.
+
+</Step>
+
+<Step title="Update Native Automation Calls">
+
+Search and replace across your test files:
+
+- `$.native.` → `$.platform.mobile.` or `$.platform.android.` / `$.platform.ios.`
+- `$.native2.` → `$.platform.mobile.`
+- `NativeSelector` → `MobileSelector`, `Selector`, or `PlatformSelector`
+- `NativeAutomator` → `PlatformAutomator`
+- `NativeAutomatorConfig` → `PlatformAutomatorConfig`
+
+</Step>
+
+<Step title="Update Platform-Specific Actions">
+
+Move platform-specific actions to appropriate namespaces:
+
+```dart
+// Android-specific
+await $.platform.android.pressBack();
+
+// iOS-specific
+await $.platform.ios.closeHeadsUpNotification();
+```
+
+</Step>
+
+<Step title="Update CI Configuration">
+
+Add `--device` flag or set `CI=true` in your CI pipeline:
+
+```yaml title=".github/workflows/test.yml"
+- name: Run Patrol tests
+  run: patrol test --device <device-id>
+  env:
+    CI: true
+```
+
+</Step>
+
+<Step title="Test Your Migration">
+
+```bash
+# Run tests to verify everything works
+patrol test
+
+# Or use develop mode for faster iteration
+patrol develop
+```
+
+</Step>
+
+</Steps>
+
+## Common Migration Patterns
+
+### Permission Handling
+
+<CodeGroup>
+
+```dart Patrol 3.x
+await $.native2.grantPermissionWhenInUse();
+await $.native2.grantPermissionOnlyThisTime();
+```
+
+```dart Patrol 4.x
+await $.platform.mobile.grantPermissionWhenInUse();
+await $.platform.mobile.grantPermissionOnlyThisTime();
+```
+
+</CodeGroup>
+
+### Notification Handling
+
+<CodeGroup>
+
+```dart Patrol 3.x
+await $.native2.openNotifications();
+await $.native2.tapOnNotificationByIndex(0);
+await $.native.closeHeadsUpNotification();
+```
+
+```dart Patrol 4.x
+await $.platform.mobile.openNotifications();
+await $.platform.mobile.tapOnNotificationByIndex(0);
+await $.platform.ios.closeHeadsUpNotification();
+```
+
+</CodeGroup>
+
+### Device Settings
+
+<CodeGroup>
+
+```dart Patrol 3.x
+await $.native2.enableWifi();
+await $.native2.disableWifi();
+await $.native2.enableDarkMode();
+```
+
+```dart Patrol 4.x
+await $.platform.mobile.enableWifi();
+await $.platform.mobile.disableWifi();
+await $.platform.mobile.enableDarkMode();
+```
+
+</CodeGroup>
+
+### Navigation
+
+<CodeGroup>
+
+```dart Patrol 3.x
+await $.native2.pressHome();
+await $.native.pressBack();
+```
+
+```dart Patrol 4.x
+await $.platform.mobile.pressHome();
+await $.platform.android.pressBack(); // Android-specific
+```
+
+</CodeGroup>
+
+## New Features in Patrol 4.0
+
+### Web Support
+
+Patrol 4.0 introduces comprehensive web testing capabilities:
+
+```dart
+patrolTest('web test', ($) async {
+  await $.pumpWidgetAndSettle(MyWebApp());
+  
+  // Grant browser permissions
+  await $.platform.web.grantPermissions(permissions: ['clipboard-read']);
+  
+  // Manage cookies
+  await $.platform.web.addCookie(name: 'session', value: 'abc123');
+  
+  // Handle browser dialogs
+  await $.platform.web.acceptNextDialog();
+});
+```
+
+<Info>
+  Learn more about [web testing with Patrol](/documentation/web).
+</Info>
+
+### PlatformSelector for Multi-Platform Tests
+
+Write tests that work across mobile and web:
+
+```dart
+await $.platform.tap(
+  PlatformSelector(
+    android: AndroidSelector(resourceName: 'submit_button'),
+    ios: IOSSelector(identifier: 'submitButton'),
+    web: WebSelector(cssSelector: '#submit-button'),
+  ),
+);
+```
+
+### VS Code Extension
+
+The new Patrol VS Code extension provides:
+
+- Run and debug tests directly from VS Code
+- Test exploration and navigation
+- Real-time test results
+- Integration with Flutter DevTools
+
+<Info>
+  Learn more about the [Patrol VS Code Extension](/tools/vscode-extension).
+</Info>
+
+## Troubleshooting
+
+### Tests Fail After Migration
+
+If your tests fail after migration, check:
+
+1. **Correct namespace**: Ensure platform-specific actions use the right namespace (`$.platform.android.*` vs `$.platform.ios.*`)
+2. **Selector types**: Verify you're using the correct selector type for your use case
+3. **Configuration**: Check that `PlatformAutomatorConfig` is properly initialized
+
+### Deprecation Warnings
+
+If you see deprecation warnings:
+
+```dart
+// Deprecated
+await $.native.tap(...);
+
+// Use instead
+await $.platform.mobile.tap(...);
+```
+
+### Device Selection Issues in CI
+
+If CI fails with device selection prompts:
+
+```bash
+# Add device flag
+patrol test --device <device-id>
+
+# Or set environment variable
+export CI=true
+```
+
+## Need Help?
+
+If you encounter issues during migration:
+
+- Check the [Native to Platform Migration Guide](/migration/native-to-platform) for detailed API changes
+- Visit our [GitHub repository](https://github.com/leancodepl/patrol) to report issues
+- Join our [Discord community](https://discord.gg/ukBK5t4EZg) for support
+
+## Next Steps
+
+After completing the migration:
+
+- Explore [web testing capabilities](/documentation/web)
+- Try the [VS Code Extension](/tools/vscode-extension)
+- Learn about [advanced platform automation](/documentation/native/advanced)
+- Review [best practices](/documentation/other/effective-patrol)

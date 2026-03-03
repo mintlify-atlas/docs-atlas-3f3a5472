@@ -1,0 +1,216 @@
+---
+title: Setup
+description: Get started with Patrol custom finders in your Flutter widget tests
+---
+
+Since `patrol_finders` is a separate package, you can use it in your widget or golden tests without depending on the full `patrol` package.
+
+## Installation
+
+<Steps>
+  <Step title="Add the dependency">
+    Add the `patrol_finders` package as a `dev_dependency` in your app's `pubspec.yaml`:
+
+    ```bash
+    flutter pub add patrol_finders --dev
+    ```
+
+    This will add the following to your `pubspec.yaml`:
+
+    ```yaml pubspec.yaml
+    dev_dependencies:
+      patrol_finders: ^4.0.0
+    ```
+  </Step>
+
+  <Step title="Import in your test files">
+    Import `patrol_finders` in your test files:
+
+    ```dart test/widget_test.dart
+    import 'package:patrol_finders/patrol_finders.dart';
+    ```
+
+    <Info>
+    This import gives you access to the `$` syntax, `PatrolTester`, and `patrolWidgetTest()`.
+    </Info>
+  </Step>
+
+  <Step title="Write your first test">
+    You can now use Patrol finders in your tests!
+  </Step>
+</Steps>
+
+## Two Ways to Use Patrol Finders
+
+There are two approaches to using Patrol finders in your tests:
+
+### Option 1: Using `patrolWidgetTest()` (Recommended)
+
+The `patrolWidgetTest()` function is a drop-in replacement for `testWidgets()` that automatically creates a `PatrolTester` for you:
+
+```dart test/patrol_widget_test.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:patrol_finders/patrol_finders.dart';
+
+void main() {
+  patrolWidgetTest(
+    'counter is decremented when minus button is tapped',
+    (PatrolTester $) async {
+      await $.pumpWidget(const MyApp());
+
+      expect($('0'), findsOneWidget);
+      expect($('-1'), findsNothing);
+
+      await $(Icons.remove).tap();
+
+      expect($('0'), findsNothing);
+      expect($('-1'), findsOneWidget);
+    },
+  );
+}
+```
+
+<Tip>
+By convention, we name the `PatrolTester` parameter `$` to keep test code concise and readable.
+</Tip>
+
+### Option 2: Manual `PatrolTester` Creation
+
+If you need more control, you can manually create a `PatrolTester` inside a regular `testWidgets()` call:
+
+```dart test/widget_test_with_patrol_finders.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:patrol_finders/patrol_finders.dart';
+
+void main() {
+  testWidgets(
+    'counter is decremented when minus button is tapped',
+    (WidgetTester tester) async {
+      PatrolTester $ = PatrolTester(
+        tester: tester,
+        config: PatrolTesterConfig(),
+      );
+      
+      await $.pumpWidget(const MyApp());
+
+      expect($('0'), findsOneWidget);
+      expect($('-1'), findsNothing);
+
+      await $(Icons.remove).tap();
+
+      expect($('0'), findsNothing);
+      expect($('-1'), findsOneWidget);
+    },
+  );
+}
+```
+
+## Configuration
+
+You can customize Patrol's behavior using `PatrolTesterConfig`:
+
+```dart
+patrolWidgetTest(
+  'logs in successfully',
+  config: PatrolTesterConfig(
+    // How long to wait for widgets to become visible
+    visibleTimeout: Duration(seconds: 20),
+    
+    // How long to wait for widgets to exist
+    existsTimeout: Duration(seconds: 10),
+    
+    // Timeout for pumpAndSettle operations
+    settleTimeout: Duration(seconds: 10),
+    
+    // Default settle policy for actions
+    settlePolicy: SettlePolicy.trySettle,
+    
+    // Duration for drag gestures during scrolling
+    dragDuration: Duration(milliseconds: 100),
+    
+    // Timeout for settling between scroll gestures
+    settleBetweenScrollsTimeout: Duration(seconds: 5),
+    
+    // Enable logging (useful for debugging)
+    printLogs: true,
+  ),
+  ($) async {
+    // Your test code
+  },
+);
+```
+
+<CodeGroup>
+
+```dart Timeouts
+patrolWidgetTest(
+  'waits for slow loading widget',
+  config: PatrolTesterConfig(
+    visibleTimeout: Duration(seconds: 30),
+  ),
+  ($) async {
+    await $.pumpWidget(const MyApp());
+    await $('Loaded content').waitUntilVisible();
+  },
+);
+```
+
+```dart Settle Policy
+patrolWidgetTest(
+  'handles infinite animations',
+  config: PatrolTesterConfig(
+    settlePolicy: SettlePolicy.trySettle,
+  ),
+  ($) async {
+    await $.pumpWidget(const MyApp());
+    // Won't throw even if animations never settle
+  },
+);
+```
+
+```dart Debug Logging
+patrolWidgetTest(
+  'debug test with logs',
+  config: PatrolTesterConfig(
+    printLogs: true,
+  ),
+  ($) async {
+    await $.pumpWidget(const MyApp());
+    await $(#loginButton).tap(); // Logs action to console
+  },
+);
+```
+
+</CodeGroup>
+
+## Running Your Tests
+
+Run your tests using the standard Flutter test command:
+
+```bash
+flutter test
+```
+
+Or run a specific test file:
+
+```bash
+flutter test test/widget_test.dart
+```
+
+<Success>
+That's it! You're now ready to write cleaner, more maintainable widget tests with Patrol finders.
+</Success>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Learn Basic Usage" icon="book" href="/finders/usage">
+    Discover how to find widgets, make assertions, and perform actions
+  </Card>
+  
+  <Card title="Explore Advanced Features" icon="rocket" href="/finders/advanced">
+    Master complex scenarios and advanced techniques
+  </Card>
+</CardGroup>

@@ -1,0 +1,151 @@
+---
+title: Custom Finders Overview
+description: Learn how Patrol's custom finders make Flutter testing more intuitive and concise
+---
+
+Flutter's finders are powerful, but not very intuitive to use. Patrol's custom finders transform verbose, complex test code into clean, readable expressions.
+
+## The Problem with Traditional Finders
+
+Let's look at a typical Flutter widget test using traditional finders:
+
+```dart
+testWidgets('signs up', (WidgetTester tester) async {
+  await tester.pumpWidget(AwesomeApp());
+  await tester.pumpAndSettle();
+
+  await tester.enterText(
+    find.byKey(Key('emailTextField')),
+    'charlie@root.me',
+  );
+  await tester.pumpAndSettle();
+
+  await tester.enterText(
+    find.byKey(Key('nameTextField')),
+    'Charlie',
+  );
+  await tester.pumpAndSettle();
+
+  await tester.enterText(
+    find.byKey(Key('passwordTextField')),
+    'ny4ncat',
+  );
+  await tester.pumpAndSettle();
+
+  await tester.tap(find.byKey(Key('termsCheckbox')));
+  await tester.pumpAndSettle();
+
+  await tester.tap(find.byKey(Key('signUpButton')));
+  await tester.pumpAndSettle();
+
+  expect(find.text('Welcome, Charlie!'), findsOneWidget);
+});
+```
+
+Notice the repetitive `pumpAndSettle()` calls and verbose `find.byKey()` syntax.
+
+## The Patrol Solution
+
+Here's the same test using Patrol's custom finders:
+
+```dart
+patrolWidgetTest('signs up', (PatrolTester $) async {
+  await $.pumpWidgetAndSettle(AwesomeApp());
+
+  await $(#emailTextField).enterText('charlie@root.me');
+  await $(#nameTextField).enterText('Charlie');
+  await $(#passwordTextField).enterText('ny4ncat');
+  await $(#termsCheckbox).tap();
+  await $(#signUpButton).tap();
+
+  await $('Welcome, Charlie!').waitUntilVisible();
+});
+```
+
+<Tip>
+Notice how much cleaner and more readable this is! The `$` syntax provides a concise way to find and interact with widgets.
+</Tip>
+
+## Key Benefits
+
+<CardGroup cols={2}>
+  <Card title="Concise Syntax" icon="compress">
+    The `$` operator replaces verbose `find.byKey()`, `find.byType()`, and other finder methods
+  </Card>
+  
+  <Card title="Automatic Waiting" icon="clock">
+    Actions like `tap()` and `enterText()` automatically wait for widgets to become visible
+  </Card>
+  
+  <Card title="Chainable Finders" icon="link">
+    Easily express complex widget hierarchies with chainable syntax
+  </Card>
+  
+  <Card title="Smart Pumping" icon="gauge">
+    Built-in frame rendering eliminates manual `pumpAndSettle()` calls
+  </Card>
+</CardGroup>
+
+## What You Can Find
+
+Patrol's `$` operator is incredibly flexible. It accepts multiple types:
+
+| Type | Example | Flutter Equivalent |
+|------|---------|--------------------|
+| **Text** | `$('Log in')` | `find.text('Log in')` |
+| **Widget Type** | `$(TextField)` | `find.byType(TextField)` |
+| **Symbol (Key)** | `$(#emailInput)` | `find.byKey(Key('emailInput'))` |
+| **Key** | `$(Key('emailInput'))` | `find.byKey(Key('emailInput'))` |
+| **Icon** | `$(Icons.add)` | `find.byIcon(Icons.add)` |
+| **Pattern** | `$(RegExp('Log.*'))` | `find.textContaining(RegExp('Log.*'))` |
+| **Widget** | `$(myWidget)` | `find.byWidget(myWidget)` |
+| **Finder** | `$(find.text('Hi'))` | `find.text('Hi')` |
+
+## Platform Support
+
+<Success>
+Our custom finders depend only on Flutter itself. This means you can use them no matter if you're writing a mobile, web, desktop, or embedded app!
+</Success>
+
+## Beyond Basic Finding
+
+Patrol finders aren't just about finding widgets—they're about interacting with them naturally:
+
+```dart
+// Tap on a button
+await $(#loginButton).tap();
+
+// Enter text into a field
+await $(#emailField).enterText('user@example.com');
+
+// Scroll to a widget and tap it
+await $('Delete account').scrollTo().tap();
+
+// Wait for a widget to appear
+await $('Success message').waitUntilVisible();
+
+// Check if a widget is visible
+expect($('Error message').visible, false);
+```
+
+## What's Next?
+
+<Steps>
+  <Step title="Setup">
+    Add `patrol_finders` to your project and configure your first test
+    
+    [Go to Setup →](/finders/setup)
+  </Step>
+  
+  <Step title="Basic Usage">
+    Learn how to find widgets, make assertions, and perform actions
+    
+    [Go to Usage →](/finders/usage)
+  </Step>
+  
+  <Step title="Advanced Techniques">
+    Master complex scenarios, chaining, and the `which()` method
+    
+    [Go to Advanced →](/finders/advanced)
+  </Step>
+</Steps>

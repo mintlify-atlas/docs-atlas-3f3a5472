@@ -1,0 +1,501 @@
+---
+title: patrol build
+description: Build app binaries for integration testing without running tests
+---
+
+The `patrol build` command creates optimized test binaries for Android, iOS, and macOS. It's primarily used for CI/CD pipelines and device farms where you need to build once and run tests later.
+
+## Synopsis
+
+```bash
+patrol build <platform> [options]
+```
+
+Where `<platform>` is one of:
+- `android` - Build for Android devices and emulators
+- `ios` - Build for iOS devices and simulators
+- `macos` - Build for macOS desktop
+
+## Description
+
+`patrol build` performs all the same build steps as `patrol test`, but stops before running the tests. This is useful when:
+
+- Running tests on CI/CD platforms like Firebase Test Lab
+- Building once and running tests multiple times
+- Separating build and test stages in your pipeline
+- Testing on device farms that require pre-built binaries
+
+<Info>
+For `patrol build` to work, you must complete the [native setup](/quickstart).
+</Info>
+
+## Basic Usage
+
+### Build for Android
+
+```bash
+patrol build android
+```
+
+Outputs:
+- App APK: `build/app/outputs/apk/debug/app-debug.apk`
+- Test APK: `build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk`
+
+### Build for iOS
+
+```bash
+patrol build ios
+```
+
+Outputs:
+- App bundle: `build/ios_integ/Build/Products/Debug-iphonesimulator/Runner.app`
+- Test runner: `build/ios_integ/Build/Products/Debug-iphonesimulator/RunnerUITests-Runner.app`
+
+### Build for macOS
+
+```bash
+patrol build macos
+```
+
+## Build Modes
+
+By default, builds are in **debug mode**. You can specify a different mode:
+
+<ParamField path="--debug" type="flag" default="true">
+  Build in debug mode (default).
+  
+  ```bash
+  patrol build android --debug
+  patrol build ios --debug
+  ```
+</ParamField>
+
+<ParamField path="--profile" type="flag">
+  Build in profile mode for performance testing.
+  
+  ```bash
+  patrol build android --profile
+  patrol build ios --profile
+  ```
+</ParamField>
+
+<ParamField path="--release" type="flag">
+  Build in release mode. Required for physical iOS devices on device farms.
+  
+  ```bash
+  patrol build android --release
+  patrol build ios --release
+  ```
+</ParamField>
+
+<Warning>
+To run tests on physical iOS devices on device farms, apps must be built in release mode using `--release`.
+</Warning>
+
+## Target Selection
+
+<ParamField path="--target" type="string" default="all tests">
+  Specify which test file(s) to include in the build.
+  
+  ```bash
+  patrol build android --target patrol_test/login_test.dart
+  patrol build ios --target patrol_test/app_test.dart
+  ```
+</ParamField>
+
+<ParamField path="--exclude" type="string">
+  Exclude specific test files.
+  
+  ```bash
+  patrol build android --exclude patrol_test/flaky_test.dart
+  ```
+</ParamField>
+
+By default, all test files in `patrol_test/` are bundled into a single binary.
+
+## Flavors
+
+<ParamField path="--flavor" type="string">
+  Build a specific flavor of your app.
+  
+  ```bash
+  patrol build android --flavor staging
+  patrol build ios --flavor production --release
+  ```
+</ParamField>
+
+## Build Versioning
+
+<ParamField path="--build-name" type="string">
+  Set the version name (e.g., "1.2.3").
+  
+  ```bash
+  patrol build android --build-name 1.2.3
+  patrol build ios --build-name 1.2.3
+  ```
+</ParamField>
+
+<ParamField path="--build-number" type="string">
+  Set the version code (e.g., "123").
+  
+  ```bash
+  patrol build android --build-number 123
+  patrol build ios --build-number 123
+  ```
+</ParamField>
+
+## Dart Defines
+
+<ParamField path="--dart-define" type="string">
+  Pass environment variables to your app.
+  
+  ```bash
+  patrol build android --dart-define API_URL=https://api.example.com
+  ```
+</ParamField>
+
+<ParamField path="--dart-define-from-file" type="string">
+  Load environment variables from a file.
+  
+  ```bash
+  patrol build android --dart-define-from-file config/prod.json
+  ```
+</ParamField>
+
+## Tags
+
+<ParamField path="--tags" type="string">
+  Include only tests with specific tags.
+  
+  ```bash
+  patrol build android --tags "smoke"
+  patrol build ios --tags "smoke && !flaky"
+  ```
+</ParamField>
+
+<ParamField path="--exclude-tags" type="string">
+  Exclude tests with specific tags.
+  
+  ```bash
+  patrol build android --exclude-tags "slow"
+  ```
+</ParamField>
+
+## Platform-Specific Options
+
+### Android
+
+<ParamField path="--package-name" type="string">
+  Override the Android package name.
+  
+  ```bash
+  patrol build android --package-name com.example.myapp
+  ```
+</ParamField>
+
+### iOS
+
+<ParamField path="--bundle-id" type="string">
+  Override the iOS bundle identifier.
+  
+  ```bash
+  patrol build ios --bundle-id com.example.MyApp
+  ```
+</ParamField>
+
+<ParamField path="--full-isolation" type="flag">
+  Enable full isolation between test runs on iOS Simulator.
+  
+  ```bash
+  patrol build ios --full-isolation
+  ```
+</ParamField>
+
+## Advanced Options
+
+<ParamField path="--label" type="flag" default="true">
+  Display label overlay on the app during testing.
+  
+  ```bash
+  patrol build android --no-label
+  ```
+</ParamField>
+
+<ParamField path="--test-server-port" type="number" default="8081">
+  Port for the test instrumentation server.
+  
+  ```bash
+  patrol build android --test-server-port 9001
+  ```
+</ParamField>
+
+<ParamField path="--app-server-port" type="number" default="8082">
+  Port for the app under test server.
+  
+  ```bash
+  patrol build android --app-server-port 9002
+  ```
+</ParamField>
+
+<ParamField path="--check-compatibility" type="flag" default="true">
+  Verify dependency compatibility.
+  
+  ```bash
+  patrol build android --no-check-compatibility
+  ```
+</ParamField>
+
+<ParamField path="--generate-bundle" type="flag" default="true">
+  Generate test bundle file.
+  
+  ```bash
+  patrol build android --no-generate-bundle
+  ```
+</ParamField>
+
+<ParamField path="--no-tree-shake-icons" type="flag">
+  Disable icon tree shaking during build.
+  
+  ```bash
+  patrol build android --no-tree-shake-icons
+  ```
+</ParamField>
+
+<ParamField path="--uninstall" type="flag" default="true">
+  Controls whether to uninstall during subsequent test runs.
+  
+  ```bash
+  patrol build android --no-uninstall
+  ```
+</ParamField>
+
+## Examples
+
+<CodeGroup>
+
+```bash Android Debug
+# Build all tests for Android in debug mode
+patrol build android
+
+# Build specific test
+patrol build android --target patrol_test/login_test.dart
+```
+
+```bash Android Release
+# Build for release (device farms)
+patrol build android --release
+
+# With flavor and versioning
+patrol build android \
+  --flavor production \
+  --release \
+  --build-name 1.0.0 \
+  --build-number 100
+```
+
+```bash iOS Simulator
+# Build for iOS simulator in debug mode
+patrol build ios --debug
+
+# With specific test
+patrol build ios --target patrol_test/app_test.dart
+```
+
+```bash iOS Device
+# Build for physical iOS device (requires release)
+patrol build ios --release
+
+# With flavor and versioning
+patrol build ios \
+  --flavor production \
+  --release \
+  --build-name 1.0.0 \
+  --build-number 100
+```
+
+```bash With Tags
+# Build only smoke tests
+patrol build android --tags "smoke"
+
+# Build excluding slow tests
+patrol build ios --exclude-tags "slow || flaky"
+```
+
+```bash Full Isolation
+# Build with full isolation for iOS
+patrol build ios --full-isolation
+```
+
+</CodeGroup>
+
+## CI/CD Usage
+
+Here's how to use `patrol build` in common CI/CD scenarios:
+
+### Firebase Test Lab (Android)
+
+<Steps>
+  <Step title="Build APKs">
+    ```bash
+    patrol build android --release
+    ```
+  </Step>
+  
+  <Step title="Upload to Firebase Test Lab">
+    ```bash
+    gcloud firebase test android run \
+      --type instrumentation \
+      --app build/app/outputs/apk/release/app-release.apk \
+      --test build/app/outputs/apk/androidTest/release/app-release-androidTest.apk \
+      --device model=Pixel2,version=30
+    ```
+  </Step>
+</Steps>
+
+### AWS Device Farm (iOS)
+
+<Steps>
+  <Step title="Build for release">
+    ```bash
+    patrol build ios --release
+    ```
+  </Step>
+  
+  <Step title="Create IPA files">
+    Package the built apps into IPA files for upload.
+  </Step>
+  
+  <Step title="Upload to Device Farm">
+    Use AWS CLI or console to upload and run tests.
+  </Step>
+</Steps>
+
+### GitHub Actions Example
+
+```yaml
+name: Build Test Binaries
+on: [push]
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+      
+      - name: Install Patrol CLI
+        run: dart pub global activate patrol_cli
+        
+      - name: Build Android APKs
+        run: patrol build android --release
+        
+      - name: Upload APKs
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-apks
+          path: |
+            build/app/outputs/apk/release/*.apk
+            build/app/outputs/apk/androidTest/release/*.apk
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: subosito/flutter-action@v2
+      
+      - name: Install Patrol CLI
+        run: dart pub global activate patrol_cli
+        
+      - name: Build iOS Apps
+        run: patrol build ios --release
+        
+      - name: Upload iOS Apps
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-apps
+          path: build/ios_integ/Build/Products/**/*.app
+```
+
+## Output Files
+
+### Android
+
+After building for Android, you'll find:
+
+**Debug mode:**
+- `build/app/outputs/apk/debug/app-debug.apk` (app under test)
+- `build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk` (test instrumentation)
+
+**Release mode:**
+- `build/app/outputs/apk/release/app-release.apk`
+- `build/app/outputs/apk/androidTest/release/app-release-androidTest.apk`
+
+**With flavor:**
+- `build/app/outputs/apk/{flavor}/debug/app-{flavor}-debug.apk`
+- `build/app/outputs/apk/androidTest/{flavor}/debug/app-{flavor}-debug-androidTest.apk`
+
+### iOS
+
+After building for iOS, you'll find:
+
+**Simulator:**
+- `build/ios_integ/Build/Products/Debug-iphonesimulator/Runner.app`
+- `build/ios_integ/Build/Products/Debug-iphonesimulator/RunnerUITests-Runner.app`
+
+**Device:**
+- `build/ios_integ/Build/Products/Release-iphoneos/Runner.app`
+- `build/ios_integ/Build/Products/Release-iphoneos/RunnerUITests-Runner.app`
+
+## Under the Hood
+
+The `patrol build` command uses advanced test bundling:
+
+1. **Discovers tests** - Finds all `*_test.dart` files in `patrol_test/`
+2. **Creates bundle** - Generates a single test file that references all tests
+3. **Builds binaries** - Compiles app and test instrumentation into single binaries
+4. **Enables sharding** - Each test runs as a separate process for better isolation
+
+This approach provides:
+- **Single build** for all tests (much faster)
+- **Better isolation** between test runs
+- **Sharding support** for parallel execution
+- **Native integration** with platform test runners
+
+For more details, read the [in-depth technical article](https://leancode.co/blog/patrol-2-0-improved-flutter-ui-testing).
+
+## Troubleshooting
+
+### Build fails with "Native setup incomplete"
+
+Ensure you've completed the [native setup guide](/quickstart).
+
+### APKs not found after build
+
+Check the exact output path. It varies based on:
+- Build mode (debug/release)
+- Flavor (if specified)
+
+Run with verbose logging to see exact paths:
+```bash
+patrol build android --verbose
+```
+
+### iOS build fails on CI
+
+Ensure:
+- You're running on macOS
+- Xcode is properly installed
+- Code signing is configured for release builds
+
+### Version conflicts
+
+Run compatibility check:
+```bash
+patrol build android --check-compatibility
+```
+
+## Related Commands
+
+- [patrol test](/cli/test) - Build and run tests
+- [patrol develop](/cli/develop) - Develop tests with Hot Restart
+- [patrol doctor](/cli/doctor) - Verify environment setup

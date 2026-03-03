@@ -1,0 +1,396 @@
+---
+title: Frequently Asked Questions
+description: Common questions and answers about Patrol
+---
+
+## General Questions
+
+<Accordion title="What is Patrol?">
+  Patrol is a powerful UI testing framework for Flutter that extends Flutter's
+  built-in testing capabilities with native automation features. It allows you
+  to interact with both Flutter widgets and native platform UI elements (like
+  permission dialogs, system settings, and notifications) in a single test.
+</Accordion>
+
+<Accordion title="How is Patrol different from integration_test?">
+  Patrol builds on top of Flutter's testing infrastructure but adds several key features:
+  - **Native automation**: Interact with platform UI elements outside your Flutter app
+  - **Better finders**: More intuitive and powerful widget finding with chaining support
+  - **Hot restart**: Quickly iterate on tests without full rebuilds
+  - **Test bundling**: Run tests as native instrumented tests for better reliability
+  - **Web support**: Run the same tests on web browsers with platform-specific automation
+  - **DevTools extension**: Inspect native view hierarchy while developing tests
+</Accordion>
+
+<Accordion title="Do I need to uninstall integration_test to use Patrol?">
+  No, Patrol can coexist with integration_test. However, Patrol uses a different
+  default test directory (`patrol_test/` instead of `integration_test/`) to avoid
+  conflicts. You can configure Patrol to use a custom directory if needed.
+</Accordion>
+
+<Accordion title="Which platforms does Patrol support?">
+  Patrol supports:
+  - Android (emulators and physical devices)
+  - iOS (simulators and physical devices)
+  - macOS (alpha support)
+  - Web (Chrome, Firefox, Safari, Edge, Webkit)
+  
+  See the [Supported Platforms](/documentation/supported-platforms) page for details.
+</Accordion>
+
+<Accordion title="Is Patrol free to use?">
+  Yes, Patrol is open-source and free to use under the Apache 2.0 license.
+  We also offer premium support and consulting services. See our [Pricing](/pricing) page
+  for more information.
+</Accordion>
+
+## Installation & Setup
+
+<Accordion title="Testing fails with error inside 'patrol_test/test_bundle.dart'">
+  This is usually caused by a version mismatch between `patrol` and `patrol_cli`.
+  Check the [Compatibility Table](/documentation/compatibility-table) to ensure
+  you're using compatible versions. Update both packages:
+  
+  ```bash
+  dart pub global activate patrol_cli
+  flutter pub upgrade patrol
+  ```
+</Accordion>
+
+<Accordion title="'example_test.dart' passed but I can't get my application to run within the patrol test">
+  To run your application within a patrol test, you need to call `$.pumpWidgetAndSettle()`
+  and pass your application's main widget to it. Make sure you register all necessary
+  services before calling `$.pumpWidgetAndSettle()`.
+  
+  ```dart
+  void main() {
+    patrolTest('real app test', ($) async {
+      // Do all the necessary setup here (DI, services, etc.)
+      
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      // Start testing your app here
+    });
+  }
+  ```
+  
+  It's a good practice to create a setup wrapper function for your tests. See
+  [Initializing app inside a test](/documentation#initializing-app-inside-a-test).
+</Accordion>
+
+<Accordion title="Where do I get package_name and bundle_id?">
+  **Android package_name**: Go to `android/app/build.gradle` and look for
+  `applicationId` in the `defaultConfig` section.
+  
+  **iOS bundle_id**: Go to `ios/Runner.xcodeproj/project.pbxproj` and look for
+  `PRODUCT_BUNDLE_IDENTIFIER`.
+  
+  **macOS bundle_id**: Go to `macos/Runner.xcodeproj/project.pbxproj` and look for
+  `PRODUCT_BUNDLE_IDENTIFIER`.
+</Accordion>
+
+<Accordion title="How do I configure a custom test directory?">
+  Add `test_directory` to your `pubspec.yaml`:
+  
+  ```yaml
+  patrol:
+    app_name: My App
+    test_directory: my_custom_tests
+    android:
+      package_name: com.example.myapp
+    ios:
+      bundle_id: com.example.MyApp
+  ```
+</Accordion>
+
+## Android Issues
+
+<Accordion title="Running patrol test fails with 'Unsupported class file major version' error">
+  This is caused by using an incompatible JDK version. Run `javac -version` to
+  check your JDK version. Patrol officially supports JDK 17.
+  
+  If you have Android Studio or IntelliJ IDEA installed, you can find the path to
+  JDK by opening your project's android directory and going to **Settings** →
+  **Build, Execution, Deployment** → **Build Tools** → **Gradle** → **Gradle JDK**.
+  
+  [Learn more about JDK management](https://developer.android.com/build/jdks)
+</Accordion>
+
+<Accordion title="Build gets stuck during 'patrol test' or 'patrol build android'">
+  If the build hangs and running with `--verbose` shows it stuck at
+  `$ flutter build apk --config-only`, updating orchestrator to `1.6.1` in your
+  `build.gradle` might help.
+  
+  ```gradle
+  androidTestImplementation 'androidx.test:orchestrator:1.6.1'
+  ```
+</Accordion>
+
+<Accordion title="Tests fail with 'Instrumentation run failed due to Process crashed'">
+  This can happen for several reasons:
+  - Version mismatch between patrol and patrol_cli
+  - Incorrect configuration in pubspec.yaml
+  - Issues with Android test orchestrator
+  
+  Try running `patrol doctor` to diagnose the issue.
+</Accordion>
+
+<Accordion title="How do I test WebViews on Android?">
+  WebView testing is supported. Make sure you're using a recent version of Patrol
+  (2.0.1+) which includes fixes for WebView support on modern Android versions.
+  See [issue #244](https://github.com/leancodepl/patrol/issues/244) for details.
+</Accordion>
+
+## iOS Issues
+
+<Accordion title="When I run tests the simulator is getting cloned">
+  Make sure you disabled "Parallel execution" for **all schemes** in Xcode.
+  See [this video](https://www.youtube.com/watch?v=9LdEJR59fW4) for details.
+</Accordion>
+
+<Accordion title="Running test stops on 'Wait for com.example.myapp to idle'">
+  Search for `FLUTTER_TARGET` in your project files and remove it (both value and key)
+  from `*.xcconfig` and `*.pbxproj` files.
+  
+  After removing it, regenerate the configuration:
+  ```bash
+  flutter build ios --config-only patrol_test/example_test.dart
+  ```
+</Accordion>
+
+<Accordion title="When running a test, real app without test is opened instead">
+  Search for `FLUTTER_TARGET` in your project files and remove it (both value and key)
+  from `*.xcconfig` and `*.pbxproj` files.
+</Accordion>
+
+<Accordion title="Build is failing with errors on mismatching iOS deployment versions">
+  Check if this line in `Podfile` is present and uncommented:
+  ```ruby
+  platform :ios, '12.0'
+  ```
+  
+  Then check if **iOS deployment version** in Xcode project's **Build Settings**
+  section for all targets (Runner and RunnerUITests) are set to the same value
+  as in Podfile.
+</Accordion>
+
+<Accordion title="How do I run Patrol tests on physical iOS devices?">
+  Physical iOS device setup requires additional configuration. See our detailed guide:
+  [Setup for Physical iOS Devices](/documentation/physical-ios-devices-setup)
+</Accordion>
+
+<Accordion title="I get App Store warnings about non-public selectors">
+  This was fixed in Patrol 1.0.8+. Make sure you're using the latest version.
+  Patrol automatically strips out native automation code in release builds to
+  prevent App Store warnings.
+</Accordion>
+
+## Test Writing
+
+<Accordion title="How do I find widgets in my test?">
+  Patrol provides powerful custom finders. You can find widgets by:
+  - Text: `$("Login")`
+  - Key: `$(#loginButton)`
+  - Type: `$(TextField)`
+  - Icon: `$(Icons.add)`
+  - Chaining: `$(Scaffold).$(ListView).$("Item")`
+  
+  See [Finders documentation](/documentation/finders/usage) for more details.
+</Accordion>
+
+<Accordion title="Should I use keys, text, or widget types to find widgets?">
+  We **strongly recommend using keys** for most cases. Keys are:
+  - More reliable than text (which can change with translations)
+  - More semantic than widget types (which are implementation details)
+  - Less likely to break when refactoring
+  
+  See [Effective Patrol](/documentation/other/effective-patrol) for best practices.
+</Accordion>
+
+<Accordion title="How do I interact with native UI elements like permission dialogs?">
+  Use Patrol's platform automation features:
+  
+  ```dart
+  // Grant permission
+  await $.platform.mobile.grantPermissionWhenInUse();
+  
+  // Tap on native button
+  await $.platform.mobile.tap(Selector(text: 'Allow'));
+  
+  // Enter text in native field
+  await $.platform.mobile.enterText(
+    Selector(text: 'Email'),
+    'user@example.com',
+  );
+  ```
+  
+  See [Native Automation](/documentation/native/usage) for more examples.
+</Accordion>
+
+<Accordion title="How do I scroll to an item that's not yet visible?">
+  Use the `scrollTo()` method:
+  
+  ```dart
+  await $(#listView).$("Item 50").scrollTo();
+  await $(#listView).$("Item 50").tap();
+  ```
+  
+  This works even for items in lazy-loaded lists.
+</Accordion>
+
+<Accordion title="How do I handle flaky tests?">
+  Common causes of flaky tests:
+  - Not waiting for animations: Use `$.pumpAndSettle()` after actions
+  - Race conditions: Use `waitUntilVisible()` or `waitUntilExists()` before assertions
+  - Hardcoded timeouts: Use proper waiting mechanisms instead
+  - Multiple matching widgets: Use `.at()`, `.first`, or `.last` to be specific
+  
+  See [Tips and Tricks](/documentation/other/tips-and-tricks) for more guidance.
+</Accordion>
+
+<Accordion title="Can I use environment variables in tests?">
+  Yes, use `--dart-define` to pass environment variables:
+  
+  ```bash
+  patrol test --dart-define="USERNAME=test" --dart-define="PASSWORD=secret"
+  ```
+  
+  Then access them in your test:
+  ```dart
+  const username = String.fromEnvironment('USERNAME');
+  const password = String.fromEnvironment('PASSWORD');
+  ```
+  
+  You can also use a `.patrol.env` file in your project root.
+</Accordion>
+
+<Accordion title="How do I debug Patrol tests?">
+  Several options:
+  - **patrol develop**: Hot restart during test development
+  - **DevTools Extension**: Inspect native view hierarchy
+  - **VS Code extension**: Run and debug tests from your editor
+  - **Logging**: Use `$.log('message')` to add logs
+  - **Breakpoints**: Standard Dart debugging with IDE breakpoints
+  
+  See [Debugging Patrol Tests](/documentation/other/debugging-patrol-tests) for details.
+</Accordion>
+
+## Web Testing
+
+<Accordion title="Does Patrol support web testing?">
+  Yes! Patrol 4.0+ includes comprehensive web support. You can run the same tests
+  on web browsers with platform-specific automation features like:
+  - Cookie management
+  - Browser navigation
+  - Keyboard shortcuts
+  - File uploads/downloads
+  - Dialog handling
+  
+  See [Web Testing](/documentation/web) for more information.
+</Accordion>
+
+<Accordion title="Which browsers does Patrol support?">
+  Patrol supports:
+  - Chrome
+  - Firefox
+  - Safari
+  - Edge
+  - Webkit
+  
+  Browser testing is powered by Playwright under the hood.
+</Accordion>
+
+## CI/CD Integration
+
+<Accordion title="Can I run Patrol tests in CI/CD?">
+  Yes! Patrol works great in CI/CD environments. We have guides for:
+  - GitHub Actions
+  - GitLab CI
+  - Bitrise
+  - Codemagic
+  - Firebase Test Lab
+  - BrowserStack
+  - LambdaTest
+  
+  See [CI/CD Integration](/documentation/ci/overview) for setup instructions.
+</Accordion>
+
+<Accordion title="How do I run tests on cloud device farms?">
+  Patrol supports major cloud testing platforms:
+  - [Firebase Test Lab](/documentation/integrations/firebase-test-lab)
+  - [BrowserStack](/documentation/integrations/browserstack)
+  - [LambdaTest](/documentation/integrations/lambdatest)
+  
+  Each platform has specific configuration requirements documented in the integration guides.
+</Accordion>
+
+## Performance & Advanced
+
+<Accordion title="How fast are Patrol tests compared to other testing frameworks?">
+  Patrol tests run as native instrumented tests, which makes them very reliable
+  and performant. The `patrol develop` command with hot restart makes test
+  development much faster than traditional approaches.
+</Accordion>
+
+<Accordion title="Can I run multiple tests in parallel?">
+  Yes, use the test bundling feature to run tests as separate native test cases.
+  This enables parallel execution in most CI environments. Note that you need to
+  disable parallel execution in Xcode for iOS.
+</Accordion>
+
+<Accordion title="How do I organize tests with setup and teardown?">
+  Use `patrolSetUp()` and `patrolTearDown()`:
+  
+  ```dart
+  void main() {
+    patrolSetUp(() async {
+      // Runs before each test
+      await initializeApp();
+    });
+    
+    patrolTearDown(() async {
+      // Runs after each test
+      await cleanup();
+    });
+    
+    patrolTest('test 1', ($) async { ... });
+    patrolTest('test 2', ($) async { ... });
+  }
+  ```
+</Accordion>
+
+<Accordion title="Can I use Patrol with other testing tools?">
+  Yes! Patrol works well with:
+  - **patrol_finders**: Can be used in regular widget tests
+  - **Mockito/Mocktail**: For mocking dependencies
+  - **flutter_driver**: For alternative test approaches
+  - **Allure**: For test reporting (see [Allure Integration](/documentation/integrations/allure))
+</Accordion>
+
+## Getting Help
+
+<Accordion title="Where can I get help with Patrol?">
+  - **Discord**: Join our [Discord community](https://discord.gg/ukBK5t4EZg) for quick help
+  - **GitHub Issues**: Report bugs or request features on [GitHub](https://github.com/leancodepl/patrol/issues)
+  - **Documentation**: Browse our comprehensive [documentation](/quickstart)
+  - **Contact**: Reach out through our [contact page](/contact)
+</Accordion>
+
+<Accordion title="How do I report a bug?">
+  Please open an issue on [GitHub](https://github.com/leancodepl/patrol/issues)
+  with:
+  - Clear description of the problem
+  - Steps to reproduce
+  - Patrol and patrol_cli versions
+  - Flutter and Dart versions
+  - Platform (Android/iOS/Web/macOS)
+  - Relevant logs and error messages
+</Accordion>
+
+<Accordion title="I couldn't find an answer to my question">
+  If you couldn't find an answer here, please:
+  - Check the full [documentation](/quickstart)
+  - Search existing [GitHub issues](https://github.com/leancodepl/patrol/issues)
+  - Ask on our [Discord server](https://discord.gg/ukBK5t4EZg)
+  - Create a new [GitHub issue](https://github.com/leancodepl/patrol/issues/new)
+</Accordion>

@@ -1,0 +1,711 @@
+---
+title: Migrating from integration_test to Patrol
+description: Complete guide for migrating from Flutter's integration_test package to Patrol
+---
+
+Ready to supercharge your Flutter integration tests? This guide will help you migrate from Flutter's built-in `integration_test` package to Patrol, unlocking powerful native automation capabilities and improved test ergonomics.
+
+## Why Migrate to Patrol?
+
+Patrol extends Flutter's `integration_test` with game-changing features:
+
+- **Native Platform Access**: Interact with permission dialogs, notifications, WebViews, and system settings
+- **Better Finders**: Cleaner, more intuitive syntax for finding widgets
+- **Hot Restart**: Fast test iteration with `patrol develop`
+- **Test Isolation**: Proper test isolation and sharding support
+- **Device Farm Support**: Works with Firebase Test Lab, BrowserStack, LambdaTest, and more
+- **Web Testing**: Test Flutter web applications (Patrol 4.0+)
+- **DevTools Extension**: Inspect native views directly in Flutter DevTools
+
+<Info>
+  Patrol is fully compatible with `integration_test` - you can use both in the same project during migration.
+</Info>
+
+## Prerequisites
+
+Before starting the migration:
+
+- Flutter SDK 3.16 or higher (required for Patrol 4.x)
+- Existing tests using Flutter's `integration_test` package
+- Basic understanding of Flutter integration testing
+
+## Migration Overview
+
+The migration process involves:
+
+<Steps>
+
+<Step title="Install Patrol">
+Add Patrol CLI and package to your project
+</Step>
+
+<Step title="Configure Patrol">
+Set up `pubspec.yaml` and native integration
+</Step>
+
+<Step title="Convert Tests">
+Update test code to use Patrol APIs
+</Step>
+
+<Step title="Verify">
+Run and validate migrated tests
+</Step>
+
+</Steps>
+
+## Step 1: Install Patrol
+
+### Install Patrol CLI
+
+Patrol requires a dedicated CLI tool for running tests:
+
+```bash
+flutter pub global activate patrol_cli
+```
+
+<Warning>
+  Make sure to add `patrol` to your `PATH` environment variable. Check the [installation guide](https://pub.dev/packages/patrol_cli#installation) for platform-specific instructions.
+</Warning>
+
+Verify installation:
+
+```bash
+patrol doctor
+```
+
+Expected output:
+```
+Patrol CLI version: 2.3.1+1
+Android:
+• Program adb found in /Users/username/Library/Android/sdk/platform-tools/adb
+• Env var $ANDROID_HOME set to /Users/username/Library/Android/sdk
+iOS / macOS:
+• Program xcodebuild found in /usr/bin/xcodebuild
+• Program ideviceinstaller found in /opt/homebrew/bin/ideviceinstaller
+```
+
+### Add Patrol Package
+
+Add `patrol` to your `dev_dependencies`:
+
+```bash
+flutter pub add patrol --dev
+```
+
+<Info>
+  You can keep `integration_test` in your dependencies during migration to run both test types.
+</Info>
+
+## Step 2: Configure Patrol
+
+### Update pubspec.yaml
+
+Add a `patrol` configuration section to your `pubspec.yaml`:
+
+```yaml title="pubspec.yaml"
+name: my_app
+description: My Flutter app
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  patrol: ^4.0.0  # Add this
+
+# Add patrol configuration
+patrol:
+  app_name: My App
+  android:
+    package_name: com.example.myapp  # Your Android package name
+  ios:
+    bundle_id: com.example.MyApp      # Your iOS bundle ID
+```
+
+<Note>
+  Find your package name in `android/app/build.gradle` (look for `applicationId`) and bundle ID in `ios/Runner.xcodeproj/project.pbxproj` (look for `PRODUCT_BUNDLE_IDENTIFIER`).
+</Note>
+
+### Configure Test Directory (Optional)
+
+By default, Patrol looks for tests in `patrol_test/`, but you can configure it to use your existing `integration_test/` directory:
+
+```yaml title="pubspec.yaml"
+patrol:
+  app_name: My App
+  test_directory: integration_test  # Use existing directory
+  android:
+    package_name: com.example.myapp
+  ios:
+    bundle_id: com.example.MyApp
+```
+
+<Info>
+  We recommend creating a separate `patrol_test/` directory to keep Patrol tests separate from legacy `integration_test` tests during migration.
+</Info>
+
+### Set Up Native Integration
+
+Patrol requires native platform integration for full functionality.
+
+<Accordions>
+
+<Accordion title="Android Setup (Kotlin DSL)">
+
+<Steps>
+
+<Step>
+Create the directory structure:
+
+```bash
+mkdir -p android/app/src/androidTest/java/com/example/myapp
+```
+
+Replace `com/example/myapp` with your package path.
+</Step>
+
+<Step>
+Create `MainActivityTest.java`:
+
+```java title="android/app/src/androidTest/java/com/example/myapp/MainActivityTest.java"
+package com.example.myapp; // Replace with your package
+
+import androidx.test.platform.app.InstrumentationRegistry;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+import pl.leancode.patrol.PatrolJUnitRunner;
+
+@RunWith(Parameterized.class)
+public class MainActivityTest {
+    @Parameters(name = "{0}")
+    public static Object[] testCases() {
+        PatrolJUnitRunner instrumentation = (PatrolJUnitRunner) InstrumentationRegistry.getInstrumentation();
+        instrumentation.setUp(MainActivity.class);
+        return instrumentation.listDartTests();
+    }
+
+    public MainActivityTest(String dartTestName) {
+        this.dartTestName = dartTestName;
+    }
+
+    private final String dartTestName;
+
+    @Test
+    public void runDartTest() {
+        PatrolJUnitRunner instrumentation = (PatrolJUnitRunner) InstrumentationRegistry.getInstrumentation();
+        instrumentation.runDartTest(dartTestName);
+    }
+}
+```
+</Step>
+
+<Step>
+Update `android/app/build.gradle.kts`:
+
+```kotlin title="android/app/build.gradle.kts"
+android {
+    defaultConfig {
+        // Add this
+        testInstrumentationRunner = "pl.leancode.patrol.PatrolJUnitRunner"
+    }
+}
+
+dependencies {
+    // Add this
+    androidTestImplementation("pl.leancode.patrol:patrol:2.0.0")
+}
+```
+</Step>
+
+</Steps>
+
+</Accordion>
+
+<Accordion title="iOS Setup">
+
+<Steps>
+
+<Step>
+Open `ios/Runner.xcworkspace` in Xcode
+</Step>
+
+<Step>
+Create a new target:
+- File → New → Target
+- Select "UI Testing Bundle"
+- Name it "RunnerUITests"
+- Select Swift as the language
+</Step>
+
+<Step>
+Replace the contents of `RunnerUITests.swift`:
+
+```swift title="ios/RunnerUITests/RunnerUITests.swift"
+import XCTest
+import patrol
+
+class RunnerUITests: XCTestCase {
+    override func setUp() {
+        continueAfterFailure = false
+    }
+
+    func testRun() {
+        PatrolServer.shared.configure()
+        PatrolServer.shared.run()
+    }
+}
+```
+</Step>
+
+</Steps>
+
+</Accordion>
+
+</Accordions>
+
+## Step 3: Convert Your First Test
+
+Let's migrate a simple integration test to Patrol.
+
+### Before: integration_test
+
+```dart title="integration_test/app_test.dart"
+import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
+import 'package:my_app/main.dart' as app;
+
+void main() {
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  testWidgets('counter increments', (WidgetTester tester) async {
+    app.main();
+    await tester.pumpAndSettle();
+
+    // Find widgets
+    final counterFinder = find.text('0');
+    final buttonFinder = find.byIcon(Icons.add);
+
+    // Verify initial state
+    expect(counterFinder, findsOneWidget);
+
+    // Tap button
+    await tester.tap(buttonFinder);
+    await tester.pumpAndSettle();
+
+    // Verify counter incremented
+    expect(find.text('1'), findsOneWidget);
+  });
+}
+```
+
+### After: Patrol
+
+```dart title="patrol_test/app_test.dart"
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:patrol/patrol.dart';
+import 'package:my_app/main.dart';
+
+void main() {
+  patrolTest('counter increments', ($) async {
+    // Pump app
+    await $.pumpWidgetAndSettle(const MyApp());
+
+    // Verify initial state
+    expect($('0'), findsOneWidget);
+
+    // Tap button using Patrol's finder
+    await $(Icons.add).tap();
+
+    // Verify counter incremented
+    expect($('1'), findsOneWidget);
+  });
+}
+```
+
+### Key Differences
+
+| integration_test | Patrol |
+|-----------------|--------|
+| `IntegrationTestWidgetsFlutterBinding.ensureInitialized()` | Not needed - automatic |
+| `testWidgets()` | `patrolTest()` |
+| `WidgetTester tester` | `PatrolIntegrationTester $` |
+| `app.main()` | `await $.pumpWidgetAndSettle(MyApp())` |
+| `find.text('0')` | `$('0')` |
+| `find.byIcon(Icons.add)` | `$(Icons.add)` |
+| `tester.tap()` + `tester.pumpAndSettle()` | `await $(widget).tap()` |
+
+<Info>
+  Patrol's finders automatically handle settling after actions, making tests more concise.
+</Info>
+
+## Step 4: Advanced Migration Patterns
+
+### Finding Widgets
+
+<CodeGroup>
+
+```dart integration_test
+// Find by text
+find.text('Submit');
+
+// Find by key
+find.byKey(Key('submit_button'));
+
+// Find by type
+find.byType(ElevatedButton);
+
+// Find by icon
+find.byIcon(Icons.search);
+
+// Multiple widgets
+find.text('Item').at(1);
+```
+
+```dart Patrol
+// Find by text
+$('Submit');
+
+// Find by key
+$(#submit_button);
+// or
+$(Key('submit_button'));
+
+// Find by type
+$(ElevatedButton);
+
+// Find by icon
+$(Icons.search);
+
+// Multiple widgets
+$('Item').at(1);
+```
+
+</CodeGroup>
+
+### Interacting with Widgets
+
+<CodeGroup>
+
+```dart integration_test
+// Tap
+await tester.tap(find.text('Submit'));
+await tester.pumpAndSettle();
+
+// Enter text
+await tester.enterText(
+  find.byType(TextField),
+  'Hello',
+);
+await tester.pumpAndSettle();
+
+// Scroll
+await tester.scrollUntilVisible(
+  find.text('Item'),
+  500.0,
+);
+```
+
+```dart Patrol
+// Tap (auto-settles)
+await $('Submit').tap();
+
+// Enter text (auto-settles)
+await $(TextField).enterText('Hello');
+
+// Scroll
+await $('Item').scrollTo();
+```
+
+</CodeGroup>
+
+### Waiting and Expectations
+
+<CodeGroup>
+
+```dart integration_test
+// Wait for widget
+await tester.pumpAndSettle();
+expect(find.text('Success'), findsOneWidget);
+
+// Wait with timeout
+await tester.pumpAndSettle(
+  const Duration(seconds: 5),
+);
+```
+
+```dart Patrol
+// Wait for widget to be visible
+await $('Success').waitUntilVisible();
+
+// Wait with timeout
+await $('Success').waitUntilVisible(
+  timeout: Duration(seconds: 5),
+);
+
+// Standard expectations still work
+expect($('Success'), findsOneWidget);
+```
+
+</CodeGroup>
+
+## Step 5: Leverage Patrol's Native Automation
+
+Now for the exciting part - add native automation that wasn't possible with `integration_test`:
+
+```dart title="patrol_test/app_test.dart"
+patrolTest('handle permissions and notifications', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+
+  // Grant permission when dialog appears
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    await $.platform.mobile.grantPermissionWhenInUse();
+  }
+
+  // Trigger a notification
+  await $(#notificationButton).tap();
+
+  // Go to home screen
+  await $.platform.mobile.pressHome();
+
+  // Open notifications
+  await $.platform.mobile.openNotifications();
+
+  // Tap on the notification
+  await $.platform.mobile.tapOnNotificationBySelector(
+    Selector(textContains: 'New message'),
+    timeout: Duration(seconds: 5),
+  );
+
+  // Verify app responds
+  expect($(#notificationHandled), findsOneWidget);
+});
+```
+
+<Info>
+  This level of native interaction is impossible with `integration_test` alone!
+</Info>
+
+## Step 6: Run Your Migrated Tests
+
+### Running Patrol Tests
+
+```bash
+# List available devices
+patrol devices
+
+# Run tests (interactive device selection)
+patrol test
+
+# Run specific test file
+patrol test --target patrol_test/app_test.dart
+
+# Run on specific device
+patrol test -d emulator-5554
+
+# Development mode with hot restart
+patrol develop --target patrol_test/app_test.dart
+```
+
+<Info>
+  Use `patrol develop` during test development for fast iteration with hot restart!
+</Info>
+
+### Running in CI
+
+```yaml title=".github/workflows/test.yml"
+name: Patrol Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+      
+      - name: Install Patrol CLI
+        run: flutter pub global activate patrol_cli
+      
+      - name: Get dependencies
+        run: flutter pub get
+      
+      - name: Run Patrol tests
+        run: patrol test --device <device-id>
+        env:
+          CI: true
+```
+
+## Migration Checklist
+
+Use this checklist to track your migration progress:
+
+<Steps>
+
+<Step title="Setup">
+
+- [ ] Install Patrol CLI with `patrol doctor` passing
+- [ ] Add `patrol` to `dev_dependencies`
+- [ ] Configure `patrol` section in `pubspec.yaml`
+- [ ] Set up Android native integration
+- [ ] Set up iOS native integration
+
+</Step>
+
+<Step title="Test Conversion">
+
+- [ ] Create `patrol_test/` directory (or configure `test_directory`)
+- [ ] Convert `testWidgets()` to `patrolTest()`
+- [ ] Replace `WidgetTester` with `PatrolIntegrationTester`
+- [ ] Update finders to use `$()` syntax
+- [ ] Remove manual `pumpAndSettle()` calls after actions
+- [ ] Replace `app.main()` with `$.pumpWidgetAndSettle()`
+
+</Step>
+
+<Step title="Verification">
+
+- [ ] Run tests with `patrol test`
+- [ ] Verify all tests pass
+- [ ] Test on multiple devices/platforms
+- [ ] Update CI configuration
+
+</Step>
+
+<Step title="Enhancement">
+
+- [ ] Add native automation where beneficial
+- [ ] Use `patrol develop` for faster iteration
+- [ ] Try Patrol DevTools extension
+- [ ] Explore advanced features (sharding, tags, etc.)
+
+</Step>
+
+</Steps>
+
+## Gradual Migration Strategy
+
+You don't have to migrate everything at once:
+
+<Steps>
+
+<Step title="Run Both Test Types">
+
+Keep both `integration_test` and `patrol` in your project:
+
+```yaml
+dev_dependencies:
+  integration_test:
+    sdk: flutter
+  patrol: ^4.0.0
+```
+
+</Step>
+
+<Step title="Migrate Incrementally">
+
+Migrate one test file at a time:
+- Move file from `integration_test/` to `patrol_test/`
+- Convert the test code
+- Verify it works
+- Move to next file
+
+</Step>
+
+<Step title="Prioritize High-Value Tests">
+
+Start with tests that will benefit most from Patrol:
+- Tests that need permission handling
+- Tests that interact with notifications
+- Tests with complex scrolling
+- Tests that need native automation
+
+</Step>
+
+</Steps>
+
+## Troubleshooting
+
+### Common Issues
+
+<Accordions>
+
+<Accordion title="'patrol' command not found">
+
+Make sure `patrol` is in your PATH:
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+export PATH="$PATH:$HOME/.pub-cache/bin"
+```
+
+Then restart your terminal.
+
+</Accordion>
+
+<Accordion title="Android build fails">
+
+Ensure you have:
+- Set `testInstrumentationRunner` in `build.gradle.kts`
+- Added `patrol` dependency to `androidTestImplementation`
+- Created `MainActivityTest.java` with correct package name
+
+</Accordion>
+
+<Accordion title="iOS build fails">
+
+Common fixes:
+- Clean build: `cd ios && rm -rf Pods Podfile.lock && pod install`
+- Update CocoaPods: `gem install cocoapods`
+- Check Xcode is updated
+
+</Accordion>
+
+<Accordion title="Tests hang or timeout">
+
+Try:
+- Increase timeout: `await $('Button').tap(timeout: Duration(seconds: 10));`
+- Check if widget exists: `expect($(#widget), findsOneWidget);`
+- Use `patrol develop` to debug interactively
+
+</Accordion>
+
+</Accordions>
+
+## Key Takeaways
+
+<Note>
+**Patrol is a superset of integration_test**: All your existing integration test knowledge applies. Patrol adds:
+- Better finder syntax
+- Native automation capabilities
+- Improved development experience
+- Better test isolation and reliability
+</Note>
+
+## Next Steps
+
+Now that you've migrated to Patrol, explore its powerful features:
+
+- **Native Automation**: Learn about [platform automation](/documentation/native/overview)
+- **Finders**: Master [Patrol's finder system](/documentation/finders/overview)
+- **Hot Restart**: Speed up development with [`patrol develop`](/cli-commands/develop)
+- **Best Practices**: Read [Effective Patrol](/documentation/other/effective-patrol)
+- **DevTools Extension**: Try the [Patrol DevTools Extension](/tools/devtools-extension)
+- **Web Testing**: Explore [web testing capabilities](/documentation/web)
+
+## Need Help?
+
+If you encounter issues during migration:
+
+- Check the [documentation](/documentation)
+- Review [example tests](https://github.com/leancodepl/patrol/tree/master/packages/patrol/example)
+- Visit [GitHub](https://github.com/leancodepl/patrol) to report issues
+- Join our [Discord community](https://discord.gg/ukBK5t4EZg) for support
+
+Welcome to the Patrol community! Happy testing!

@@ -1,0 +1,429 @@
+---
+title: Android
+description: Testing Flutter apps on Android with Patrol
+---
+
+Patrol provides comprehensive support for testing Flutter applications on Android devices and emulators. Built on top of Android's UIAutomator framework, Patrol enables you to interact with both Flutter widgets and native Android UI elements.
+
+## Platform Support
+
+Patrol supports:
+
+- **Android 5.0 (API 21) and newer**
+- Both physical devices and emulators
+- Android-specific native interactions
+
+<Info>
+  Patrol requires Android SDK version 21 or higher. Make sure your `minSdkVersion` in `android/app/build.gradle` is set to at least 21.
+</Info>
+
+## Setup Requirements
+
+Before testing on Android, ensure you have the following installed:
+
+<Steps>
+  <Step title="Android SDK">
+    Install Android SDK through Android Studio or command-line tools.
+    
+    Set the `ANDROID_HOME` environment variable:
+    ```bash
+    export ANDROID_HOME=$HOME/Library/Android/sdk  # macOS
+    export ANDROID_HOME=$HOME/Android/Sdk          # Linux
+    ```
+  </Step>
+
+  <Step title="ADB (Android Debug Bridge)">
+    Verify that `adb` is available:
+    ```bash
+    adb version
+    ```
+    
+    ADB is typically installed with the Android SDK at `$ANDROID_HOME/platform-tools/adb`.
+  </Step>
+
+  <Step title="Java Development Kit (JDK)">
+    Patrol officially works with **JDK 17**. Verify your version:
+    ```bash
+    javac -version
+    ```
+    
+    <Warning>
+      Using an incompatible JDK version may cause "Unsupported class file major version" errors.
+    </Warning>
+  </Step>
+</Steps>
+
+## Native Integration
+
+To enable Patrol's native automation on Android, you need to configure your app's test infrastructure.
+
+<Steps>
+  <Step title="Configure pubspec.yaml">
+    Add your Android package name to `pubspec.yaml`:
+    
+    ```yaml title="pubspec.yaml"
+    patrol:
+      app_name: My App
+      android:
+        package_name: com.example.myapp
+    ```
+    
+    <Tip>
+      Find your package name in `android/app/build.gradle` under the `applicationId` field in the `defaultConfig` section.
+    </Tip>
+  </Step>
+
+  <Step title="Create Test File">
+    Create `MainActivityTest.java` in `android/app/src/androidTest/java/com/example/myapp/`:
+    
+    ```java title="android/app/src/androidTest/java/com/example/myapp/MainActivityTest.java"
+    package com.example.myapp; // replace with your app's package
+
+    import androidx.test.platform.app.InstrumentationRegistry;
+    import org.junit.Test;
+    import org.junit.runner.RunWith;
+    import org.junit.runners.Parameterized;
+    import org.junit.runners.Parameterized.Parameters;
+    import pl.leancode.patrol.PatrolJUnitRunner;
+
+    @RunWith(Parameterized.class)
+    public class MainActivityTest {
+        @Parameters(name = "{0}")
+        public static Object[] testCases() {
+            PatrolJUnitRunner instrumentation = (PatrolJUnitRunner) InstrumentationRegistry.getInstrumentation();
+            instrumentation.setUp(MainActivity.class);
+            instrumentation.waitForPatrolAppService();
+            return instrumentation.listDartTests();
+        }
+
+        public MainActivityTest(String dartTestName) {
+            this.dartTestName = dartTestName;
+        }
+
+        private final String dartTestName;
+
+        @Test
+        public void runDartTest() {
+            PatrolJUnitRunner instrumentation = (PatrolJUnitRunner) InstrumentationRegistry.getInstrumentation();
+            instrumentation.runDartTest(dartTestName);
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Configure build.gradle.kts">
+    Update `android/app/build.gradle.kts` (or `build.gradle` for Groovy):
+    
+    <CodeGroup>
+    ```kotlin title="Kotlin DSL (build.gradle.kts)"
+    android {
+        defaultConfig {
+            testInstrumentationRunner = "pl.leancode.patrol.PatrolJUnitRunner"
+            testInstrumentationRunnerArguments["clearPackageData"] = "true"
+        }
+        
+        testOptions {
+            execution = "ANDROIDX_TEST_ORCHESTRATOR"
+        }
+    }
+    
+    dependencies {
+        androidTestUtil("androidx.test:orchestrator:1.5.1")
+    }
+    ```
+    
+    ```groovy title="Groovy (build.gradle)"
+    android {
+        defaultConfig {
+            testInstrumentationRunner "pl.leancode.patrol.PatrolJUnitRunner"
+            testInstrumentationRunnerArguments clearPackageData: "true"
+        }
+        
+        testOptions {
+            execution "ANDROIDX_TEST_ORCHESTRATOR"
+        }
+    }
+    
+    dependencies {
+        androidTestUtil "androidx.test:orchestrator:1.5.1"
+    }
+    ```
+    </CodeGroup>
+  </Step>
+</Steps>
+
+## Running Tests
+
+### On Emulator
+
+Start an Android emulator and run your tests:
+
+```bash
+patrol test --target patrol_test/app_test.dart
+```
+
+### On Physical Device
+
+Connect your Android device via USB with USB debugging enabled:
+
+```bash
+# Enable USB debugging in Developer Options on your device
+adb devices  # Verify device is connected
+patrol test --target patrol_test/app_test.dart
+```
+
+<Tip>
+  To enable Developer Options on your Android device, go to **Settings > About phone** and tap **Build number** 7 times.
+</Tip>
+
+### Specifying a Device
+
+If you have multiple devices connected:
+
+```bash
+patrol devices  # List available devices
+patrol test --device emulator-5554 --target patrol_test/app_test.dart
+```
+
+## Android-Specific Features
+
+Patrol provides Android-specific automation through `$.platform.android`:
+
+### Navigation
+
+```dart
+// Press the back button
+await $.platform.android.pressBack();
+
+// Double press recent apps
+await $.platform.android.pressDoubleRecentApps();
+```
+
+### UI Interactions
+
+```dart
+// Tap on native Android views
+await $.platform.android.tap(
+  AndroidSelector(text: 'Accept'),
+);
+
+// Double tap
+await $.platform.android.doubleTap(
+  AndroidSelector(resourceId: 'com.example:id/button'),
+);
+
+// Tap at specific coordinates
+await $.platform.android.tapAt(x: 100, y: 200);
+
+// Enter text into native views
+await $.platform.android.enterText(
+  AndroidSelector(text: 'Enter email'),
+  text: 'user@example.com',
+);
+
+// Enter text by index
+await $.platform.android.enterTextByIndex('username', index: 0);
+await $.platform.android.enterTextByIndex('password', index: 1);
+```
+
+### Gestures
+
+```dart
+// Swipe
+await $.platform.android.swipe(
+  from: AndroidSelector(text: 'Item 1'),
+  to: AndroidSelector(text: 'Item 5'),
+);
+
+// Swipe back gesture
+await $.platform.android.swipeBack();
+
+// Pull to refresh
+await $.platform.android.pullToRefresh();
+```
+
+### Notifications
+
+```dart
+// Tap on notification by selector
+await $.platform.mobile.openNotifications();
+await $.platform.android.tapOnNotificationBySelector(
+  AndroidSelector(textContains: 'New message'),
+);
+
+// Tap by index
+await $.platform.android.tapOnNotificationByIndex(0);
+```
+
+### Location
+
+```dart
+// Enable/disable location services
+await $.platform.android.enableLocation();
+await $.platform.android.disableLocation();
+```
+
+### Camera & Gallery
+
+```dart
+// Take a photo with camera
+await $.platform.android.takeCameraPhoto();
+
+// Pick image from gallery
+await $.platform.android.pickImageFromGallery();
+
+// Pick multiple images
+await $.platform.android.pickMultipleImagesFromGallery();
+```
+
+## Android Selectors
+
+Use `AndroidSelector` to target native Android views:
+
+```dart
+// By text
+AndroidSelector(text: 'Submit')
+
+// By text contains
+AndroidSelector(textContains: 'Submit')
+
+// By text starts with
+AndroidSelector(textStartsWith: 'Sub')
+
+// By resource ID
+AndroidSelector(resourceId: 'com.example.myapp:id/submit_button')
+
+// By class name
+AndroidSelector(className: 'android.widget.Button')
+
+// By content description
+AndroidSelector(contentDescription: 'Submit button')
+
+// Combine multiple selectors
+AndroidSelector(
+  className: 'android.widget.EditText',
+  instance: 1, // Second EditText
+)
+```
+
+## Capabilities
+
+Android platform features available through `$.platform.mobile` (cross-platform) and `$.platform.android` (Android-only):
+
+| Feature | Status |
+|---------|--------|
+| Press home | ✅ |
+| Open app | ✅ |
+| Open notifications | ✅ |
+| Close notifications | ✅ |
+| Open quick settings | ✅ |
+| Open URL | ✅ |
+| Enable/disable dark mode | ✅ |
+| Enable/disable airplane mode | ✅ |
+| Enable/disable cellular | ✅ |
+| Enable/disable Wi-Fi | ✅ |
+| Enable/disable Bluetooth | ✅ |
+| Press volume up/down | ✅ |
+| Handle permission dialogs | ✅ |
+| Set mock location | ✅ (emulator only) |
+| Press back | ✅ |
+| Tap native views | ✅ |
+| Enter text | ✅ |
+| Swipe | ✅ |
+| Pull to refresh | ✅ |
+| Tap on notifications | ✅ |
+| Enable/disable location | ✅ |
+| Camera & gallery | ✅ |
+| WebView interaction | ⚠️ Limited |
+
+<Info>
+  For a complete feature parity comparison across all platforms, see the [Feature Parity](/documentation/native/feature-parity) page.
+</Info>
+
+## Limitations
+
+### Mock Location
+
+<Warning>
+  Setting mock location (`$.platform.mobile.setMockLocation()`) is **not supported on physical devices**. It only works on emulators.
+</Warning>
+
+### WebView Interactions
+
+Interacting with WebView content on Android has limitations. For web content testing, consider:
+- Using Patrol's web testing capabilities if your content can be tested in a browser
+- Exposing JavaScript interfaces for test automation
+
+See [issue #244](https://github.com/leancodepl/patrol/issues/244) for more details.
+
+### ProGuard Configuration
+
+<Warning>
+  ProGuard can cause issues with Patrol, such as `ClassNotFoundException`s. Either keep all Patrol packages or disable ProGuard in debug builds:
+  
+  ```kotlin title="android/app/build.gradle.kts"
+  buildTypes {
+      getByName("debug") {
+          isMinifyEnabled = false
+          isShrinkResources = false
+      }
+  }
+  ```
+</Warning>
+
+## Troubleshooting
+
+### Build Hangs
+
+If `patrol test` or `patrol build android` gets stuck:
+
+<Tip>
+  Try updating the orchestrator to version `1.6.1` in your `build.gradle`:
+  
+  ```kotlin
+  androidTestUtil("androidx.test:orchestrator:1.6.1")
+  ```
+</Tip>
+
+### Class File Version Error
+
+If you see "Unsupported class file major version" errors:
+
+1. Check your JDK version: `javac -version`
+2. Patrol officially supports JDK 17
+3. Configure your IDE to use the correct JDK in **Settings > Build, Execution, Deployment > Build Tools > Gradle > Gradle JDK**
+
+### Device Not Found
+
+If Patrol can't find your device:
+
+```bash
+# Check device connection
+adb devices
+
+# If no devices listed, check:
+# 1. USB debugging is enabled
+# 2. USB cable is working (try a different one)
+# 3. Device is authorized (check device screen for authorization prompt)
+
+# Restart ADB server if needed
+adb kill-server
+adb start-server
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Feature Parity" icon="table" href="/documentation/native/feature-parity">
+    See all available Android features
+  </Card>
+  <Card title="Write Your First Test" icon="code" href="/documentation/write-your-first-test">
+    Start writing Patrol tests
+  </Card>
+  <Card title="Native Usage" icon="mobile" href="/documentation/native/usage">
+    Learn native automation basics
+  </Card>
+  <Card title="iOS Platform" icon="apple" href="/platforms/ios">
+    Testing on iOS devices
+  </Card>
+</CardGroup>

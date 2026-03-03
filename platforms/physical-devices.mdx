@@ -1,0 +1,426 @@
+---
+title: Physical Devices
+description: Running Patrol tests on physical iOS devices
+---
+
+Testing on physical iOS devices requires additional configuration beyond simulator testing. Due to iOS restrictions on JIT compilation, tests must be built and run in release mode with proper code signing.
+
+<Info>
+  Physical device testing is primarily an iOS concern. Android physical devices work similarly to emulators and don't require special configuration beyond enabling USB debugging.
+</Info>
+
+## Why Physical Devices?
+
+Physical device testing is important for:
+
+- **Performance testing**: Real-world performance characteristics
+- **Hardware features**: Camera, GPS, sensors, volume buttons
+- **Network conditions**: Actual cellular and Wi-Fi behavior  
+- **Device-specific issues**: Screen sizes, gestures, OS quirks
+- **Production-like environment**: Final validation before release
+
+<Note>
+  Some features like volume buttons (`$.platform.mobile.pressVolumeUp()`) only work on physical iOS devices, not simulators.
+</Note>
+
+## Prerequisites
+
+Before testing on physical iOS devices:
+
+<Steps>
+  <Step title="Apple Developer Account">
+    You need an active Apple Developer Program membership ($99/year) to:
+    - Create App IDs
+    - Generate provisioning profiles
+    - Install apps on physical devices
+    
+    Join at [developer.apple.com](https://developer.apple.com/programs/)
+  </Step>
+  
+  <Step title="Physical iOS Device">
+    - iPhone or iPad running iOS 13 or newer
+    - Lightning or USB-C cable for connection
+    - Device enrolled in your Apple Developer account
+  </Step>
+  
+  <Step title="Mac with Xcode">
+    - Xcode 13.0 or newer
+    - ideviceinstaller (install via Homebrew):
+    ```bash
+    brew install ideviceinstaller
+    ```
+  </Step>
+  
+  <Step title="Existing Patrol Setup">
+    Complete the standard [iOS setup](/platforms/ios) for simulators first.
+  </Step>
+</Steps>
+
+## Code Signing Setup
+
+Physical device testing requires code signing for both your app (`Runner`) and the test target (`RunnerUITests`).
+
+### Overview
+
+You need to create:
+
+1. **App ID** for `RunnerUITests` target
+2. **Development Certificate** (if you don't have one)
+3. **Provisioning Profile** for the test target
+
+<Info>
+  We assume your app (`Runner`) is already properly signed for development or release.
+</Info>
+
+## Step-by-Step Configuration
+
+<Steps>
+  <Step title="Create App ID for RunnerUITests">
+    In the [Apple Developer Portal](https://developer.apple.com):
+    
+    1. Go to **Certificates, Identifiers & Profiles**
+    2. Select **Identifiers**
+    3. Click **+** to create a new Identifier
+    4. Select **App IDs** and click **Continue**
+    5. Select **App** and click **Continue**
+    6. Set the **Bundle ID** to your app's bundle ID with `.RunnerUITests.xctrunner` suffix
+    
+    Example:
+    - Your app bundle ID: `com.example.myapp`
+    - RunnerUITests bundle ID: `com.example.myapp.RunnerUITests.xctrunner`
+    
+    <Warning>
+      The bundle ID must end with `.RunnerUITests.xctrunner` exactly. This is the bundle identifier that iOS generates when building XCUITest targets.
+    </Warning>
+    
+    7. Configure capabilities if needed (usually none required)
+    8. Click **Continue** and then **Register**
+  </Step>
+  
+  <Step title="Verify Development Certificate">
+    In the [Apple Developer Portal](https://developer.apple.com):
+    
+    1. Go to **Certificates, Identifiers & Profiles**
+    2. Select **Certificates**
+    3. Verify you have a valid **Apple Development** certificate
+    
+    If you don't have one:
+    1. Click **+** to create a new certificate
+    2. Select **Apple Development**
+    3. Follow the instructions to generate a Certificate Signing Request (CSR)
+    4. Upload the CSR and download the certificate
+    5. Double-click the certificate to install it in Keychain
+  </Step>
+  
+  <Step title="Create Provisioning Profile">
+    In the [Apple Developer Portal](https://developer.apple.com):
+    
+    1. Go to **Certificates, Identifiers & Profiles**
+    2. Select **Profiles**
+    3. Click **+** to create a new profile
+    4. Select **iOS App Development**
+    5. Click **Continue**
+    6. Select the **RunnerUITests App ID** you created earlier
+    7. Click **Continue**
+    8. Select your **Development Certificate**
+    9. Click **Continue**
+    10. Select the devices you want to test on
+    11. Click **Continue**
+    12. Name the profile (e.g., "MyApp RunnerUITests Development")
+    13. Click **Generate**
+    14. Download the provisioning profile
+  </Step>
+  
+  <Step title="Configure Xcode Signing (Automatic)">
+    If using **automatic signing** (recommended):
+    
+    1. Open `ios/Runner.xcworkspace` in Xcode
+    2. Select the `RunnerUITests` target
+    3. Go to **Signing & Capabilities**
+    4. Check **Automatically manage signing**
+    5. Select your **Team** from the dropdown
+    6. Xcode will automatically configure signing
+    
+    ![Xcode automatic signing](/assets/ios_runneruitests_disable_automatic_signing.png)
+    
+    <Tip>
+      Automatic signing is simpler and recommended for most users. Xcode handles provisioning profiles automatically.
+    </Tip>
+  </Step>
+  
+  <Step title="Configure Xcode Signing (Manual with Fastlane)">
+    If using [Fastlane for code signing](https://docs.fastlane.tools/codesigning/getting-started/):
+    
+    <Warning>
+      The following steps are **only needed if you use Fastlane for code signing**. Skip this step if using automatic signing.
+    </Warning>
+    
+    1. In Xcode, select the `RunnerUITests` target
+    2. Go to **Signing & Capabilities**
+    3. **Uncheck** "Automatically manage signing"
+    4. Select your provisioning profile manually
+    
+    ![Disable automatic signing](/assets/ios_runneruitests_disable_automatic_signing.png)
+    
+    5. Open `ios/Runner.xcodeproj/project.pbxproj` in a text editor
+    6. Search for all occurrences of:
+    ```
+    PRODUCT_BUNDLE_IDENTIFIER = com.example.myapp.RunnerUITests;
+    ```
+    
+    7. For each occurrence, add the provisioning profile specifier:
+    ```
+    PRODUCT_BUNDLE_IDENTIFIER = com.example.myapp.RunnerUITests;
+    PROVISIONING_PROFILE_SPECIFIER = "MyApp RunnerUITests Development";
+    ```
+    
+    8. In Xcode, go to **Product > Clean Build Folder**
+  </Step>
+  
+  <Step title="Import Provisioning Profile (Manual Signing Only)">
+    If using manual signing with Fastlane:
+    
+    1. Double-click the downloaded `.mobileprovision` file to import it into Xcode
+    2. Verify import in Xcode:
+       - Go to **Xcode > Preferences > Accounts**
+       - Select your Apple ID
+       - Click **Manage Certificates...**
+       - Click **Download Manual Profiles**
+    
+    <Info>
+      You might see errors in Xcode about mismatching bundle IDs. This is expected because the `.xctrunner` bundle is generated during build time.
+    </Info>
+  </Step>
+  
+  <Step title="Build Tests for Physical Device">
+    From your project directory, build the tests:
+    
+    ```bash
+    patrol build ios --release
+    ```
+    
+    <Note>
+      Physical device tests must be built in **release mode** due to iOS JIT restrictions.
+    </Note>
+    
+    If the build succeeds, your setup is complete!
+  </Step>
+  
+  <Step title="Connect Device and Run Tests">
+    1. Connect your iOS device via USB
+    2. Unlock the device
+    3. Trust the computer if prompted
+    4. Run tests:
+    
+    ```bash
+    patrol test --device <device-id> --target patrol_test/app_test.dart
+    ```
+    
+    Find your device ID:
+    ```bash
+    patrol devices
+    ```
+    
+    Or:
+    ```bash
+    xcrun xctrace list devices
+    ```
+  </Step>
+</Steps>
+
+## Release Mode Testing
+
+Physical iOS devices require tests to run in release mode:
+
+```bash
+# Build for release
+patrol build ios --release
+
+# Run tests
+patrol test --device <device-id> --release
+```
+
+<Warning>
+  Debug mode (`flutter run -d <device-id>`) works for development, but **integration tests must use release mode** on physical iOS devices due to JIT compilation restrictions.
+</Warning>
+
+## Android Physical Devices
+
+Android physical devices are much simpler to set up:
+
+<Steps>
+  <Step title="Enable Developer Options">
+    On your Android device:
+    1. Go to **Settings > About phone**
+    2. Tap **Build number** 7 times
+    3. Developer options are now enabled
+  </Step>
+  
+  <Step title="Enable USB Debugging">
+    1. Go to **Settings > Developer options**
+    2. Enable **USB debugging**
+    3. Connect device via USB
+    4. Authorize the computer on the device screen
+  </Step>
+  
+  <Step title="Verify Connection">
+    ```bash
+    adb devices
+    ```
+    
+    Your device should appear in the list.
+  </Step>
+  
+  <Step title="Run Tests">
+    ```bash
+    patrol test --target patrol_test/app_test.dart
+    ```
+    
+    No special configuration needed!
+  </Step>
+</Steps>
+
+<Tip>
+  Android physical devices work just like emulators. No additional code signing or configuration is required.
+</Tip>
+
+## Troubleshooting
+
+### Device Not Found
+
+**iOS:**
+```bash
+# List devices
+xcrun xctrace list devices
+ideviceinstaller -l
+
+# Check connection
+idevice_id -l
+
+# Ensure device is trusted
+idevicepair validate
+```
+
+**Android:**
+```bash
+# Check connection
+adb devices
+
+# If "unauthorized", check device screen for authorization prompt
+
+# Restart ADB if needed
+adb kill-server
+adb start-server
+```
+
+### Code Signing Errors
+
+If you see "Code signing is required" errors:
+
+1. Verify your Apple Developer account is active
+2. Check that the provisioning profile is valid and not expired
+3. Ensure the device is registered in your developer account
+4. Try cleaning the build:
+   ```bash
+   cd ios
+   rm -rf build
+   pod install
+   cd ..
+   patrol build ios --release
+   ```
+
+### Bundle ID Mismatch
+
+If Xcode shows bundle ID errors:
+
+<Info>
+  These warnings are expected because the `.xctrunner` bundle is generated at build time. As long as your App ID in the Developer Portal matches the pattern `com.example.myapp.RunnerUITests.xctrunner`, the build will succeed.
+</Info>
+
+### Build Fails with "Requires a provisioning profile"
+
+1. Open Xcode and verify both `Runner` and `RunnerUITests` targets are signed
+2. Check that your provisioning profile includes the connected device
+3. Ensure the provisioning profile hasn't expired
+4. Try selecting "Automatically manage signing" for easier setup
+
+### Tests Pass on Simulator but Fail on Device
+
+Some differences between simulator and device:
+
+- **Performance**: Devices may be slower or faster
+- **Permissions**: Some permissions behave differently
+- **Hardware**: Camera, GPS, sensors work differently
+- **Network**: Real network conditions vs. simulated
+
+Adjust timeouts and test expectations accordingly:
+
+```dart
+patrolTest(
+  'handles device-specific timing',
+  ($) async {
+    await $.pumpWidgetAndSettle(const MyApp());
+    
+    // Longer timeout for physical devices
+    await $(#loadingIndicator).waitUntilVisible(
+      timeout: Duration(seconds: 10),
+    );
+  },
+);
+```
+
+## Best Practices
+
+### Device Management
+
+✅ **Do:**
+- Keep multiple devices with different iOS versions
+- Test on both iPhone and iPad
+- Include older devices for performance testing
+- Regularly update device iOS versions
+
+❌ **Don't:**
+- Rely solely on simulators for final validation
+- Forget to test on minimum supported iOS version
+- Ignore device-specific edge cases
+
+### Code Signing
+
+✅ **Do:**
+- Use automatic signing when possible
+- Keep provisioning profiles up to date
+- Document signing setup for your team
+- Use Fastlane for team consistency
+
+❌ **Don't:**
+- Commit provisioning profiles to version control
+- Share signing certificates between team members
+- Use wildcard provisioning profiles for production
+
+### CI/CD with Physical Devices
+
+For CI/CD with physical devices, consider:
+
+- [AWS Device Farm](https://aws.amazon.com/device-farm/)
+- [Firebase Test Lab](/documentation/integrations/firebase-test-lab) (Android)
+- [BrowserStack](/documentation/integrations/browserstack)
+- [LambdaTest](/documentation/integrations/lambdatest)
+
+These services provide access to real devices in the cloud.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="iOS Platform" icon="apple" href="/platforms/ios">
+    Complete iOS testing guide
+  </Card>
+  <Card title="Android Platform" icon="android" href="/platforms/android">
+    Complete Android testing guide
+  </Card>
+  <Card title="CI Integration" icon="github" href="/documentation/ci/overview">
+    Run tests in CI/CD pipelines
+  </Card>
+  <Card title="Firebase Test Lab" icon="fire" href="/documentation/integrations/firebase-test-lab">
+    Test on cloud devices
+  </Card>
+</CardGroup>

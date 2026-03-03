@@ -1,0 +1,173 @@
+---
+title: CI/CD Overview
+description: Run Patrol tests in your Continuous Integration pipelines
+---
+
+Running your Patrol tests automatically in CI/CD pipelines is essential for maintaining code quality and catching regressions early. Patrol is designed to work seamlessly with popular CI/CD platforms.
+
+## Why run tests in CI?
+
+Automated testing in CI provides several benefits:
+
+- **Early bug detection** - Catch issues before they reach production
+- **Consistent test environment** - Run tests in the same environment every time
+- **Fast feedback** - Get test results within minutes of pushing code
+- **Confidence in deployments** - Deploy knowing your tests pass
+
+## CI/CD approaches
+
+There are two main approaches to running mobile UI tests in CI:
+
+<CardGroup cols={2}>
+  <Card title="Device Labs" icon="cloud" href="/integrations/firebase-test-lab">
+    Upload app binaries to cloud-based testing services
+  </Card>
+  <Card title="Traditional CI" icon="server">
+    Run tests directly on CI runners with emulators/simulators
+  </Card>
+</CardGroup>
+
+### Device labs
+
+Device labs provide access to real devices and emulators in the cloud. You upload your app and test APKs/IPAs, select devices, and the service runs tests and reports results.
+
+**Advantages:**
+- Easy to set up and use
+- Access to real devices
+- Stable and maintained infrastructure
+- Video recordings and detailed reports
+
+**Popular device labs:**
+- [Firebase Test Lab](/integrations/firebase-test-lab) - Google's testing infrastructure
+- [emulator.wtf](https://emulator.wtf) - Fast Android emulator testing
+- [BrowserStack](/integrations/browserstack) - Real device testing
+- [LambdaTest](/integrations/lambdatest) - Cloud testing platform
+
+### Traditional CI
+
+With traditional CI, you have full control over the testing environment. You script everything: installing SDKs, creating virtual devices, running tests, and collecting results.
+
+**Advantages:**
+- Complete flexibility
+- No file upload/download overhead
+- Direct access to test artifacts
+- Can test complex scenarios (e.g., camera manipulation)
+
+**Considerations:**
+- Requires more setup and maintenance
+- Emulator stability can be challenging
+- Longer execution times on some platforms
+
+## Platform-specific guides
+
+Choose your CI/CD platform to get started:
+
+<CardGroup cols={3}>
+  <Card title="GitHub Actions" icon="github" href="/ci/github-actions">
+    Run Patrol tests with GitHub Actions
+  </Card>
+  <Card title="GitLab CI" icon="gitlab" href="/ci/gitlab-ci">
+    Integrate Patrol with GitLab pipelines
+  </Card>
+  <Card title="Bitrise" icon="mobile" href="/ci/bitrise">
+    Configure Patrol for Bitrise workflows
+  </Card>
+</CardGroup>
+
+## Basic workflow
+
+Regardless of your CI platform, the basic workflow is:
+
+<Steps>
+  <Step title="Install dependencies">
+    Set up Flutter, Java (for Android), and Patrol CLI
+  </Step>
+  <Step title="Build test artifacts">
+    Use `patrol build` to create test APKs or IPAs
+  </Step>
+  <Step title="Run tests">
+    Execute tests on emulators, simulators, or device labs
+  </Step>
+  <Step title="Collect results">
+    Upload test reports, videos, and logs as artifacts
+  </Step>
+</Steps>
+
+## Performance tips
+
+<Tip>
+Use device labs like Firebase Test Lab or emulator.wtf for faster, more reliable test execution compared to running emulators directly on CI runners.
+</Tip>
+
+### Caching
+
+Cache these directories to speed up your builds:
+
+- Flutter SDK (`~/.flutter`)
+- Pub cache (`~/.pub-cache`)
+- Gradle dependencies (`~/.gradle`)
+- CocoaPods (`ios/Pods`)
+
+### Parallel execution
+
+Run tests in parallel across different:
+- Device models
+- OS versions
+- Test suites (using tags)
+
+## Test selection with tags
+
+Patrol supports tag-based test filtering, which is perfect for CI:
+
+```dart
+patrolTest(
+  'login flow',
+  tags: ['android', 'smoke'],
+  ($) async {
+    // Test code
+  },
+);
+```
+
+Then in CI:
+
+```bash
+# Run only Android smoke tests
+patrol test --tags='android && smoke'
+
+# Run all tests except slow ones
+patrol test --exclude-tags='slow'
+```
+
+## Common challenges
+
+### Android emulator stability
+
+<Warning>
+Running Android emulators directly on standard CI runners (especially GitHub Actions) can be slow and unstable. Consider using device labs or self-hosted runners with nested virtualization support.
+</Warning>
+
+### iOS simulator limitations
+
+iOS simulators are faster than Android emulators but have limitations:
+- No easy way to simulate network conditions
+- Cannot test certain hardware features
+- Behavior may differ from real devices
+
+### Build times
+
+First builds in CI can be slow. Use these strategies:
+- Cache dependencies aggressively
+- Use `flutter precache` to download platform artifacts
+- Run `flutter build --config-only` to generate build files without building
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="GitHub Actions" icon="github" href="/ci/github-actions">
+    Complete GitHub Actions setup guide
+  </Card>
+  <Card title="Firebase Test Lab" icon="google" href="/integrations/firebase-test-lab">
+    Learn about device lab testing
+  </Card>
+</CardGroup>

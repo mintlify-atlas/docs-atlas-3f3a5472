@@ -1,0 +1,490 @@
+---
+title: LambdaTest
+description: Run Patrol tests on LambdaTest Real Device Cloud for Android testing
+---
+
+[LambdaTest App Test Automation](https://www.lambdatest.com/app-test-automation) is a cloud-based testing platform that provides access to real Android and iOS devices. This guide shows you how to run Patrol tests on LambdaTest.
+
+<Warning>
+  This integration is currently **Android-only**. iOS support is not yet available.
+</Warning>
+
+## Overview
+
+LambdaTest App Test Automation enables you to run your Patrol tests on real Android devices in the cloud. The platform offers over 3000+ real devices and browsers for comprehensive testing.
+
+## Prerequisites
+
+<Steps>
+  <Step title="Create LambdaTest account">
+    Sign up for a [LambdaTest account](https://accounts.lambdatest.com/register) if you don't have one.
+  </Step>
+
+  <Step title="Get your credentials">
+    Find your username and access key in your [LambdaTest Profile](https://accounts.lambdatest.com/detail/profile).
+  </Step>
+
+  <Step title="Set environment variables">
+    Export your credentials as environment variables:
+
+    ```bash
+    export LT_USERNAME="your_username"
+    export LT_ACCESS_KEY="your_access_key"
+    ```
+
+    Add these to your shell profile to persist them:
+
+    ```bash
+    echo 'export LT_USERNAME="your_username"' >> ~/.zshrc
+    echo 'export LT_ACCESS_KEY="your_access_key"' >> ~/.zshrc
+    source ~/.zshrc
+    ```
+  </Step>
+</Steps>
+
+## Setup for Android
+
+<Steps>
+  <Step title="Update test runner">
+    Modify your **app-level build.gradle** file to use the LambdaTest-specific test runner:
+
+    <CodeGroup>
+    ```groovy build.gradle
+    android {
+      // ...
+      defaultConfig {
+        // ...
+        testInstrumentationRunner "pl.leancode.patrol.LambdaTestPatrolJUnitRunner"
+      }
+      // ...
+    }
+    ```
+
+    ```kotlin build.gradle.kts
+    android {
+      // ...
+      defaultConfig {
+        // ...
+        testInstrumentationRunner = "pl.leancode.patrol.LambdaTestPatrolJUnitRunner"
+      }
+      // ...
+    }
+    ```
+    </CodeGroup>
+
+    <Info>
+      The `LambdaTestPatrolJUnitRunner` is a specialized test runner that integrates with LambdaTest's infrastructure and ensures proper test execution on their platform.
+    </Info>
+  </Step>
+
+  <Step title="Sync Gradle">
+    After making this change, sync your Gradle files:
+
+    ```bash
+    cd android && ./gradlew --refresh-dependencies
+    ```
+  </Step>
+</Steps>
+
+## Running Tests
+
+Follow these steps to run your Patrol tests on LambdaTest:
+
+<Steps>
+  <Step title="Build APKs">
+    Build your app and test instrumentation APKs using Patrol:
+
+    ```bash
+    patrol build android --target integration_test/example_test.dart
+    ```
+
+    This creates:
+    - `build/app/outputs/apk/debug/app-debug.apk` (app under test)
+    - `build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk` (test suite)
+
+    <Tip>
+      You can target multiple test files by separating them with commas:
+      ```bash
+      patrol build android --target integration_test/app_test.dart,integration_test/login_test.dart
+      ```
+    </Tip>
+  </Step>
+
+  <Step title="Upload app to LambdaTest">
+    Upload your app APK to LambdaTest using their REST API:
+
+    ```bash
+    curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+      -X POST "https://manual-api.lambdatest.com/app/upload/realDevice" \
+      -F "appFile=@build/app/outputs/apk/debug/app-debug.apk" \
+      -F "name=app-debug.apk"
+    ```
+
+    The response will contain an `app_url` like `lt://APP1016047291733313441063634`. Save this for the next steps.
+
+    <Info>
+      See [LambdaTest's documentation](https://www.lambdatest.com/support/docs/getting-started-with-espresso-testing/#running-your-first-test-a-step-by-step-guide) for more details.
+    </Info>
+  </Step>
+
+  <Step title="Upload test suite to LambdaTest">
+    Upload your test instrumentation APK:
+
+    ```bash
+    curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+      -X POST "https://manual-api.lambdatest.com/app/upload/realDevice" \
+      -F "appFile=@build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk" \
+      -F "name=app-debug-androidTest.apk"
+    ```
+
+    The response will contain a `test_suite_url` like `lt://APP1016047291733312896265135`. Save this for execution.
+
+    <Info>
+      See [LambdaTest's documentation](https://www.lambdatest.com/support/docs/getting-started-with-espresso-testing/#step-2-upload-your-test-suite) for more details.
+    </Info>
+  </Step>
+
+  <Step title="Execute tests">
+    Start the test execution by making a POST request with your test configuration:
+
+    ```bash
+    curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+      -X POST "https://mobile-api.lambdatest.com/framework/v1/espresso/build" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "app": "lt://APP1016047291733313441063634",
+        "testSuite": "lt://APP1016047291733312896265135",
+        "device": ["Pixel 7 Pro-13"],
+        "queueTimeout": 600,
+        "deviceLog": true,
+        "network": true,
+        "build": "Patrol Test Build"
+      }'
+    ```
+
+    <Note>
+      **Configuration options:**
+      - `app` - The app URL from step 2
+      - `testSuite` - The test suite URL from step 3
+      - `device` - Array of device configurations (format: "DeviceName-OSVersion")
+      - `queueTimeout` - Maximum time to wait for device availability (seconds)
+      - `deviceLog` - Capture device logs during test execution
+      - `network` - Capture network logs
+      - `build` - Build name to organize tests in dashboard
+    </Note>
+
+    <Info>
+      See [LambdaTest's documentation](https://www.lambdatest.com/support/docs/getting-started-with-espresso-testing/#step-3-executing-the-test) for all available options.
+    </Info>
+  </Step>
+</Steps>
+
+### Example Execution
+
+Here's a complete example of a successful test execution:
+
+```bash
+$ export LAMBDATEST_PROJECT=AwesomeApp
+$ export LAMBDATEST_DEVICES='["Pixel 7 Pro-13"]'
+$ patrol build android --target integration_test/app_test.dart
+• Building apk with entrypoint test_bundle.dart...
+✓ Completed building apk with entrypoint test_bundle.dart (11.0s)
+
+$ # Upload app
+$ curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+  -X POST "https://manual-api.lambdatest.com/app/upload/realDevice" \
+  -F "appFile=@build/app/outputs/apk/debug/app-debug.apk" \
+  -F "name=app-debug.apk"
+Uploaded app, "app_id": "lt://APP1016047291733313441063634"
+
+$ # Upload test suite
+$ curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+  -X POST "https://manual-api.lambdatest.com/app/upload/realDevice" \
+  -F "appFile=@build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk" \
+  -F "name=app-debug-androidTest.apk"
+Uploaded testsuite, "app_id": "lt://APP1016047291733312896265135"
+
+$ # Execute tests
+$ curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+  -X POST "https://mobile-api.lambdatest.com/framework/v1/espresso/build" \
+  -H "Content-Type: application/json" \
+  -d '{"app": "lt://APP1016047291733313441063634", "testSuite": "lt://APP1016047291733312896265135", "device": ["Pixel 7 Pro-13"]}'
+{
+  "status": ["Success"],
+  "buildId": ["5875687"],
+  "message": [""]
+}
+```
+
+## Viewing Results
+
+After starting a test execution, you can:
+
+1. **View in Dashboard**: Go to the [LambdaTest App Automation Dashboard](https://appautomation.lambdatest.com/build) to see live test execution
+2. **Access Logs**: View device logs, network logs, and screenshots
+3. **Download Videos**: Download video recordings of test execution
+4. **Check Status via API**: Use the `buildId` to query test status
+
+```bash
+curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+  "https://mobile-api.lambdatest.com/framework/v1/espresso/build/5875687"
+```
+
+## Available Devices
+
+LambdaTest offers a wide range of Android devices. Popular configurations include:
+
+<AccordionGroup>
+  <Accordion title="Popular Android Devices">
+    ```json
+    [
+      "Pixel 7 Pro-13",
+      "Pixel 6-12",
+      "Samsung Galaxy S23-13",
+      "Samsung Galaxy S22-12",
+      "OnePlus 11-13",
+      "OnePlus 9-11",
+      "Xiaomi Redmi Note 12-12",
+      "Galaxy Tab S8-12"
+    ]
+    ```
+  </Accordion>
+</AccordionGroup>
+
+To see all available devices:
+1. Visit the [LambdaTest Automation Capabilities Generator](https://www.lambdatest.com/capabilities-generator/)
+2. Select "App Automation" and "Espresso"
+3. Browse available devices and generate configuration
+
+## Configuration Options
+
+Customize your test execution with these configuration options:
+
+<AccordionGroup>
+  <Accordion title="Test multiple devices">
+    Run tests on multiple devices in parallel:
+
+    ```json
+    {
+      "app": "lt://APP123...",
+      "testSuite": "lt://APP456...",
+      "device": [
+        "Pixel 7 Pro-13",
+        "Samsung Galaxy S23-13",
+        "OnePlus 11-13"
+      ],
+      "build": "Multi-device test"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Enable geolocation">
+    Test location-based features:
+
+    ```json
+    {
+      "app": "lt://APP123...",
+      "testSuite": "lt://APP456...",
+      "device": ["Pixel 7 Pro-13"],
+      "geoLocation": "US"
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Network simulation">
+    Test under different network conditions:
+
+    ```json
+    {
+      "app": "lt://APP123...",
+      "testSuite": "lt://APP456...",
+      "device": ["Pixel 7 Pro-13"],
+      "networkProfile": "3G"
+    }
+    ```
+
+    Available profiles: `4G`, `3G`, `2G`, `offline`
+  </Accordion>
+
+  <Accordion title="Custom timeout settings">
+    Configure timeouts for your tests:
+
+    ```json
+    {
+      "app": "lt://APP123...",
+      "testSuite": "lt://APP456...",
+      "device": ["Pixel 7 Pro-13"],
+      "queueTimeout": 600,
+      "idleTimeout": 120
+    }
+    ```
+
+    - `queueTimeout` - Max wait time for device availability (seconds)
+    - `idleTimeout` - Max idle time before test is terminated (seconds)
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Enable Device Logs" icon="file-lines">
+    Always set `deviceLog: true` to capture detailed logs for debugging failures.
+  </Card>
+
+  <Card title="Use Build Names" icon="tag">
+    Organize tests with meaningful build names to track test runs over time.
+  </Card>
+
+  <Card title="Test on Real Devices" icon="mobile">
+    Use real devices instead of emulators for more accurate test results.
+  </Card>
+
+  <Card title="Set Reasonable Timeouts" icon="clock">
+    Configure `queueTimeout` and `idleTimeout` based on your test duration.
+  </Card>
+</CardGroup>
+
+## CI/CD Integration
+
+Integrate LambdaTest into your CI/CD pipeline:
+
+<CodeGroup>
+```yaml GitHub Actions
+name: LambdaTest Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        
+      - name: Build APKs
+        run: patrol build android --target integration_test/app_test.dart
+        
+      - name: Upload and run tests
+        env:
+          LT_USERNAME: ${{ secrets.LT_USERNAME }}
+          LT_ACCESS_KEY: ${{ secrets.LT_ACCESS_KEY }}
+        run: |
+          # Upload app
+          APP_RESPONSE=$(curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+            -X POST "https://manual-api.lambdatest.com/app/upload/realDevice" \
+            -F "appFile=@build/app/outputs/apk/debug/app-debug.apk" \
+            -F "name=app-debug.apk")
+          APP_URL=$(echo $APP_RESPONSE | jq -r '.app_url')
+          
+          # Upload test suite
+          TEST_RESPONSE=$(curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+            -X POST "https://manual-api.lambdatest.com/app/upload/realDevice" \
+            -F "appFile=@build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk" \
+            -F "name=app-debug-androidTest.apk")
+          TEST_URL=$(echo $TEST_RESPONSE | jq -r '.app_url')
+          
+          # Execute tests
+          curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+            -X POST "https://mobile-api.lambdatest.com/framework/v1/espresso/build" \
+            -H "Content-Type: application/json" \
+            -d "{ \"app\": \"$APP_URL\", \"testSuite\": \"$TEST_URL\", \"device\": [\"Pixel 7 Pro-13\"], \"build\": \"${{ github.run_number }}\" }"
+```
+
+```yaml GitLab CI
+test_lambdatest:
+  stage: test
+  image: ghcr.io/cirruslabs/flutter:stable
+  script:
+    - patrol build android --target integration_test/app_test.dart
+    
+    # Upload app
+    - |
+      APP_RESPONSE=$(curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+        -X POST "https://manual-api.lambdatest.com/app/upload/realDevice" \
+        -F "appFile=@build/app/outputs/apk/debug/app-debug.apk" \
+        -F "name=app-debug.apk")
+      APP_URL=$(echo $APP_RESPONSE | jq -r '.app_url')
+    
+    # Upload test suite
+    - |
+      TEST_RESPONSE=$(curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+        -X POST "https://manual-api.lambdatest.com/app/upload/realDevice" \
+        -F "appFile=@build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk" \
+        -F "name=app-debug-androidTest.apk")
+      TEST_URL=$(echo $TEST_RESPONSE | jq -r '.app_url')
+    
+    # Execute tests
+    - |
+      curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+        -X POST "https://mobile-api.lambdatest.com/framework/v1/espresso/build" \
+        -H "Content-Type: application/json" \
+        -d "{ \"app\": \"$APP_URL\", \"testSuite\": \"$TEST_URL\", \"device\": [\"Pixel 7 Pro-13\"], \"build\": \"$CI_PIPELINE_ID\" }"
+  variables:
+    LT_USERNAME: $LAMBDATEST_USERNAME
+    LT_ACCESS_KEY: $LAMBDATEST_ACCESS_KEY
+```
+</CodeGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Authentication failed">
+    Verify your credentials:
+    ```bash
+    echo "Username: $LT_USERNAME"
+    echo "Access Key: ${LT_ACCESS_KEY:0:5}..."
+    ```
+    
+    Make sure there are no extra spaces or special characters. Get fresh credentials from your [LambdaTest profile](https://accounts.lambdatest.com/detail/profile).
+  </Accordion>
+
+  <Accordion title="Upload failed">
+    Common upload issues:
+    - **File not found**: Verify the APK path is correct
+    - **File too large**: LambdaTest has file size limits (typically 1GB)
+    - **Invalid APK**: Ensure the APK was built successfully
+    
+    Test with a simple curl command:
+    ```bash
+    curl -u "$LT_USERNAME:$LT_ACCESS_KEY" \
+      "https://mobile-api.lambdatest.com/framework/v1/espresso/builds"
+    ```
+  </Accordion>
+
+  <Accordion title="Device not available">
+    If the device is busy or unavailable:
+    - Check the [device list](https://www.lambdatest.com/list-of-real-devices) for correct device names
+    - Try a different device or wait and retry
+    - Increase `queueTimeout` to wait longer for device availability
+    - Verify your LambdaTest plan includes the requested device
+  </Accordion>
+
+  <Accordion title="Tests don't start">
+    If tests are uploaded but don't execute:
+    - Verify you're using `LambdaTestPatrolJUnitRunner` in your `build.gradle`
+    - Check that both app and test suite URLs are correct
+    - Review the LambdaTest dashboard for error messages
+    - Ensure the test APK is properly built with `patrol build`
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="BrowserStack" icon="browsers" href="/integrations/browserstack">
+    Compare with BrowserStack App Automate
+  </Card>
+
+  <Card title="Firebase Test Lab" icon="fire" href="/integrations/firebase-test-lab">
+    Explore Google's Firebase Test Lab
+  </Card>
+</CardGroup>
+
+## Resources
+
+- [LambdaTest App Automation Documentation](https://www.lambdatest.com/support/docs/getting-started-with-espresso-testing/)
+- [LambdaTest API Reference](https://www.lambdatest.com/support/docs/lambdatest-app-automation-apis/)
+- [Available Real Devices](https://www.lambdatest.com/list-of-real-devices)
+- [Capabilities Generator](https://www.lambdatest.com/capabilities-generator/)

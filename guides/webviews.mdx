@@ -1,0 +1,516 @@
+---
+title: Testing WebViews
+description: Learn how to test WebView interactions in your Flutter app with Patrol
+---
+
+WebViews allow you to display web content within your Flutter app. Patrol's native automation enables you to interact with elements inside WebViews, test navigation, and verify content on both Android and iOS.
+
+## Overview
+
+Patrol enables WebView testing by:
+- Interacting with native WebView elements
+- Tapping buttons and links inside WebViews
+- Waiting for WebView content to load
+- Verifying text and elements within WebViews
+- Handling cross-platform WebView differences
+
+## Key Concepts
+
+<CardGroup cols={2}>
+  <Card title="Native Automation" icon="mobile">
+    Patrol uses native automators to interact with WebView content
+  </Card>
+  <Card title="Platform Selectors" icon="sliders">
+    Different selectors for Android and iOS WebViews
+  </Card>
+  <Card title="Wait for Load" icon="clock">
+    WebViews need time to load - use appropriate waits
+  </Card>
+  <Card title="Cookie Handling" icon="cookie">
+    Handle cookie consent and other web-specific dialogs
+  </Card>
+</CardGroup>
+
+## Basic WebView Testing
+
+<Steps>
+  <Step title="Navigate to WebView">
+    Open the screen in your app that contains the WebView:
+    
+    ```dart
+    import 'package:patrol/patrol.dart';
+    
+    void main() {
+      patrolTest('interacts with WebView', ($) async {
+        await $.pumpWidgetAndSettle(const MyApp());
+        
+        // Navigate to screen with WebView
+        await $('Open WebView').scrollTo().tap();
+      });
+    }
+    ```
+  </Step>
+  
+  <Step title="Wait for WebView to load">
+    WebViews need time to load content. Add appropriate delays:
+    
+    ```dart
+    // Wait for WebView to load
+    await $.pump(Duration(seconds: 5));
+    await $.pumpAndSettle();
+    ```
+  </Step>
+  
+  <Step title="Interact with WebView content">
+    Use native selectors to interact with elements inside the WebView:
+    
+    ```dart
+    // Tap on a button inside the WebView
+    await $.native.tap(
+      Selector(text: 'Accept Cookies'),
+    );
+    
+    // Wait for content to appear
+    await $.native.waitUntilVisible(
+      Selector(text: 'Welcome'),
+    );
+    ```
+  </Step>
+</Steps>
+
+## Complete Examples
+
+### Basic WebView Interaction
+
+Test interacting with a website loaded in a WebView:
+
+```dart title="patrol_test/webview_basic_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'interacts with website in WebView',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+
+      // Open screen with WebView
+      await $('Open WebView').scrollTo().tap();
+      
+      // Wait for WebView to load
+      await $.pump(Duration(seconds: 8));
+
+      // Handle cookie consent dialog
+      try {
+        await $.native.tap(
+          Selector(text: 'ACCEPT ALL COOKIES'),
+        );
+      } on PatrolActionException catch (_) {
+        // Cookie dialog didn't appear - that's okay
+      }
+
+      // Wait for main content to appear
+      await $.native.waitUntilVisible(
+        Selector(text: 'Contact us'),
+      );
+      
+      // Verify WebView loaded successfully
+      expect(
+        await $.native.getNativeViews(Selector(text: 'Contact us')),
+        isNotEmpty,
+      );
+    },
+  );
+}
+```
+
+### Using NativeSelector for Cross-Platform Tests
+
+Use `NativeSelector` to handle platform differences:
+
+```dart title="patrol_test/webview_native2_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'interacts with WebView using native2 API',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      await $('Open WebView').scrollTo().tap();
+      
+      // Wait for WebView to load
+      await $.pump(Duration(seconds: 8));
+      await $.pumpAndSettle();
+
+      // Handle cookie consent with platform-specific selectors
+      try {
+        await $.native2.tap(
+          NativeSelector(
+            android: AndroidSelector(text: 'ACCEPT ALL COOKIES'),
+            ios: IOSSelector(label: 'ACCEPT ALL COOKIES'),
+          ),
+        );
+      } on PatrolActionException catch (_) {
+        // Ignore if cookie dialog doesn't appear
+      }
+      await $.pumpAndSettle();
+
+      // Wait for content to be visible
+      await $.native2.waitUntilVisible(
+        NativeSelector(
+          android: AndroidSelector(text: 'Contact us'),
+          ios: IOSSelector(label: 'Contact us'),
+        ),
+      );
+    },
+  );
+}
+```
+
+### Testing WebView Navigation
+
+Test clicking links and navigating within a WebView:
+
+```dart title="patrol_test/webview_navigation_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'navigates within WebView',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      await $('Open WebView').scrollTo().tap();
+      
+      // Wait for initial page load
+      await $.pump(Duration(seconds: 5));
+      
+      // Verify we're on the home page
+      await $.native.waitUntilVisible(
+        Selector(text: 'Home'),
+      );
+      
+      // Click a navigation link
+      await $.native.tap(
+        Selector(text: 'About Us'),
+      );
+      
+      // Wait for navigation
+      await $.pump(Duration(seconds: 3));
+      
+      // Verify we navigated to the About page
+      await $.native.waitUntilVisible(
+        Selector(textContains: 'About Our Company'),
+      );
+      
+      // Test back button
+      await $.native.pressBack();
+      await $.pump(Duration(seconds: 2));
+      
+      // Verify we're back on home page
+      await $.native.waitUntilVisible(
+        Selector(text: 'Home'),
+      );
+    },
+  );
+}
+```
+
+### Testing Form Submission in WebView
+
+Test entering data and submitting forms within a WebView:
+
+```dart title="patrol_test/webview_form_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'submits form in WebView',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      await $('Open Contact Form').tap();
+      
+      // Wait for WebView to load
+      await $.pump(Duration(seconds: 5));
+      
+      // Enter text in form fields
+      await $.native.enterTextBySelector(
+        Selector(text: 'Name'),
+        'John Doe',
+      );
+      
+      await $.native.enterTextBySelector(
+        Selector(text: 'Email'),
+        'john@example.com',
+      );
+      
+      await $.native.enterTextBySelector(
+        Selector(text: 'Message'),
+        'Test message from Patrol',
+      );
+      
+      // Submit the form
+      await $.native.tap(
+        Selector(text: 'Submit'),
+      );
+      
+      // Wait for submission
+      await $.pump(Duration(seconds: 3));
+      
+      // Verify success message
+      await $.native.waitUntilVisible(
+        Selector(textContains: 'Thank you'),
+      );
+    },
+  );
+}
+```
+
+## Opening External URLs
+
+Patrol can also open URLs in the system browser or WebView:
+
+```dart
+import 'package:patrol/patrol.dart';
+
+patrolTest('opens external URL', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  
+  // Open URL in system browser
+  await $.platform.mobile.openUrl('https://example.com');
+  
+  // Wait for browser to open
+  await Future<void>.delayed(const Duration(seconds: 3));
+  
+  // Interact with the opened page
+  await $.native.waitUntilVisible(
+    Selector(textContains: 'Example Domain'),
+  );
+  
+  // Return to app
+  await $.platform.mobile.pressBack();
+});
+```
+
+## Platform-Specific Considerations
+
+<Tabs>
+  <Tab title="Android">
+    ### Android WebView
+    
+    Android WebViews are typically implemented using `webview_flutter` or native WebView components.
+    
+    **Key considerations:**
+    - JavaScript must be enabled for most interactions
+    - Different WebView versions across Android versions
+    - Some devices may have custom WebView implementations
+    
+    ```dart
+    // Android-specific WebView selector
+    await $.native.tap(
+      Selector(
+        text: 'Click Me',
+        className: 'android.widget.Button',
+      ),
+    );
+    ```
+    
+    **Common Android WebView classes:**
+    - `android.webkit.WebView`
+    - `android.widget.Button`
+    - `android.widget.EditText`
+  </Tab>
+  
+  <Tab title="iOS">
+    ### iOS WebView (WKWebView)
+    
+    iOS typically uses WKWebView for displaying web content.
+    
+    **Key considerations:**
+    - Different behavior on simulator vs physical devices
+    - Cookie handling may differ
+    - Some features require specific capabilities
+    
+    ```dart
+    // iOS-specific WebView selector
+    await $.native2.tap(
+      NativeSelector(
+        ios: IOSSelector(
+          label: 'Click Me',
+          elementType: IOSElementType.button,
+        ),
+      ),
+    );
+    ```
+    
+    **Common iOS WebView types:**
+    - `XCUIElementTypeButton`
+    - `XCUIElementTypeTextField`
+    - `XCUIElementTypeLink`
+    - `XCUIElementTypeStaticText`
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always wait for WebView to load">
+    WebViews need time to load content. Use generous timeouts:
+    
+    ```dart
+    // Load WebView
+    await $('Open WebView').tap();
+    
+    // Wait for load - use both pump and pumpAndSettle
+    await $.pump(Duration(seconds: 5));
+    await $.pumpAndSettle();
+    ```
+  </Accordion>
+  
+  <Accordion title="Handle cookie consent dialogs gracefully">
+    Cookie dialogs may or may not appear. Use try-catch:
+    
+    ```dart
+    try {
+      await $.native.tap(Selector(text: 'Accept Cookies'), timeout: Duration(seconds: 3));
+    } catch (_) {
+      // Dialog didn't appear - continue test
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use waitUntilVisible for verification">
+    Don't assume elements are immediately visible:
+    
+    ```dart
+    // Good - wait for element
+    await $.native.waitUntilVisible(
+      Selector(text: 'Content'),
+      timeout: Duration(seconds: 10),
+    );
+    
+    // Bad - assume element exists
+    await $.native.tap(Selector(text: 'Content'));
+    ```
+  </Accordion>
+  
+  <Accordion title="Test on real devices when possible">
+    WebView behavior can differ between emulators and physical devices. Test on real devices for:
+    - Performance testing
+    - Cookie handling
+    - JavaScript execution
+    - Video playback
+  </Accordion>
+</AccordionGroup>
+
+## Common WebView Selectors
+
+<CodeGroup>
+
+```dart Text/Label
+// Find by text content
+Selector(text: 'Click Here')
+Selector(textContains: 'Click')
+Selector(textStartsWith: 'Click')
+Selector(textEndsWith: 'Here')
+```
+
+```dart Buttons
+// Android button
+Selector(
+  text: 'Submit',
+  className: 'android.widget.Button',
+)
+
+// iOS button
+NativeSelector(
+  ios: IOSSelector(
+    label: 'Submit',
+    elementType: IOSElementType.button,
+  ),
+)
+```
+
+```dart Links
+// Web links
+Selector(
+  text: 'Learn More',
+  className: 'android.widget.TextView', // Android
+)
+
+NativeSelector(
+  ios: IOSSelector(
+    label: 'Learn More',
+    elementType: IOSElementType.link,
+  ),
+)
+```
+
+```dart Input Fields
+// Text inputs
+Selector(
+  text: 'Email',
+  className: 'android.widget.EditText',
+)
+
+NativeSelector(
+  ios: IOSSelector(
+    placeholderValue: 'Email',
+    elementType: IOSElementType.textField,
+  ),
+)
+```
+
+</CodeGroup>
+
+<Info>
+Use the [Patrol DevTools Extension](https://patrol.leancode.co/documentation/patrol-devtools-extension) to inspect WebView elements and find the correct selectors for your specific use case.
+</Info>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Element not found in WebView">
+    - Ensure WebView has finished loading (add more wait time)
+    - Verify the element actually exists in the web page
+    - Check if element is inside an iframe (requires special handling)
+    - Use DevTools to inspect the actual element properties
+  </Accordion>
+  
+  <Accordion title="WebView not loading">
+    - Check network connectivity
+    - Verify URL is correct and accessible
+    - Check WebView permissions in AndroidManifest.xml / Info.plist
+    - Enable JavaScript if required
+  </Accordion>
+  
+  <Accordion title="Flaky tests">
+    - Increase wait times for page load
+    - Use `waitUntilVisible` instead of fixed delays
+    - Check for loading indicators and wait for them to disappear
+    - Test on stable network conditions
+  </Accordion>
+  
+  <Accordion title="Different behavior on platforms">
+    - Use `NativeSelector` with platform-specific selectors
+    - Test on both platforms separately
+    - Check WebView implementations (webview_flutter configuration)
+    - Some web features may not work on all platforms
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+WebView testing can be more fragile than native UI testing. External websites may change without notice, affecting your tests. Consider using local HTML files or controlled test environments when possible.
+</Warning>
+
+<Tip>
+For testing web-specific features like authentication flows, consider using mock servers or test environments that you control, rather than production websites.
+</Tip>
+
+## Related Resources
+
+- [webview_flutter package](https://pub.dev/packages/webview_flutter)
+- [Android WebView Documentation](https://developer.android.com/develop/ui/views/layout/webapps/webview)
+- [iOS WKWebView Documentation](https://developer.apple.com/documentation/webkit/wkwebview)

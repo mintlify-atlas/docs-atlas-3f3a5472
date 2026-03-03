@@ -1,0 +1,509 @@
+---
+title: GitLab CI/CD
+description: Run Patrol tests in GitLab CI/CD pipelines
+---
+
+GitLab CI/CD provides built-in continuous integration and deployment capabilities. This guide shows you how to configure Patrol tests in your GitLab pipelines.
+
+## Quick start
+
+Create a `.gitlab-ci.yml` file in your repository root:
+
+```yaml .gitlab-ci.yml
+image: ghcr.io/cirruslabs/flutter:3.32.0
+
+variables:
+  ANDROID_SDK_ROOT: /opt/android-sdk
+
+stages:
+  - test
+
+android_tests:
+  stage: test
+  timeout: 30m
+  
+  before_script:
+    - flutter --version
+    - dart pub global activate patrol_cli
+    - export PATH="$PATH:$HOME/.pub-cache/bin"
+  
+  script:
+    - cd app
+    - flutter pub get
+    - patrol build android
+    - patrol test --wait
+  
+  artifacts:
+    when: always
+    paths:
+      - app/build/app/outputs/
+      - app/*.log
+    expire_in: 7 days
+```
+
+## Platform-specific configurations
+
+<Tabs>
+  <Tab title="Android">
+    ### Android with Docker
+
+    Use a Flutter Docker image with Android SDK pre-installed:
+
+    ```yaml
+    android_tests:
+      image: ghcr.io/cirruslabs/flutter:3.32.0
+      stage: test
+      timeout: 45m
+      
+      variables:
+        ANDROID_SDK_ROOT: /opt/android-sdk
+        GRADLE_OPTS: -Dorg.gradle.daemon=false
+      
+      before_script:
+        # Install Patrol CLI
+        - dart pub global activate patrol_cli
+        - export PATH="$PATH:$HOME/.pub-cache/bin"
+        
+        # Accept Android licenses
+        - yes | sdkmanager --licenses || true
+      
+      script:
+        - flutter pub get
+        - patrol build android --verbose
+        
+        # Run on emulator.wtf
+        - |
+          curl -o ew-cli https://maven.emulator.wtf/releases/ew-cli
+          chmod +x ew-cli
+          ./ew-cli \
+            --app build/app/outputs/apk/debug/app-debug.apk \
+            --test build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+            --device model=Pixel7,version=34 \
+            --token $EW_API_TOKEN
+      
+      artifacts:
+        when: always
+        paths:
+          - build/app/outputs/
+        reports:
+          junit: build/test-results/**/*.xml
+```
+
+    ### Android with Firebase Test Lab
+
+    ```yaml
+    android_ftl:
+      image: ghcr.io/cirruslabs/flutter:3.32.0
+      stage: test
+      
+      before_script:
+        - apt-get update && apt-get install -y curl gnupg
+        - echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
+        - curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add -
+        - apt-get update && apt-get install -y google-cloud-sdk
+        
+        # Authenticate with Google Cloud
+        - echo $GCLOUD_SERVICE_KEY > ${HOME}/gcloud-service-key.json
+        - gcloud auth activate-service-account --key-file ${HOME}/gcloud-service-key.json
+        - gcloud config set project $GCP_PROJECT_ID
+        
+        # Install Patrol
+        - dart pub global activate patrol_cli
+        - export PATH="$PATH:$HOME/.pub-cache/bin"
+      
+      script:
+        - flutter pub get
+        - patrol build android --release
+        
+        # Upload and run on Firebase Test Lab
+        - |
+          gcloud firebase test android run \
+            --type instrumentation \
+            --app build/app/outputs/apk/release/app-release.apk \
+            --test build/app/outputs/apk/androidTest/release/app-release-androidTest.apk \
+            --device model=Pixel7,version=34,locale=en,orientation=portrait \
+            --timeout 30m
+```
+
+  </Tab>
+  <Tab title="iOS">
+    ### iOS on macOS runners
+
+    GitLab supports macOS runners for iOS testing:
+
+    ```yaml
+    ios_tests:
+      tags:
+        - macos  # Requires macOS runner
+      stage: test
+      timeout: 45m
+      
+      variables:
+        LANG: "en_US.UTF-8"
+        LC_ALL: "en_US.UTF-8"
+      
+      before_script:
+        # Install Flutter
+        - git clone https://github.com/flutter/flutter.git -b stable --depth 1
+        - export PATH="$PATH:`pwd`/flutter/bin"
+        - flutter doctor -v
+        
+        # Install Patrol CLI
+        - dart pub global activate patrol_cli
+        - export PATH="$PATH:$HOME/.pub-cache/bin"
+        
+        # List available simulators
+        - xcrun simctl list devices
+      
+      script:
+        - flutter pub get
+        - flutter precache --ios
+        
+        # Boot simulator
+        - |
+          SIMULATOR_ID=$(xcrun simctl create "iPad Pro" "iPad Pro (12.9-inch) (6th generation)")
+          xcrun simctl boot $SIMULATOR_ID
+          xcrun simctl list devices | grep Booted
+        
+        # Run tests
+        - patrol test --verbose
+        
+        # Shutdown simulator
+        - xcrun simctl shutdown $SIMULATOR_ID || true
+      
+      artifacts:
+        when: always
+        paths:
+          - build/ios_results_*.xcresult/
+        expire_in: 7 days
+```
+
+    ### iOS with Fastlane
+
+    For more complex iOS workflows, use Fastlane:
+
+    ```yaml
+    ios_tests_fastlane:
+      tags:
+        - macos
+      stage: test
+      
+      before_script:
+        - export PATH="$PATH:`pwd`/flutter/bin:$HOME/.pub-cache/bin"
+        - bundle install
+        - dart pub global activate patrol_cli
+      
+      script:
+        - flutter pub get
+        - bundle exec fastlane ios test
+      
+      artifacts:
+        when: always
+        paths:
+          - fastlane/test_output/
+        reports:
+          junit: fastlane/test_output/report.junit
+```
+
+    Create `ios/fastlane/Fastfile`:
+
+    ```ruby
+    default_platform(:ios)
+
+    platform :ios do
+      desc "Run Patrol tests"
+      lane :test do
+        sh("cd ../.. && patrol build ios --release")
+        
+        run_tests(
+          scheme: "Runner",
+          devices: ["iPhone 16 Pro"],
+          output_directory: "test_output",
+          output_types: "junit"
+        )
+      end
+    end
+    ```
+
+  </Tab>
+</Tabs>
+
+## Complete pipeline example
+
+Here's a production-ready pipeline with multiple stages:
+
+```yaml .gitlab-ci.yml
+image: ghcr.io/cirruslabs/flutter:3.32.0
+
+variables:
+  ANDROID_SDK_ROOT: /opt/android-sdk
+  PUB_CACHE: ${CI_PROJECT_DIR}/.pub-cache
+
+stages:
+  - prepare
+  - build
+  - test
+  - deploy
+
+# Cache Flutter dependencies
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .pub-cache/
+    - .gradle/
+    - ios/Pods/
+
+# Install dependencies
+prepare:
+  stage: prepare
+  script:
+    - flutter pub get
+    - dart pub global activate patrol_cli
+  artifacts:
+    paths:
+      - .pub-cache/
+    expire_in: 1 day
+
+# Build APKs
+build_android:
+  stage: build
+  dependencies:
+    - prepare
+  script:
+    - export PATH="$PATH:$HOME/.pub-cache/bin"
+    - patrol build android --verbose
+  artifacts:
+    paths:
+      - build/app/outputs/apk/
+    expire_in: 7 days
+
+# Run Android tests
+test_android:
+  stage: test
+  dependencies:
+    - build_android
+  script:
+    - |
+      curl -o ew-cli https://maven.emulator.wtf/releases/ew-cli
+      chmod +x ew-cli
+      ./ew-cli \
+        --app build/app/outputs/apk/debug/app-debug.apk \
+        --test build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+        --device model=Pixel7,version=34 \
+        --token $EW_API_TOKEN
+  only:
+    - merge_requests
+    - main
+
+# Run iOS tests (requires macOS runner)
+test_ios:
+  tags:
+    - macos
+  stage: test
+  dependencies:
+    - prepare
+  script:
+    - export PATH="$PATH:`pwd`/flutter/bin:$HOME/.pub-cache/bin"
+    - patrol test --flavor production
+  only:
+    - merge_requests
+    - main
+  when: manual
+```
+
+## Using GitLab CI/CD variables
+
+Store sensitive data as CI/CD variables:
+
+<Steps>
+  <Step title="Navigate to project settings">
+    Go to **Settings** > **CI/CD** > **Variables**
+  </Step>
+  <Step title="Add variables">
+    Add the following variables:
+    - `EW_API_TOKEN` - emulator.wtf API token
+    - `GCLOUD_SERVICE_KEY` - Google Cloud service account JSON
+    - `GCP_PROJECT_ID` - Google Cloud project ID
+  </Step>
+  <Step title="Use in pipeline">
+    Reference variables using `$VARIABLE_NAME` syntax
+  </Step>
+</Steps>
+
+## Parallel testing
+
+Run tests across multiple configurations in parallel:
+
+```yaml
+test_android:
+  stage: test
+  parallel:
+    matrix:
+      - API_LEVEL: [34, 33, 32, 31]
+        DEVICE: [Pixel7, NexusLowRes]
+  
+  script:
+    - |
+      ./ew-cli \
+        --app build/app/outputs/apk/debug/app-debug.apk \
+        --test build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+        --device model=$DEVICE,version=$API_LEVEL \
+        --token $EW_API_TOKEN
+```
+
+## Optimization strategies
+
+### Caching
+
+```yaml
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - .pub-cache/
+    - .gradle/wrapper/
+    - .gradle/caches/
+    - ios/Pods/
+  policy: pull-push
+```
+
+### Conditional pipeline execution
+
+Run tests only when specific files change:
+
+```yaml
+test_android:
+  rules:
+    - changes:
+        - lib/**/*
+        - test/**/*
+        - integration_test/**/*
+        - android/**/*
+        - pubspec.yaml
+      when: always
+    - when: never
+```
+
+### Using Docker cache
+
+```yaml
+variables:
+  DOCKER_DRIVER: overlay2
+  
+services:
+  - docker:dind
+
+before_script:
+  - docker pull ghcr.io/cirruslabs/flutter:3.32.0 || true
+```
+
+## Artifact management
+
+Collect test artifacts for debugging:
+
+```yaml
+artifacts:
+  when: always
+  paths:
+    - build/app/outputs/
+    - build/test-results/
+    - "**/*.log"
+  reports:
+    junit: build/test-results/**/*.xml
+  expire_in: 30 days
+```
+
+## Merge request integration
+
+Show test results in merge requests:
+
+```yaml
+test_android:
+  artifacts:
+    reports:
+      junit: build/test-results/**/*.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura.xml
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Flutter SDK not found">
+    Use a Docker image with Flutter pre-installed:
+    
+    ```yaml
+    image: ghcr.io/cirruslabs/flutter:3.32.0
+    ```
+    
+    Or install Flutter in `before_script`:
+    
+    ```yaml
+    before_script:
+      - git clone https://github.com/flutter/flutter.git -b stable
+      - export PATH="$PATH:`pwd`/flutter/bin"
+    ```
+  </Accordion>
+
+  <Accordion title="Android SDK licenses not accepted">
+    Accept licenses in your pipeline:
+    
+    ```yaml
+    before_script:
+      - yes | sdkmanager --licenses || true
+    ```
+  </Accordion>
+
+  <Accordion title="macOS runner not available">
+    GitLab.com doesn't provide macOS runners by default. You need to:
+    
+    1. Register your own macOS runner
+    2. Tag it with `macos`
+    3. Reference it in your jobs using `tags: [macos]`
+    
+    See [GitLab Runner documentation](https://docs.gitlab.com/runner/) for details.
+  </Accordion>
+
+  <Accordion title="Cache not working">
+    Ensure cache paths are relative to project directory:
+    
+    ```yaml
+    cache:
+      paths:
+        - .pub-cache/  # relative path
+    ```
+    
+    Clear cache if needed: **CI/CD** > **Pipelines** > **Clear runner caches**
+  </Accordion>
+</AccordionGroup>
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Use Docker images" icon="docker">
+    Use pre-built Flutter Docker images to speed up pipeline execution.
+  </Card>
+  
+  <Card title="Cache dependencies" icon="database">
+    Cache pub packages, Gradle dependencies, and CocoaPods to reduce build times.
+  </Card>
+  
+  <Card title="Parallelize tests" icon="split">
+    Use GitLab's parallel matrix feature to test multiple configurations simultaneously.
+  </Card>
+  
+  <Card title="Optimize artifact storage" icon="box">
+    Set appropriate expiration times for artifacts to save storage costs.
+  </Card>
+</CardGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Firebase Test Lab" icon="google" href="/integrations/firebase-test-lab">
+    Integrate Firebase Test Lab with GitLab CI
+  </Card>
+  <Card title="CI/CD Overview" icon="arrow-left" href="/ci/overview">
+    Back to CI/CD overview
+  </Card>
+</CardGroup>

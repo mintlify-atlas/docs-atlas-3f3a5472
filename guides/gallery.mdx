@@ -1,0 +1,532 @@
+---
+title: Testing Gallery/Photo Picker
+description: Learn how to test image picking from gallery in your Flutter app with Patrol
+---
+
+Testing gallery image picking is essential for apps that allow users to select photos from their device. Patrol provides native automation to interact with the system photo gallery, pick single or multiple images, and verify the selection process.
+
+## Overview
+
+Patrol enables gallery testing by:
+- Opening the native photo picker/gallery
+- Selecting single or multiple images
+- Handling gallery permissions
+- Using custom selectors for different devices
+- Testing both Android and iOS gallery flows
+
+## Key Methods
+
+<CardGroup cols={2}>
+  <Card title="pickImageFromGallery" icon="image">
+    Pick a single image from the gallery
+  </Card>
+  <Card title="pickMultipleImagesFromGallery" icon="images">
+    Pick multiple images from the gallery
+  </Card>
+  <Card title="Custom Index" icon="hashtag">
+    Specify which image to pick by index
+  </Card>
+  <Card title="Custom Selectors" icon="sliders">
+    Provide selectors for unsupported devices
+  </Card>
+</CardGroup>
+
+## How Gallery Picking Works
+
+### Pick Single Image
+
+The `pickImageFromGallery()` method performs these actions:
+1. **Select an image** (by default, the first image or the one at the provided index)
+2. **Confirm selection** (on some Android devices)
+
+### Pick Multiple Images
+
+The `pickMultipleImagesFromGallery()` method:
+1. **Selects multiple images** (based on provided indexes)
+2. **Confirms selection** (taps "Add" or "Done" button)
+
+### Default Selectors
+
+| Platform | Image Selector | Confirm Button |
+|----------|----------------|----------------|
+| Physical/Emulator Android (API < 34) | `com.google.android.documentsui:id/icon_thumb` | `com.google.android.documentsui:id/action_menu_select` |
+| Physical/Emulator Android (API 34+) | `com.google.android.providers.media.module:id/icon_thumbnail` | `com.google.android.providers.media.module:id/button_add` |
+| Simulator and Physical iOS | `IOSElementType.image` (+2 offset for simulator, +1 for physical) | `IOSElementType.button` with label "Add" |
+
+<Info>
+The default selectors work without customization on iOS devices and most Android emulators and Pixel physical devices.
+</Info>
+
+## Basic Gallery Testing
+
+<Steps>
+  <Step title="Setup gallery permissions">
+    Request and grant photo/storage permission:
+    
+    ```dart
+    import 'package:patrol/patrol.dart';
+    
+    void main() {
+      patrolTest('picks image from gallery', ($) async {
+        await $.pumpWidgetAndSettle(const MyApp());
+        
+        // Tap button that opens gallery
+        await $.tap(#addPhotoFromGalleryButton);
+        
+        // Grant permission if requested
+        if (await $.platform.mobile.isPermissionDialogVisible()) {
+          await $.platform.mobile.grantPermissionWhenInUse();
+        }
+      });
+    }
+    ```
+  </Step>
+  
+  <Step title="Pick the image">
+    Use `pickImageFromGallery()` to select an image:
+    
+    ```dart
+    // Pick first image (index 0)
+    await $.platform.mobile.pickImageFromGallery(index: 0);
+    ```
+  </Step>
+  
+  <Step title="Verify in your app">
+    Verify that your app received and displayed the image:
+    
+    ```dart
+    // Verify image appears in your app
+    await $('Image selected').waitUntilVisible();
+    
+    // Or verify image widget exists
+    expect($(Image).exists, true);
+    ```
+  </Step>
+</Steps>
+
+## Complete Examples
+
+### Pick Single Image
+
+Basic test for picking a single image:
+
+```dart title="patrol_test/gallery_single_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'picks an image from gallery',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      // Open gallery picker
+      await $.tap(#addPhotoFromGalleryButton);
+      
+      // Grant permission if needed
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await $.platform.mobile.grantPermissionWhenInUse();
+      }
+      
+      // Pick first image using default selectors
+      await $.platform.mobile.pickImageFromGallery(index: 0);
+      
+      // Verify image was selected
+      await $('Image added successfully').waitUntilVisible();
+      expect($(Image).exists, true);
+    },
+  );
+}
+```
+
+### Pick Specific Image by Index
+
+Select a specific image from the gallery:
+
+```dart title="patrol_test/gallery_index_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'picks third image from gallery',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      await $.tap(#addPhotoFromGalleryButton);
+      
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await $.platform.mobile.grantPermissionWhenInUse();
+      }
+      
+      // Pick the third image (index 2)
+      await $.platform.mobile.pickImageFromGallery(index: 2);
+      
+      await $.pumpAndSettle();
+      expect($(Image).exists, true);
+    },
+  );
+}
+```
+
+### Pick Multiple Images
+
+Select multiple images at once:
+
+```dart title="patrol_test/gallery_multiple_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'picks multiple images from gallery',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      // Open multi-image picker
+      await $.tap(#addMultiplePhotosFromGalleryButton);
+      
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await $.platform.mobile.grantPermissionWhenInUse();
+      }
+      
+      // Pick first three images
+      await $.platform.mobile.pickMultipleImagesFromGallery(
+        imageIndexes: [0, 1, 2],
+      );
+      
+      await $.pumpAndSettle();
+      
+      // Verify all three images were selected
+      expect($(Image).count, equals(3));
+      await $('3 images selected').waitUntilVisible();
+    },
+  );
+}
+```
+
+### Gallery with Custom Selectors
+
+For devices that don't work with default selectors:
+
+```dart title="patrol_test/gallery_custom_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'picks image with custom selectors',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      await $.tap(#addPhotoFromGalleryButton);
+      
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await $.platform.mobile.grantPermissionWhenInUse();
+      }
+      
+      // Use custom selectors for specific device/gallery
+      await $.platform.mobile.pickImageFromGallery(
+        index: 1,
+        imageSelector: NativeSelector(
+          android: AndroidSelector(
+            resourceName: 'com.oplus.gallery:id/image',
+          ),
+          ios: IOSSelector(label: 'Photo'),
+        ),
+      );
+      
+      await $.pumpAndSettle();
+      expect($(Image).exists, true);
+    },
+  );
+}
+```
+
+### Pick Multiple with Custom Selectors
+
+```dart title="patrol_test/gallery_multiple_custom_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'picks multiple images with custom selectors',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      await $.tap(#addMultiplePhotosFromGalleryButton);
+      
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await $.platform.mobile.grantPermissionWhenInUse();
+      }
+      
+      await $.platform.mobile.pickMultipleImagesFromGallery(
+        imageIndexes: [0, 1],
+        imageSelector: NativeSelector(
+          android: AndroidSelector(
+            resourceName: 'com.oplus.gallery:id/image',
+          ),
+          ios: IOSSelector(label: 'Photo'),
+        ),
+      );
+      
+      await $.pumpAndSettle();
+      expect($(Image).count, equals(2));
+    },
+  );
+}
+```
+
+## Platform-Specific Considerations
+
+<Tabs>
+  <Tab title="Android">
+    ### Android Photo Picker
+    
+    Android has different photo pickers depending on the OS version:
+    
+    **Android 13+ (API 33+):**
+    - New Photo Picker UI
+    - No storage permission required for photo picker
+    - More consistent across devices
+    
+    **Android 12 and below:**
+    - Uses DocumentsUI or device-specific gallery
+    - May require storage permissions
+    
+    **API 34+ Changes:**
+    ```dart
+    // Android API 34+ uses different selectors
+    AndroidSelector(
+      resourceName: 'com.google.android.providers.media.module:id/icon_thumbnail',
+    )
+    ```
+    
+    **API < 34:**
+    ```dart
+    // Older Android versions
+    AndroidSelector(
+      resourceName: 'com.google.android.documentsui:id/icon_thumb',
+    )
+    ```
+  </Tab>
+  
+  <Tab title="iOS">
+    ### iOS Photo Picker
+    
+    iOS uses PHPicker (iOS 14+) or UIImagePickerController:
+    
+    **Selector Behavior:**
+    - Image elements are indexed starting from 1 or 2 (device dependent)
+    - Patrol automatically adds +2 offset for simulators
+    - Patrol automatically adds +1 offset for physical devices
+    
+    ```dart
+    // iOS automatically handles offset
+    await $.platform.mobile.pickImageFromGallery(index: 0);
+    // This picks the first visible image after offset
+    ```
+    
+    **Multiple Selection:**
+    ```dart
+    // iOS shows "Add" button to confirm selection
+    await $.platform.mobile.pickMultipleImagesFromGallery(
+      imageIndexes: [0, 1, 2],
+    );
+    // Automatically taps "Add" button
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always handle permissions">
+    Check for and grant photo/storage permissions:
+    
+    ```dart
+    if (await $.platform.mobile.isPermissionDialogVisible()) {
+      await $.platform.mobile.grantPermissionWhenInUse();
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Use appropriate wait times">
+    Gallery apps need time to load:
+    
+    ```dart
+    await $.tap(#openGallery);
+    
+    // Wait for gallery to load
+    await Future<void>.delayed(const Duration(seconds: 2));
+    
+    await $.platform.mobile.pickImageFromGallery(index: 0);
+    ```
+  </Accordion>
+  
+  <Accordion title="Verify image count for multiple selection">
+    When picking multiple images, verify the count:
+    
+    ```dart
+    await $.platform.mobile.pickMultipleImagesFromGallery(
+      imageIndexes: [0, 1, 2],
+    );
+    
+    // Verify correct number of images
+    expect($(Image).count, equals(3));
+    ```
+  </Accordion>
+  
+  <Accordion title="Test on real devices with photos">
+    Emulators/simulators may have no photos or only default images. For realistic testing:
+    - Use physical devices with real photos
+    - Pre-populate emulator/simulator with test images
+    - Test with various image sizes and formats
+  </Accordion>
+</AccordionGroup>
+
+## Common Gallery Flows
+
+<CodeGroup>
+
+```dart Simple Image Upload
+patrolTest('uploads profile picture', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  
+  await $.tap(#profileTab);
+  await $.tap(#editProfilePicture);
+  await $.tap(#chooseFromGallery);
+  
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    await $.platform.mobile.grantPermissionWhenInUse();
+  }
+  
+  await $.platform.mobile.pickImageFromGallery(index: 0);
+  
+  await $('Profile updated').waitUntilVisible();
+});
+```
+
+```dart Multi-Image Post
+patrolTest('creates post with multiple images', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  
+  await $.tap(#createPostButton);
+  await $.tap(#addImagesButton);
+  
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    await $.platform.mobile.grantPermissionWhenInUse();
+  }
+  
+  await $.platform.mobile.pickMultipleImagesFromGallery(
+    imageIndexes: [0, 1, 2, 3],
+  );
+  
+  expect($(Image).count, equals(4));
+  
+  await $.tap(#publishButton);
+  await $('Post published').waitUntilVisible();
+});
+```
+
+```dart Image Replacement
+patrolTest('replaces existing image', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  
+  // Verify initial image exists
+  expect($(#currentImage).exists, true);
+  
+  await $.tap(#replaceImageButton);
+  
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    await $.platform.mobile.grantPermissionWhenInUse();
+  }
+  
+  await $.platform.mobile.pickImageFromGallery(index: 1);
+  
+  await $('Image updated').waitUntilVisible();
+});
+```
+
+</CodeGroup>
+
+## Finding Custom Selectors
+
+If default selectors don't work:
+
+<Steps>
+  <Step title="Install DevTools">
+    Install the [Patrol DevTools Extension](https://patrol.leancode.co/documentation/patrol-devtools-extension).
+  </Step>
+  
+  <Step title="Open gallery manually">
+    Run your app and manually open the gallery/photo picker.
+  </Step>
+  
+  <Step title="Inspect elements">
+    Use DevTools to inspect image thumbnails and confirm buttons to find their resource IDs or labels.
+  </Step>
+  
+  <Step title="Use in your test">
+    ```dart
+    await $.platform.mobile.pickImageFromGallery(
+      imageSelector: NativeSelector(
+        android: AndroidSelector(
+          resourceName: 'found.resource.id',
+        ),
+      ),
+    );
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+Due to differences between devices and gallery apps, the default methods may not work on 100% of devices. Always test on your target devices and provide custom selectors when needed.
+</Warning>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="No images in gallery">
+    - Emulator/simulator may not have photos
+    - Add test images using adb (Android) or Photos app (iOS)
+    - Use physical device with actual photos
+    - Download sample images during test setup
+  </Accordion>
+  
+  <Accordion title="Wrong image selected">
+    - Gallery layout may differ from expected
+    - Use specific index instead of default (0)
+    - Verify image order in gallery app
+    - Consider using custom selectors with image attributes
+  </Accordion>
+  
+  <Accordion title="Image not appearing in app">
+    - Verify app's image handling code
+    - Check that permissions are granted
+    - Add `$.pumpAndSettle()` after picking
+    - Ensure app processes image picker result
+  </Accordion>
+  
+  <Accordion title="Test fails on different Android version">
+    - Android 13+ uses different photo picker
+    - API 34+ changed resource IDs
+    - Use OS version detection for conditional selectors:
+    
+    ```dart
+    final osVersion = await $.platform.mobile.getOsVersion();
+    if (osVersion >= 34) {
+      // Use API 34+ selectors
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+For faster tests, consider mocking the image picker for most test cases. Only test actual gallery integration in critical end-to-end tests.
+</Tip>
+
+## Related Resources
+
+- [image_picker package](https://pub.dev/packages/image_picker)
+- [Android Photo Picker](https://developer.android.com/training/data-storage/shared/photopicker)
+- [iOS PHPickerViewController](https://developer.apple.com/documentation/photokit/phpickerviewcontroller)
+- [Patrol DevTools Extension](https://patrol.leancode.co/documentation/patrol-devtools-extension)

@@ -1,0 +1,277 @@
+---
+title: Debugging Patrol Tests
+description: Learn how to debug your Patrol tests and troubleshoot common issues
+---
+
+Debugging is an essential part of test development. This guide covers techniques for debugging Patrol tests and resolving common issues.
+
+## Debugging in Visual Studio Code
+
+You can debug your application during Patrol tests by attaching a debugger to the running process.
+
+### Setup Instructions
+
+<Steps>
+  <Step title="Add debugger configuration">
+    In your `launch.json` file, add a new configuration for attaching debugger to a process:
+
+    ```json
+    {
+      "name": "attach debugger",
+      "request": "attach",
+      "type": "dart",
+      "cwd": "patrol_test",
+      "vmServiceUri": "${command:dart.promptForVmService}"
+    }
+    ```
+  </Step>
+
+  <Step title="Run tests with develop command">
+    Run your patrol tests using `develop` command with the same arguments as you would normally do:
+
+    ```bash
+    patrol develop --target patrol_test/app_test.dart
+    ```
+  </Step>
+
+  <Step title="Copy the VM Service URI">
+    When the tests start running, you will see a message with a link to Patrol devtools extension. Copy the last part of the URI from the message.
+
+    For example, for this link:
+    ```
+    Patrol DevTools extension is available at http://127.0.0.1:9104/patrol_ext?uri=http://127.0.0.1:52263/F2-CH29gR1k=/
+    ```
+    
+    Copy `http://127.0.0.1:52263/F2-CH29gR1k=/`.
+
+    <Warning>
+      You'll see 2 similar logs. First one looks like this:
+      ```
+      The Dart VM service is listening on http://127.0.0.1:63725/57XmBI_pwSA=/
+      ```
+      
+      Ignore it - this link is incorrect, wait for the one that says about devtools extension.
+    </Warning>
+  </Step>
+
+  <Step title="Attach the debugger">
+    From "Run and Debug" tab in Visual Studio Code, select the configuration you created in step 1. You will be prompted to enter the VM service URI. Paste the URI you copied in step 3.
+  </Step>
+
+  <Step title="Set breakpoints and debug">
+    Once the debugger is attached, you can set breakpoints and debug your application as you would normally do.
+  </Step>
+</Steps>
+
+<Info>
+IntelliJ/Android Studio does not support attaching a debugger to a running process via Observatory Uri. Therefore you cannot achieve the same behavior in those IDEs. See this [issue](https://github.com/flutter/flutter-intellij/issues/2250) for more details.
+</Info>
+
+## Hot Restart for Faster Development
+
+When writing Patrol tests, use the `patrol develop` command for faster iteration:
+
+```bash
+patrol develop --target patrol_test/app_test.dart
+```
+
+<Tip>
+Anytime you add a new line of test code, just type "r" in the terminal to re-run the tests without the time-costly app building.
+</Tip>
+
+This approach is much more time-effective than running `patrol test` from scratch every time you make a change.
+
+## Common Issues and Solutions
+
+<AccordionGroup>
+  <Accordion title="Test fails with 'Finder finds multiple widgets'">
+    **Problem:** Your finder matches multiple widgets on the screen.
+
+    **Solution:** Use the `.at(index)` method to specify which widget you want:
+
+    ```dart
+    // If there are multiple TextFormFields
+    await $(TextFormField).at(0).enterText('first field');
+    await $(TextFormField).at(1).enterText('second field');
+    ```
+
+    **Better Solution:** Use unique keys instead:
+
+    ```dart
+    await $(#emailTextField).enterText('email@example.com');
+    await $(#passwordTextField).enterText('password');
+    ```
+  </Accordion>
+
+  <Accordion title="Permission dialog test fails on second run">
+    **Problem:** `grantPermissionWhenInUse()` fails because the permission was already granted.
+
+    **Solution:** Check if the permission dialog is visible before trying to accept it:
+
+    ```dart
+    if (await $.platform.mobile.isPermissionDialogVisible()) {
+      await $.platform.mobile.grantPermissionWhenInUse();
+    }
+    ```
+
+    <Note>
+      This is especially important when using `patrol develop` for local development, where app state may persist between runs.
+    </Note>
+  </Accordion>
+
+  <Accordion title="Widget not found error">
+    **Problem:** Test fails with "Widget not found" even though the widget exists.
+
+    **Possible causes:**
+    1. Widget hasn't finished rendering
+    2. Widget is hidden/scrolled off-screen
+    3. Wrong finder selector
+
+    **Solutions:**
+    ```dart
+    // Wait for widget to appear
+    await $(#myWidget).waitUntilVisible();
+
+    // Scroll to widget if it's off-screen
+    await $(#myWidget).scrollTo();
+
+    // Verify your selector is correct
+    expect($(#myWidget).exists, equals(true));
+    ```
+  </Accordion>
+
+  <Accordion title="Test timeout issues">
+    **Problem:** Test times out waiting for an action to complete.
+
+    **Solution:** Increase the timeout for specific operations:
+
+    ```dart
+    // For notifications or delayed operations
+    await $.platform.mobile.tapOnNotificationBySelector(
+      Selector(textContains: 'Notification title'),
+      timeout: const Duration(seconds: 5),
+    );
+
+    // For widgets that take time to appear
+    await $(#myWidget).waitUntilVisible(
+      timeout: const Duration(seconds: 10),
+    );
+    ```
+  </Accordion>
+
+  <Accordion title="Tests pass locally but fail in CI">
+    **Problem:** Tests work on your machine but fail in continuous integration.
+
+    **Common causes:**
+    1. Different device/emulator configurations
+    2. Timing issues (CI machines may be slower)
+    3. Environment variable differences
+
+    **Solutions:**
+    ```dart
+    // Use longer timeouts in CI
+    await $.pumpAndSettle(timeout: const Duration(seconds: 10));
+
+    // Ensure credentials are provided via environment
+    await $(#email).enterText(const String.fromEnvironment('EMAIL'));
+
+    // Test on the same device/emulator type as CI
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Inspecting Native View Hierarchy
+
+When you need to interact with native views and don't know how to refer to them, perform a native view hierarchy dump.
+
+### Android
+
+First, perform a native view hierarchy dump using `adb`:
+
+```bash
+adb shell uiautomator dump
+```
+
+Then, copy the dump file from the device to your machine:
+
+```bash
+adb pull /sdcard/window_dump.xml .
+```
+
+### iOS
+
+The easiest way to perform the native view hierarchy dump on iOS is to use the [idb](https://github.com/facebook/idb) tool.
+
+Once you have idb installed, perform a dump:
+
+```bash
+idb ui describe-all
+```
+
+<Tip>
+Use the dumped hierarchy to find the exact properties (text, resource-id, content-desc) of the native views you want to interact with.
+</Tip>
+
+## Ignoring Exceptions
+
+If an exception is thrown during a test, it is marked as failed. This is Flutter's default behavior and it's usually good – after all, it's better to fix the cause of a problem instead of ignoring it.
+
+That said, sometimes you do have a legitimate reason to ignore an exception. This can be accomplished with the help of the [WidgetTester.takeException()](https://api.flutter.dev/flutter/flutter_test/WidgetTester/takeException.html) method.
+
+### Ignore a Single Exception
+
+```dart
+final widgetTester = $.tester;
+widgetTester.takeException();
+```
+
+### Ignore Multiple Exceptions
+
+If more than a single exception is thrown during the test and you want to ignore all of them:
+
+```dart
+var exceptionCount = 0;
+dynamic exception = $.tester.takeException();
+while (exception != null) {
+  exceptionCount++;
+  exception = $.tester.takeException();
+}
+if (exceptionCount != 0) {
+  $.log('Warning: $exceptionCount exceptions were ignored');
+}
+```
+
+<Warning>
+Only ignore exceptions when you have a legitimate reason. Always prefer fixing the underlying issue.
+</Warning>
+
+## Debugging Tips
+
+<CardGroup cols={2}>
+  <Card title="Use $.log()" icon="terminal">
+    Add logging statements to track test execution:
+    ```dart
+    $.log('Starting login flow');
+    await $(#loginButton).tap();
+    $.log('Login button tapped');
+    ```
+  </Card>
+
+  <Card title="Check Widget Existence" icon="magnifying-glass">
+    Verify widgets exist before interacting:
+    ```dart
+    expect($(#myWidget).exists, equals(true));
+    ```
+  </Card>
+
+  <Card title="Take Screenshots" icon="camera">
+    Capture screenshots at key points:
+    ```dart
+    await $.takeScreenshot('after_login');
+    ```
+  </Card>
+
+  <Card title="Use DevTools Extension" icon="wrench">
+    Monitor test execution in real-time with Patrol DevTools extension for deeper insights.
+  </Card>
+</CardGroup>

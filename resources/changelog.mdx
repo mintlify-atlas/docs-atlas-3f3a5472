@@ -1,0 +1,231 @@
+---
+title: Changelog
+description: Version history and release notes for Patrol
+---
+
+This page provides an overview of Patrol releases. For detailed changelogs of individual
+packages, see the links below.
+
+## Package Changelogs
+
+Patrol is a monorepo containing multiple packages. Each package has its own detailed changelog:
+
+<CardGroup cols={2}>
+  <Card title="patrol" icon="flutter" href="https://pub.dev/packages/patrol/changelog">
+    Main Patrol package with UI testing and native automation
+  </Card>
+  <Card title="patrol_cli" icon="terminal" href="https://pub.dev/packages/patrol_cli/changelog">
+    Command-line interface for running Patrol tests
+  </Card>
+  <Card title="patrol_finders" icon="magnifying-glass" href="https://pub.dev/packages/patrol_finders/changelog">
+    Custom finders that can be used in widget tests
+  </Card>
+  <Card title="patrol_log" icon="file-lines" href="https://pub.dev/packages/patrol_log/changelog">
+    Logging utilities for Patrol tests
+  </Card>
+</CardGroup>
+
+## Latest Release
+
+### Patrol 4.1.1 (Current)
+
+The latest stable version of Patrol includes:
+
+- Fix Android permission dialog not being tapped with `grantPermissionWhenInUse`
+- Fix iOS `tapOnNotificationBySelector` to support `text` parameter
+- Bump `patrol_log` to `0.7.0`
+- Bump `patrol_finders` to `3.1.0`
+
+See the [full changelog](https://pub.dev/packages/patrol/changelog) for details.
+
+## Major Releases
+
+### Patrol 4.0 - Web Support & New Platform API
+
+Patrol 4.0 was a major release introducing web testing support and a redesigned API for
+native interactions.
+
+**Key Features:**
+
+- **Web Testing**: Run Patrol tests on web browsers (Chrome, Firefox, Safari, Edge)
+- **New Platform API**: Introduced `PlatformAutomator` replacing deprecated `NativeAutomator`
+- **WebAutomator**: New automator for web-specific interactions:
+  - Dark mode control
+  - Cookie management
+  - Browser navigation
+  - Keyboard shortcuts
+  - File uploads/downloads
+  - Dialog handling
+  - Window resizing
+  - Clipboard operations
+- **Configurable Test Directory**: Set custom test directory via `test_directory` in pubspec.yaml
+- **Full Isolation Flag** (experimental): Uninstall app between runs on iOS Simulator
+
+**Breaking Changes:**
+
+- Default test directory changed from `integration_test` to `patrol_test`
+- Deprecated `NativeAutomator` and `NativeAutomator2` in favor of `PlatformAutomator`
+
+[Read the Patrol 4.0 announcement](https://leancode.co/blog/patrol-4-0-release) |
+[Migration guide](/v4)
+
+### Patrol 3.0 - DevTools Extension
+
+Patrol 3.0 introduced the Patrol DevTools Extension for exploring native view hierarchy.
+
+**Key Features:**
+
+- **DevTools Extension**: Inspect native views during `patrol develop`
+- **Simplified API**: Removed `bindingType` and `nativeAutomation` parameters
+- **Auto-initialization**: `PatrolBinding` now initializes automatically
+- **Removed Dependencies**: No longer depends on `integration_test` plugin
+
+**Breaking Changes:**
+
+- Removed `bindingType` parameter from `patrolTest()`
+- Removed `nativeAutomation` parameter - now enabled by default
+- Minimum Flutter version bumped to 3.16
+
+[Read the Patrol 3.0 announcement](https://leancode.co/blog/patrol-3-0-devtools-extension)
+
+### Patrol 2.0 - Test Bundling
+
+Patrol 2.0 introduced test bundling, allowing tests to run as native instrumented tests.
+
+**Key Features:**
+
+- **Test Bundling**: Run tests as native instrumented tests for better reliability
+- **Improved Performance**: Faster and more reliable test execution
+- **Better Integration**: Seamless integration with native testing infrastructure
+
+[Read the Patrol 2.0 announcement](https://leancode.co/blog/patrol-2-0-improved-flutter-ui-testing) |
+[Migration guide](/v2)
+
+### Patrol 1.0 - Initial Stable Release
+
+The first stable release of Patrol!
+
+**Key Features:**
+
+- Native automation for Android and iOS
+- Custom finders with chaining support
+- Hot restart for rapid test development
+- Permission handling
+- Notification interactions
+- System settings control
+
+[Read the Patrol 1.0 announcement](https://leancode.co/blog/patrol-1-0-powerful-flutter-ui-testing-framework)
+
+## Notable Features by Version
+
+### Recent Additions
+
+<AccordionGroup>
+
+<Accordion title="4.1.x - Permission & Notification Fixes">
+  - Fix Android permission dialog handling (4.1.1)
+  - Fix iOS notification indexing on iOS 18+ (4.1.1)
+  - Fix iOS `tapOnNotificationBySelector` text parameter (4.1.1)
+  - Add `PlatformAutomator` to exports (4.1.0)
+  - Remove dependency on `js` package (4.0.1)
+</Accordion>
+
+<Accordion title="3.20.x - Build Configuration & iOS 18 Support">
+  - Add `--build-name` and `--build-number` flags (3.20.0)
+  - Extend `$.native.enterText()` to support `AutoCompleteTextView` on Android (3.20.0)
+  - Add support for enabling/disabling WiFi on iOS 18 (3.20.0)
+</Accordion>
+
+<Accordion title="3.17.x - Camera & Gallery">
+  - Add `takeCameraPhoto()` method (3.17.0)
+  - Add `pickImageFromGallery()` method (3.17.0)
+  - Add `pickMultipleImagesFromGallery()` method (3.17.0)
+  - Add `isVirtualDevice()` method (3.17.0)
+  - Add `getOsVersion()` method (3.17.0)
+  - Add `swipeBack()` and `pullToRefresh()` methods (3.17.0)
+</Accordion>
+
+<Accordion title="3.13.x - Logging Support">
+  - Add support for `patrol_log` package (3.13.0)
+  - Fix tapping on notification on iOS 18 (3.13.0)
+  - Fix macOS functionality (3.13.0)
+</Accordion>
+
+<Accordion title="3.11.x - Code Coverage">
+  - Add code coverage collection support (3.11.0)
+  - Add option to select tap location in `enterText` (3.11.0)
+</Accordion>
+
+<Accordion title="3.10.x - Android System Controls">
+  - Implement `enableBluetooth` and `disableBluetooth` for Android 11+ (3.10.0)
+  - Implement `enableAirplaneMode` and `disableAirplaneMode` for Android (3.10.0)
+  - Implement `enableLocation` and `disableLocation` for Android (3.10.0)
+  - Add `tags` and `exclude-tags` support (3.10.0)
+</Accordion>
+
+<Accordion title="3.2.x - macOS Support">
+  - Add support for running patrol tests on macOS (alpha) (3.2.0)
+</Accordion>
+
+<Accordion title="2.3.x - Test Hierarchy & Protocol Improvements">
+  - Add support for nested test hierarchies using `group()`s (2.3.0)
+  - Replace Protocol Buffers/gRPC with custom lightweight solution (2.3.0)
+  - Add `PatrolFinder.longPress()` (2.3.2)
+</Accordion>
+
+</AccordionGroup>
+
+## Compatibility
+
+For version compatibility between `patrol` and `patrol_cli`, see the
+[Compatibility Table](/documentation/compatibility-table).
+
+## Deprecations
+
+<Warning>
+  **Deprecated APIs** - These APIs are deprecated and will be removed in future versions:
+  
+  - `NativeAutomator` - Use `PlatformAutomator` instead (deprecated in 4.0)
+  - `NativeAutomator2` - Use `PlatformAutomator` instead (deprecated in 4.0)
+</Warning>
+
+## Migration Guides
+
+When upgrading across major versions, follow these migration guides:
+
+- [Migrating to Patrol 4.0](/v4)
+- [Migrating to Patrol 3.0](/v3)
+- [Migrating to Patrol 2.0](/v2)
+- [Migrating from NativeAutomator to PlatformAutomator](/native-to-platform-migration)
+
+## GitHub Releases
+
+For the complete release history including all pre-releases and detailed technical notes,
+visit our [GitHub Releases page](https://github.com/leancodepl/patrol/releases).
+
+## Stay Updated
+
+To stay informed about new releases:
+
+- **Watch** the [GitHub repository](https://github.com/leancodepl/patrol)
+- **Join** our [Discord community](https://discord.gg/ukBK5t4EZg)
+- **Follow** [@leancode_](https://twitter.com/leancode_) on Twitter
+- **Subscribe** to our [blog](https://leancode.co/blog)
+
+## Release Schedule
+
+We don't follow a fixed release schedule. Releases happen when:
+
+- Critical bugs need to be fixed
+- Important features are ready
+- Multiple improvements have accumulated
+
+Minor releases happen every few weeks, while major releases occur a few times per year.
+
+## Versioning
+
+Patrol follows [Semantic Versioning](https://semver.org/):
+
+- **Major** (x.0.0): Breaking changes
+- **Minor** (0.x.0): New features, backward compatible
+- **Patch** (0.0.x): Bug fixes, backward compatible

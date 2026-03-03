@@ -1,0 +1,515 @@
+---
+title: Testing Bluetooth
+description: Learn how to test Bluetooth functionality in your Flutter app with Patrol
+---
+
+Testing Bluetooth functionality is important for apps that rely on device connectivity features. Patrol provides native automation to enable, disable, and test Bluetooth state changes on both Android and iOS devices.
+
+## Overview
+
+Patrol enables Bluetooth testing by:
+- Enabling and disabling Bluetooth
+- Opening Quick Settings/Control Center
+- Testing Bluetooth state changes
+- Verifying app behavior with Bluetooth on/off
+
+<Warning>
+Bluetooth control doesn't work on Android versions lower than 12 (API level 31). For older Android versions, these methods will throw an exception.
+</Warning>
+
+## Key Methods
+
+<CardGroup cols={2}>
+  <Card title="enableBluetooth" icon="bluetooth">
+    Turn Bluetooth on programmatically
+  </Card>
+  <Card title="disableBluetooth" icon="bluetooth">
+    Turn Bluetooth off programmatically
+  </Card>
+  <Card title="openQuickSettings" icon="sliders">
+    Open Quick Settings (Android) or Control Center (iOS)
+  </Card>
+</CardGroup>
+
+## Basic Bluetooth Testing
+
+<Steps>
+  <Step title="Setup your test">
+    Import Patrol and create a test:
+    
+    ```dart
+    import 'package:patrol/patrol.dart';
+    
+    void main() {
+      patrolTest(
+        'toggles bluetooth',
+        ($) async {
+          await $.pumpWidgetAndSettle(const MyApp());
+        },
+      );
+    }
+    ```
+  </Step>
+  
+  <Step title="Open Quick Settings">
+    Open the system Quick Settings or Control Center:
+    
+    ```dart
+    // Open Quick Settings (Android) or Control Center (iOS)
+    await $.platform.mobile.openQuickSettings();
+    ```
+  </Step>
+  
+  <Step title="Toggle Bluetooth">
+    Enable or disable Bluetooth:
+    
+    ```dart
+    // Disable Bluetooth
+    await $.platform.mobile.disableBluetooth();
+    await Future<void>.delayed(const Duration(seconds: 2));
+    
+    // Enable Bluetooth
+    await $.platform.mobile.enableBluetooth();
+    ```
+  </Step>
+</Steps>
+
+## Complete Examples
+
+### Basic Bluetooth Toggle
+
+Simple test that toggles Bluetooth on and off:
+
+```dart title="patrol_test/bluetooth_toggle_test.dart"
+import 'package:patrol/patrol.dart';
+
+void main() {
+  patrolTest(
+    'disables and enables bluetooth',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+
+      // Wait for app to settle
+      await Future<void>.delayed(const Duration(seconds: 2));
+      
+      // Open Quick Settings/Control Center
+      await $.platform.mobile.openQuickSettings();
+      
+      // Disable Bluetooth
+      await $.platform.mobile.disableBluetooth();
+      await Future<void>.delayed(const Duration(seconds: 4));
+      
+      // Enable Bluetooth
+      await $.platform.mobile.enableBluetooth();
+      await Future<void>.delayed(const Duration(seconds: 4));
+    },
+  );
+}
+```
+
+### Test App Response to Bluetooth State
+
+Test that your app properly responds to Bluetooth changes:
+
+```dart title="patrol_test/bluetooth_app_response_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'app responds to bluetooth state changes',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      // Navigate to Bluetooth settings screen
+      await $('Open Bluetooth screen').scrollTo().tap();
+      await $.pumpAndSettle();
+      
+      // Verify initial Bluetooth state
+      await $('Bluetooth Status').waitUntilVisible();
+      
+      // Disable Bluetooth
+      await $.platform.mobile.disableBluetooth();
+      await $.pump();
+      
+      // Verify app shows Bluetooth is off
+      await $('Bluetooth: OFF').waitUntilVisible();
+      expect($('Bluetooth: OFF').exists, true);
+      
+      // Enable Bluetooth
+      await $.platform.mobile.enableBluetooth();
+      await $.pump();
+      
+      // Verify app shows Bluetooth is on
+      await $('Bluetooth: ON').waitUntilVisible();
+      expect($('Bluetooth: ON').exists, true);
+    },
+  );
+}
+```
+
+### Test Bluetooth Device Connection
+
+Test connecting to a Bluetooth device:
+
+```dart title="patrol_test/bluetooth_connection_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'connects to bluetooth device',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      // Ensure Bluetooth is enabled
+      await $.platform.mobile.enableBluetooth();
+      await $.pump();
+      
+      // Navigate to device pairing screen
+      await $('Pair Device').tap();
+      await $.pumpAndSettle();
+      
+      // Scan for devices
+      await $('Scan for devices').tap();
+      await Future<void>.delayed(const Duration(seconds: 5));
+      
+      // Select a device from the list
+      await $('Test Device').tap();
+      
+      // Verify connection established
+      await $('Connected to Test Device').waitUntilVisible(
+        timeout: Duration(seconds: 10),
+      );
+      
+      // Disconnect
+      await $('Disconnect').tap();
+      await $('Disconnected').waitUntilVisible();
+    },
+  );
+}
+```
+
+### Test Bluetooth Unavailable State
+
+Test app behavior when Bluetooth is disabled:
+
+```dart title="patrol_test/bluetooth_unavailable_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest(
+    'handles bluetooth unavailable',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      // Disable Bluetooth first
+      await $.platform.mobile.disableBluetooth();
+      await $.pump();
+      
+      // Try to access Bluetooth feature
+      await $('Connect to device').tap();
+      
+      // Verify app shows appropriate error/warning
+      await $('Bluetooth is disabled').waitUntilVisible();
+      await $('Enable Bluetooth in Settings').waitUntilVisible();
+      
+      // Tap button to enable Bluetooth
+      await $('Enable Bluetooth').tap();
+      
+      // Enable Bluetooth
+      await $.platform.mobile.enableBluetooth();
+      await $.pump();
+      
+      // Verify feature becomes available
+      await $('Bluetooth enabled').waitUntilVisible();
+    },
+  );
+}
+```
+
+## Platform-Specific Considerations
+
+<Tabs>
+  <Tab title="Android">
+    ### Android Bluetooth Control
+    
+    **Minimum Version:**
+    - Requires Android 12 (API level 31) or higher
+    - On older versions, `enableBluetooth()` and `disableBluetooth()` will throw
+    
+    **Quick Settings:**
+    ```dart
+    // Opens the Quick Settings panel
+    await $.platform.mobile.openQuickSettings();
+    ```
+    
+    **Bluetooth Permissions:**
+    Android 12+ requires additional permissions:
+    - `BLUETOOTH_CONNECT`
+    - `BLUETOOTH_SCAN`
+    - `BLUETOOTH_ADVERTISE` (for advertising)
+    
+    Add to `AndroidManifest.xml`:
+    ```xml
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    ```
+    
+    **Version Check:**
+    ```dart
+    final osVersion = await $.platform.mobile.getOsVersion();
+    if (osVersion >= 31) {
+      // Safe to use Bluetooth toggle methods
+      await $.platform.mobile.disableBluetooth();
+    }
+    ```
+  </Tab>
+  
+  <Tab title="iOS">
+    ### iOS Bluetooth Control
+    
+    **Control Center:**
+    ```dart
+    // Opens Control Center
+    await $.platform.mobile.openQuickSettings();
+    ```
+    
+    <Warning>
+    Control Center is not available on iOS Simulator. These tests must run on physical iOS devices.
+    </Warning>
+    
+    **Bluetooth Permissions:**
+    Add to `Info.plist`:
+    ```xml
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>This app needs Bluetooth to connect to devices</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>This app needs Bluetooth to connect to peripherals</string>
+    ```
+    
+    **Bluetooth State:**
+    iOS Bluetooth state changes may take a moment to propagate. Add appropriate delays:
+    
+    ```dart
+    await $.platform.mobile.enableBluetooth();
+    await Future<void>.delayed(const Duration(seconds: 3));
+    await $.pump();
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Add delays after Bluetooth changes">
+    Bluetooth state changes need time to propagate:
+    
+    ```dart
+    await $.platform.mobile.disableBluetooth();
+    
+    // Wait for Bluetooth to actually turn off
+    await Future<void>.delayed(const Duration(seconds: 2));
+    await $.pump();
+    ```
+  </Accordion>
+  
+  <Accordion title="Check Android version before toggling">
+    Bluetooth control only works on Android 12+:
+    
+    ```dart
+    if (Platform.isAndroid) {
+      final osVersion = await $.platform.mobile.getOsVersion();
+      if (osVersion >= 31) {
+        await $.platform.mobile.disableBluetooth();
+      } else {
+        // Skip Bluetooth toggle or use alternative approach
+      }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Restore Bluetooth state after test">
+    Leave the device in a known state:
+    
+    ```dart
+    patrolTest('bluetooth test', ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      try {
+        // Test with Bluetooth off
+        await $.platform.mobile.disableBluetooth();
+        
+        // Run your tests...
+      } finally {
+        // Always re-enable Bluetooth
+        await $.platform.mobile.enableBluetooth();
+      }
+    });
+    ```
+  </Accordion>
+  
+  <Accordion title="Test on physical devices">
+    Bluetooth testing limitations:
+    - iOS Simulator doesn't support Control Center
+    - Android emulator Bluetooth is limited
+    - Always test on real devices for accurate results
+  </Accordion>
+</AccordionGroup>
+
+## Common Bluetooth Test Scenarios
+
+<CodeGroup>
+
+```dart Connection Lost Scenario
+patrolTest('handles connection lost', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  
+  // Connect to device
+  await $('Connect to Device').tap();
+  await $('Connected').waitUntilVisible();
+  
+  // Simulate Bluetooth disabled
+  await $.platform.mobile.disableBluetooth();
+  await $.pump();
+  
+  // Verify app shows disconnection
+  await $('Connection lost').waitUntilVisible();
+  await $('Reconnect').waitUntilVisible();
+  
+  // Re-enable and reconnect
+  await $.platform.mobile.enableBluetooth();
+  await $.pump();
+  await $('Reconnect').tap();
+  await $('Connected').waitUntilVisible();
+});
+```
+
+```dart Bluetooth Required Feature
+patrolTest('requires bluetooth for feature', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  
+  // Disable Bluetooth
+  await $.platform.mobile.disableBluetooth();
+  await $.pump();
+  
+  // Try to use Bluetooth feature
+  await $('Transfer File').tap();
+  
+  // Verify warning shown
+  await $('Bluetooth Required').waitUntilVisible();
+  await $('Please enable Bluetooth').waitUntilVisible();
+  
+  // Cancel and enable Bluetooth
+  await $('Cancel').tap();
+  await $.platform.mobile.enableBluetooth();
+  await $.pump();
+  
+  // Try again
+  await $('Transfer File').tap();
+  await $('Select Device').waitUntilVisible();
+});
+```
+
+```dart Bluetooth Permission Request
+patrolTest('requests bluetooth permissions', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  
+  // Ensure Bluetooth is enabled
+  await $.platform.mobile.enableBluetooth();
+  
+  // Trigger Bluetooth feature
+  await $('Scan for Devices').tap();
+  
+  // Handle permission dialog
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    await $.platform.mobile.grantPermissionWhenInUse();
+  }
+  
+  // Verify scan started
+  await $('Scanning...').waitUntilVisible();
+});
+```
+
+</CodeGroup>
+
+## Using Quick Settings/Control Center
+
+Instead of programmatic control, you can manually toggle Bluetooth via Quick Settings:
+
+```dart
+import 'package:patrol/patrol.dart';
+
+patrolTest('manually toggle bluetooth', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  
+  // Open Quick Settings/Control Center
+  await $.platform.mobile.openQuickSettings();
+  
+  // Wait for panel to open
+  await Future<void>.delayed(const Duration(seconds: 2));
+  
+  // Find and tap Bluetooth toggle
+  await $.native.tap(
+    Selector(textContains: 'Bluetooth'),
+  );
+  
+  // Wait and toggle again
+  await Future<void>.delayed(const Duration(seconds: 3));
+  await $.native.tap(
+    Selector(textContains: 'Bluetooth'),
+  );
+  
+  // Close Quick Settings
+  await $.platform.mobile.pressBack();
+});
+```
+
+<Info>
+The programmatic `enableBluetooth()` and `disableBluetooth()` methods are more reliable than manually tapping UI elements in Quick Settings, as they directly control the Bluetooth adapter.
+</Info>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Method not working on Android">
+    - Verify Android version is 12+ (API 31+)
+    - Check Bluetooth permissions are declared in AndroidManifest.xml
+    - Request runtime permissions for Bluetooth (Android 12+)
+    - Some devices may have manufacturer restrictions
+  </Accordion>
+  
+  <Accordion title="iOS Simulator not supported">
+    - Control Center is not available on iOS Simulator
+    - Bluetooth hardware is not emulated on Simulator
+    - Always use physical iOS devices for Bluetooth testing
+  </Accordion>
+  
+  <Accordion title="Bluetooth state not updating in app">
+    - Add `$.pump()` after Bluetooth state changes
+    - Add delays for state to propagate (2-3 seconds)
+    - Verify app is listening to Bluetooth state changes
+    - Check Bluetooth state stream subscriptions
+  </Accordion>
+  
+  <Accordion title="Test flaky or inconsistent">
+    - Increase delays between Bluetooth operations
+    - Ensure previous Bluetooth operations completed
+    - Reset Bluetooth state before each test
+    - Avoid running multiple Bluetooth tests in parallel
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+For more reliable tests, consider mocking Bluetooth functionality for unit/widget tests, and only test actual Bluetooth integration in a small set of critical end-to-end tests on physical devices.
+</Tip>
+
+## Related Resources
+
+- [flutter_blue_plus package](https://pub.dev/packages/flutter_blue_plus)
+- [flutter_bluetooth_serial package](https://pub.dev/packages/flutter_bluetooth_serial)
+- [Android Bluetooth Guide](https://developer.android.com/guide/topics/connectivity/bluetooth)
+- [iOS Core Bluetooth](https://developer.apple.com/documentation/corebluetooth)

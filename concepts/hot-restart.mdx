@@ -1,0 +1,480 @@
+---
+title: Hot Restart
+description: Speed up test development with Patrol's Hot Restart feature using the develop command for fast iteration
+---
+
+Patrol's `develop` command brings Flutter's Hot Restart capability to integration tests, dramatically speeding up the test development cycle. Instead of rebuilding and reinstalling your app for every test change, you can restart just the Flutter portion of your app in seconds.
+
+## The patrol develop Command
+
+The `develop` command is one of Patrol CLI's most powerful features for productivity:
+
+```bash Basic Usage
+patrol develop --target patrol_test/my_test.dart
+```
+
+This command:
+
+1. Builds your app and test instrumentation (initial build is slow)
+2. Installs and launches the app on your device
+3. Activates Hot Restart after a short initialization
+4. Lets you press **R** to restart the test instantly
+
+<Info>
+The first run involves a full build and is slow. Subsequent restarts (by pressing **R**) take only seconds!
+</Info>
+
+## How Hot Restart Works
+
+Understanding Hot Restart's mechanics is crucial for writing reliable tests:
+
+<Steps>
+
+<Step title="What Gets Restarted">
+When you press **R**, Flutter's Dart VM restarts:
+- Your `main()` function runs again
+- All Dart code is reloaded with your changes
+- Widget tree is rebuilt from scratch
+- Test code executes from the beginning
+</Step>
+
+<Step title="What Stays the Same">
+The following persist across restarts:
+- The native app process continues running
+- App data (SharedPreferences, databases, files)
+- Granted permissions
+- Network connections
+- Native state and configuration
+</Step>
+
+</Steps>
+
+<Warning>
+**Hot Restart only restarts the Flutter/Dart layer**. The native platform layer keeps running with the same state. This is both a feature (fast restarts) and a limitation (requires careful test design).
+</Warning>
+
+## Basic Usage
+
+<Steps>
+
+<Step title="Start develop session">
+
+```bash
+patrol develop --target patrol_test/example_test.dart
+```
+
+Wait for the initial build to complete. You'll see output indicating when Hot Restart is ready.
+
+</Step>
+
+<Step title="Make changes to your test">
+
+Edit your test file in your IDE:
+
+```dart
+patrolTest('my test', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Add new test steps here
+  await $(#loginButton).tap();
+  await $(#emailField).enterText('test@example.com');
+});
+```
+
+</Step>
+
+<Step title="Press R to restart">
+
+In the terminal where `patrol develop` is running, press **R**. Your changes take effect immediately!
+
+</Step>
+
+<Step title="Iterate rapidly">
+
+Continue making changes and pressing **R** to test them instantly. No rebuild required!
+
+</Step>
+
+</Steps>
+
+## Advanced Options
+
+Customize the develop command with additional flags:
+
+<CodeGroup>
+
+```bash Custom Build Info
+patrol develop \
+  --target patrol_test/example_test.dart \
+  --build-name=1.2.3 \
+  --build-number=123
+```
+
+```bash With Flavor
+patrol develop \
+  --target patrol_test/example_test.dart \
+  --flavor development
+```
+
+```bash With DevTools
+patrol develop \
+  --target patrol_test/example_test.dart \
+  --open-devtools
+```
+
+```bash Hide Test Output
+patrol develop \
+  --target patrol_test/example_test.dart \
+  --hide-test-steps
+```
+
+</CodeGroup>
+
+## Writing Hot Restart-Friendly Tests
+
+Since state persists across restarts, you need to design tests accordingly:
+
+### Handle Persistent State
+
+<CodeGroup>
+
+```dart Bad: Assumes Clean State
+patrolTest('login test', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // This fails on second restart if user is already logged in!
+  expect($(LoginScreen).exists, equals(true));
+  
+  await $(#emailField).enterText('user@example.com');
+  await $(#passwordField).enterText('password');
+  await $(#loginButton).tap();
+});
+```
+
+```dart Good: Handles Both States
+patrolTest('login test', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Check current state and handle both cases
+  if ($(LoginScreen).exists) {
+    // Not logged in - perform login
+    await $(#emailField).enterText('user@example.com');
+    await $(#passwordField).enterText('password');
+    await $(#loginButton).tap();
+  } else {
+    // Already logged in - verify dashboard
+    expect($(Dashboard).exists, equals(true));
+  }
+});
+```
+
+```dart Best: Clean Up First
+patrolTest('login test', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Explicitly clear state at test start
+  await clearUserSession();
+  await $.pumpWidgetAndSettle();  // Rebuild after clearing
+  
+  // Now we know we're in a clean state
+  expect($(LoginScreen).exists, equals(true));
+  
+  await $(#emailField).enterText('user@example.com');
+  await $(#passwordField).enterText('password');
+  await $(#loginButton).tap();
+});
+```
+
+</CodeGroup>
+
+### Clean Up Between Restarts
+
+Create helper functions to reset state:
+
+```dart Helper Functions
+// In your test helpers file
+Future<void> clearAppData() async {
+  // Clear SharedPreferences
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.clear();
+  
+  // Clear secure storage
+  const secureStorage = FlutterSecureStorage();
+  await secureStorage.deleteAll();
+  
+  // Delete test files
+  final appDir = await getApplicationDocumentsDirectory();
+  final testFiles = Directory('${appDir.path}/test_data');
+  if (await testFiles.exists()) {
+    await testFiles.delete(recursive: true);
+  }
+}
+
+// Use in tests
+patrolTest('data persistence test', ($) async {
+  await clearAppData();  // Start fresh
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Test with known clean state
+});
+```
+
+## Handling Permissions
+
+Permissions are the most common Hot Restart challenge:
+
+<Warning>
+**Permission Limitation**: Once granted, permissions cannot be revoked without killing the app. When the app dies, Hot Restart stops working.
+</Warning>
+
+### Strategy: Handle Both Permission States
+
+```dart Permission-Aware Test
+patrolTest('camera test', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Tap camera button
+  await $(#cameraButton).tap();
+  
+  // Handle permission if dialog appears
+  if (await $.platform.mobile.isPermissionDialogVisible(timeout: Duration(seconds: 2))) {
+    await $.platform.mobile.grantPermissionWhenInUse();
+  }
+  
+  // Continue with test - camera should now be available
+  await Future.delayed(Duration(seconds: 1));
+  expect($(CameraPreview).exists, equals(true));
+});
+```
+
+## File System Persistence
+
+Files created during tests remain across restarts:
+
+```dart File Cleanup Example
+patrolTest('photo upload test', ($) async {
+  // Clean up photos from previous runs
+  final appDir = await getApplicationDocumentsDirectory();
+  final photosDir = Directory('${appDir.path}/photos');
+  if (await photosDir.exists()) {
+    await photosDir.delete(recursive: true);
+  }
+  await photosDir.create();
+  
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Now test photo upload with clean slate
+  // ...
+});
+```
+
+## Native State Considerations
+
+Native code that runs only once (on app launch) won't re-execute:
+
+<CodeGroup>
+
+```dart Problematic Pattern
+// In your main.dart
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // This runs on first launch but NOT on hot restart
+  setupNativeServices();
+  
+  runApp(MyApp());
+}
+```
+
+```dart Hot Restart-Friendly Pattern
+// In your main.dart  
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Make native setup idempotent or check state
+  if (!isNativeServiceInitialized()) {
+    setupNativeServices();
+  }
+  
+  runApp(MyApp());
+}
+```
+
+</CodeGroup>
+
+## Platform Limitations
+
+<Warning>
+**Platform Support**:
+
+- ✅ **Android emulators and devices**: Fully supported
+- ✅ **iOS Simulator**: Fully supported  
+- ❌ **iOS Physical Devices**: Not supported ([Flutter bug](https://github.com/flutter/flutter/issues/122698))
+- ❌ **macOS**: Not supported (flutter logs issue)
+- ❌ **Web**: Not supported (hot restart limitation)
+</Warning>
+
+## Real-World Workflow
+
+Here's a typical development session:
+
+<Steps>
+
+<Step title="Start with working test">
+
+```bash
+patrol develop --target patrol_test/login_test.dart
+```
+
+Wait for build and initial test run.
+
+</Step>
+
+<Step title="Add new test steps">
+
+```dart
+patrolTest('login test', ($) async {
+  await clearAppData();
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Existing steps
+  await $(#emailField).enterText('user@example.com');
+  await $(#passwordField).enterText('password');
+  await $(#loginButton).tap();
+  
+  // New steps - verify dashboard
+  await $(Dashboard).waitUntilVisible();
+  expect($(#welcomeMessage).text, 'Welcome back!');
+});
+```
+
+Press **R** → test runs in ~5 seconds
+
+</Step>
+
+<Step title="Add assertion">
+
+```dart
+  // New assertion
+  expect($(#profileAvatar).visible, equals(true));
+```
+
+Press **R** → iterates instantly
+
+</Step>
+
+<Step title="Refine and polish">
+
+Continue adding steps, fixing bugs, and pressing **R** to test changes immediately.
+
+</Step>
+
+</Steps>
+
+## Troubleshooting
+
+### Hot Restart Not Available
+
+<Accordion title="Hot Restart doesn't activate">
+
+**Possible causes:**
+
+1. **App hasn't finished launching** - Wait 10-15 seconds after launch
+2. **Compilation errors** - Check terminal for Dart errors
+3. **Platform not supported** - Verify you're not on physical iOS or web
+
+**Solution:** Wait longer, fix compilation errors, or switch platforms.
+
+</Accordion>
+
+### Test Fails on Restart
+
+<Accordion title="Test passes first time but fails on restart">
+
+**Cause:** State persisting from previous run
+
+**Solutions:**
+
+1. Add cleanup at test start:
+   ```dart
+   await clearAppData();
+   await $.pumpWidgetAndSettle();
+   ```
+
+2. Handle both states:
+   ```dart
+   if ($(LoginScreen).exists) {
+     // Do login
+   } else {
+     // Already logged in
+   }
+   ```
+
+3. Make operations idempotent
+
+</Accordion>
+
+### App Crashes on Restart
+
+<Accordion title="App crashes when pressing R">
+
+**Possible causes:**
+
+1. **State inconsistency** - Native and Dart state out of sync
+2. **Memory leak** - Resources not cleaned up properly
+3. **Hot restart bug** - Edge case in Flutter
+
+**Solutions:**
+
+1. Restart the entire develop session
+2. Add more cleanup code
+3. Check for memory leaks in your app
+
+</Accordion>
+
+## Demo Video
+
+Watch Hot Restart in action:
+
+<YouTube id="Z71ltoGbFw0" />
+
+## Comparing Hot Restart to Hot Reload
+
+It's important to understand the difference:
+
+| Feature | Hot Reload | Hot Restart |
+|---------|-----------|-------------|
+| Speed | ~1 second | ~3-5 seconds |
+| State | Preserved | Lost |
+| Use case | UI tweaks | Logic changes |
+| `main()` | Not called | Called again |
+| Availability | Development only | Development + tests |
+
+Learn more: [The difference between Hot Restart and Hot Reload](https://stackoverflow.com/q/61787776/7009800)
+
+## Best Practices
+
+<Tip>
+**Hot Restart Pro Tips:**
+
+1. **Start tests with cleanup** - Clear state at the beginning
+2. **Make helpers idempotent** - Safe to call multiple times
+3. **Handle permission states** - Test both granted and not granted
+4. **Use develop for iteration** - Use `patrol test` for CI/final validation
+5. **Clean up resources** - Close streams, cancel timers, delete files
+6. **Test on emulator first** - Faster iteration than physical devices
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+
+<Card title="Test Isolation" icon="shield" href="/concepts/test-isolation">
+  Learn how Patrol ensures clean test execution
+</Card>
+
+<Card title="CLI Reference" icon="terminal" href="/cli/develop">
+  Full documentation for the develop command
+</Card>
+
+</CardGroup>

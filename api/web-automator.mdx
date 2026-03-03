@@ -1,0 +1,512 @@
+---
+title: WebAutomator
+description: Web-specific automation interface for browser testing with Patrol
+---
+
+`WebAutomator` provides web-specific methods for automating browser interactions in Patrol tests. Access it through `$.platform.web` in your tests.
+
+## Accessing WebAutomator
+
+```dart
+patrolTest('web test', ($) async {
+  // Access via platform.web
+  await $.platform.web.tap(WebSelector(text: 'Submit'));
+  
+  // Platform-specific action helper
+  await $.platform.action(
+    web: $.platform.web.configure,
+  );
+});
+```
+
+## Initialization
+
+<ResponseField name="initialize()" type="Future<void>">
+  Initializes the web automator.
+  
+  Called automatically before tests begin.
+</ResponseField>
+
+<ResponseField name="configure()" type="Future<void>">
+  Configures the web automator with settings from `WebAutomatorConfig`.
+</ResponseField>
+
+## Element Interaction
+
+### Tapping
+
+<ResponseField name="tap(WebSelector selector, {...})" type="Future<void>">
+  Clicks on a web element.
+  
+  **Parameters:**
+  - `selector` - WebSelector to locate the element
+  - `iframeSelector` - Optional selector for iframe context
+  
+  ```dart
+  // Click a button
+  await $.platform.web.tap(
+    WebSelector(text: 'Submit'),
+  );
+  
+  // Click element in iframe
+  await $.platform.web.tap(
+    WebSelector(role: 'button'),
+    iframeSelector: WebSelector(cssOrXpath: '#payment-iframe'),
+  );
+  ```
+</ResponseField>
+
+### Text Entry
+
+<ResponseField name="enterText(WebSelector selector, {...})" type="Future<void>">
+  Enters text into a web form field.
+  
+  **Parameters:**
+  - `selector` - The input field to target
+  - `text` - Text to enter (required)
+  - `iframeSelector` - Optional iframe selector
+  
+  ```dart
+  await $.platform.web.enterText(
+    WebSelector(label: 'Email'),
+    text: 'user@example.com',
+  );
+  
+  // In iframe
+  await $.platform.web.enterText(
+    WebSelector(placeholder: 'Card number'),
+    text: '4242 4242 4242 4242',
+    iframeSelector: WebSelector(cssOrXpath: '#stripe-iframe'),
+  );
+  ```
+</ResponseField>
+
+### Scrolling
+
+<ResponseField name="scrollTo(WebSelector selector, {...})" type="Future<void>">
+  Scrolls to bring an element into view.
+  
+  ```dart
+  await $.platform.web.scrollTo(
+    WebSelector(text: 'Footer Content'),
+  );
+  ```
+</ResponseField>
+
+## Browser Permissions
+
+<ResponseField name="grantPermissions({required List<String> permissions})" type="Future<void>">
+  Grants browser permissions.
+  
+  Common permissions:
+  - `'geolocation'`
+  - `'notifications'`
+  - `'camera'`
+  - `'microphone'`
+  - `'clipboard-read'`
+  - `'clipboard-write'`
+  
+  ```dart
+  await $.platform.web.grantPermissions(
+    permissions: ['geolocation', 'notifications'],
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="clearPermissions()" type="Future<void>">
+  Clears all granted browser permissions.
+  
+  ```dart
+  await $.platform.web.clearPermissions();
+  ```
+</ResponseField>
+
+## Cookie Management
+
+<ResponseField name="addCookie({...})" type="Future<void>">
+  Adds a browser cookie.
+  
+  **Parameters:**
+  - `name` - Cookie name (required)
+  - `value` - Cookie value (required)
+  - `url` - URL to set cookie for
+  - `domain` - Cookie domain
+  - `path` - Cookie path
+  - `expires` - Expiration timestamp
+  - `httpOnly` - HTTP-only flag
+  - `secure` - Secure flag
+  - `sameSite` - SameSite policy ('Strict', 'Lax', 'None')
+  
+  ```dart
+  await $.platform.web.addCookie(
+    name: 'session_id',
+    value: 'abc123',
+    domain: '.example.com',
+    secure: true,
+    sameSite: 'Lax',
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="getCookies()" type="Future<List<LinkedHashMap<Object?, Object?>>>">
+  Retrieves all browser cookies.
+  
+  ```dart
+  final cookies = await $.platform.web.getCookies();
+  for (final cookie in cookies) {
+    print('${cookie['name']}: ${cookie['value']}');
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="clearCookies()" type="Future<void>">
+  Clears all browser cookies.
+  
+  ```dart
+  await $.platform.web.clearCookies();
+  ```
+</ResponseField>
+
+## File Upload
+
+<ResponseField name="uploadFile({required List<UploadFileData> files})" type="Future<void>">
+  Uploads files through file input elements.
+  
+  ```dart
+  await $.platform.web.uploadFile(
+    files: [
+      UploadFileData(
+        path: '/path/to/document.pdf',
+        mimeType: 'application/pdf',
+      ),
+      UploadFileData(
+        path: '/path/to/image.png',
+        mimeType: 'image/png',
+      ),
+    ],
+  );
+  ```
+</ResponseField>
+
+## Dialog Handling
+
+<ResponseField name="acceptNextDialog()" type="Future<String>">
+  Accepts the next JavaScript dialog (alert, confirm, prompt) that appears.
+  
+  Returns the dialog message.
+  
+  ```dart
+  // Start listening before triggering dialog
+  final dialogFuture = $.platform.web.acceptNextDialog();
+  
+  // Trigger dialog
+  await $.platform.web.tap(WebSelector(text: 'Show Alert'));
+  
+  // Get dialog message
+  final message = await dialogFuture;
+  print('Dialog said: $message');
+  ```
+</ResponseField>
+
+<ResponseField name="dismissNextDialog()" type="Future<String>">
+  Dismisses the next JavaScript dialog.
+  
+  ```dart
+  final dialogFuture = $.platform.web.dismissNextDialog();
+  await $.platform.web.tap(WebSelector(text: 'Show Confirm'));
+  await dialogFuture;
+  ```
+</ResponseField>
+
+## Keyboard Input
+
+<ResponseField name="pressKey({required String key})" type="Future<void>">
+  Presses a single keyboard key.
+  
+  Common keys: `'Enter'`, `'Escape'`, `'Tab'`, `'Backspace'`, `'ArrowUp'`, etc.
+  
+  ```dart
+  await $.platform.web.pressKey(key: 'Enter');
+  await $.platform.web.pressKey(key: 'Escape');
+  ```
+</ResponseField>
+
+<ResponseField name="pressKeyCombo({required List<String> keys})" type="Future<void>">
+  Presses a keyboard shortcut.
+  
+  ```dart
+  // Ctrl+C
+  await $.platform.web.pressKeyCombo(keys: ['Control', 'c']);
+  
+  // Cmd+V (on Mac)
+  await $.platform.web.pressKeyCombo(keys: ['Meta', 'v']);
+  
+  // Ctrl+Shift+K
+  await $.platform.web.pressKeyCombo(keys: ['Control', 'Shift', 'k']);
+  ```
+</ResponseField>
+
+## Browser Navigation
+
+<ResponseField name="goBack()" type="Future<void>">
+  Navigates back in browser history.
+  
+  ```dart
+  await $.platform.web.goBack();
+  ```
+</ResponseField>
+
+<ResponseField name="goForward()" type="Future<void>">
+  Navigates forward in browser history.
+  
+  ```dart
+  await $.platform.web.goForward();
+  ```
+</ResponseField>
+
+## Clipboard
+
+<ResponseField name="getClipboard()" type="Future<String>">
+  Retrieves text from the clipboard.
+  
+  Requires `clipboard-read` permission.
+  
+  ```dart
+  await $.platform.web.grantPermissions(
+    permissions: ['clipboard-read'],
+  );
+  
+  final clipboardText = await $.platform.web.getClipboard();
+  expect(clipboardText, 'Expected content');
+  ```
+</ResponseField>
+
+<ResponseField name="setClipboard({required String text})" type="Future<void>">
+  Sets clipboard text.
+  
+  Requires `clipboard-write` permission.
+  
+  ```dart
+  await $.platform.web.grantPermissions(
+    permissions: ['clipboard-write'],
+  );
+  
+  await $.platform.web.setClipboard(text: 'Hello, World!');
+  ```
+</ResponseField>
+
+## Window Management
+
+<ResponseField name="resizeWindow({required Size size})" type="Future<void>">
+  Resizes the browser window.
+  
+  ```dart
+  // Mobile viewport
+  await $.platform.web.resizeWindow(
+    size: Size(375, 667), // iPhone SE
+  );
+  
+  // Desktop viewport
+  await $.platform.web.resizeWindow(
+    size: Size(1920, 1080),
+  );
+  ```
+</ResponseField>
+
+## Dark Mode
+
+<ResponseField name="enableDarkMode()" type="Future<void>">
+  Enables dark mode in the browser.
+  
+  ```dart
+  await $.platform.web.enableDarkMode();
+  ```
+</ResponseField>
+
+<ResponseField name="disableDarkMode()" type="Future<void>">
+  Disables dark mode (switches to light mode).
+  
+  ```dart
+  await $.platform.web.disableDarkMode();
+  ```
+</ResponseField>
+
+## File Downloads
+
+<ResponseField name="verifyFileDownloads()" type="Future<List<String>>">
+  Returns a list of all files downloaded during the current test.
+  
+  ```dart
+  // Trigger download
+  await $.platform.web.tap(WebSelector(text: 'Download Report'));
+  
+  // Wait for download
+  await Future.delayed(Duration(seconds: 2));
+  
+  // Verify
+  final downloads = await $.platform.web.verifyFileDownloads();
+  expect(downloads, contains('report.pdf'));
+  ```
+</ResponseField>
+
+## WebSelector
+
+The selector class for locating web elements:
+
+```dart
+WebSelector({
+  String? role,
+  String? label,
+  String? placeholder,
+  String? text,
+  String? altText,
+  String? title,
+  String? testId,
+  String? cssOrXpath,
+})
+```
+
+### Selector Examples
+
+```dart
+// By text content
+WebSelector(text: 'Submit')
+
+// By ARIA label
+WebSelector(label: 'Email address')
+
+// By placeholder
+WebSelector(placeholder: 'Enter your email')
+
+// By role
+WebSelector(role: 'button')
+
+// By test ID (data-testid attribute)
+WebSelector(testId: 'login-button')
+
+// By CSS selector
+WebSelector(cssOrXpath: '.submit-button')
+
+// By XPath
+WebSelector(cssOrXpath: '//button[@class="primary"]')
+
+// Combined
+WebSelector(
+  role: 'textbox',
+  label: 'Password',
+)
+```
+
+## Usage Examples
+
+### Complete Login Flow
+
+```dart
+patrolTest('web login', ($) async {
+  await $.pumpWidgetAndSettle(MyWebApp());
+  
+  // Enter credentials
+  await $.platform.web.enterText(
+    WebSelector(label: 'Email'),
+    text: 'user@example.com',
+  );
+  
+  await $.platform.web.enterText(
+    WebSelector(label: 'Password'),
+    text: 'secure123',
+  );
+  
+  // Submit
+  await $.platform.web.tap(
+    WebSelector(role: 'button', text: 'Sign In'),
+  );
+  
+  // Verify success (back in Flutter)
+  await $(Text('Dashboard')).waitUntilVisible();
+});
+```
+
+### Handle Iframe Payment Form
+
+```dart
+patrolTest('payment in iframe', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Interact with main page
+  await $('Checkout').tap();
+  
+  // Enter card details in Stripe iframe
+  final stripeIframe = WebSelector(
+    cssOrXpath: 'iframe[name="stripe"]',
+  );
+  
+  await $.platform.web.enterText(
+    WebSelector(placeholder: 'Card number'),
+    text: '4242424242424242',
+    iframeSelector: stripeIframe,
+  );
+  
+  await $.platform.web.enterText(
+    WebSelector(placeholder: 'MM / YY'),
+    text: '12/25',
+    iframeSelector: stripeIframe,
+  );
+  
+  await $.platform.web.tap(
+    WebSelector(text: 'Pay'),
+  );
+});
+```
+
+### Test with Permissions
+
+```dart
+patrolTest('geolocation feature', ($) async {
+  // Grant permission
+  await $.platform.web.grantPermissions(
+    permissions: ['geolocation'],
+  );
+  
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  await $('Use My Location').tap();
+  await $(Text('Location: 37.7749, -122.4194')).waitUntilVisible();
+});
+```
+
+### Keyboard Shortcuts
+
+```dart
+patrolTest('keyboard shortcuts', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Open search with Ctrl+K
+  await $.platform.web.pressKeyCombo(keys: ['Control', 'k']);
+  await $(TextField).waitUntilVisible();
+  
+  // Close with Escape
+  await $.platform.web.pressKey(key: 'Escape');
+});
+```
+
+### Responsive Testing
+
+```dart
+patrolTest('responsive design', ($) async {
+  // Test mobile layout
+  await $.platform.web.resizeWindow(size: Size(375, 667));
+  await $.pumpWidgetAndSettle(MyApp());
+  expect($(#mobileMenu).visible, true);
+  
+  // Test desktop layout
+  await $.platform.web.resizeWindow(size: Size(1920, 1080));
+  await $.pumpAndSettle();
+  expect($(#desktopMenu).visible, true);
+});
+```
+
+## See Also
+
+- [PlatformAutomator](/api/patrol-tester) - Cross-platform interface
+- [AndroidAutomator](/api/android-automator) - Android-specific methods
+- [IOSAutomator](/api/ios-automator) - iOS-specific methods

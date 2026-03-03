@@ -1,0 +1,236 @@
+---
+title: Native Automation Overview
+description: Learn how Patrol's native automation enables testing of OS-level interactions like permissions, notifications, and device settings
+---
+
+Flutter's [integration_test](https://github.com/flutter/flutter/tree/master/packages/integration_test) provides basic integration testing support, but it cannot interact with the operating system your Flutter app runs on. This limitation makes it impossible to test many critical business features:
+
+- Granting runtime permissions (camera, location, notifications)
+- Signing into apps using WebView or OAuth (like Google Sign-In)
+- Interacting with system notifications
+- Testing app state after backgrounding and returning
+- Controlling device settings (Wi-Fi, mobile data, location, dark mode)
+- Handling native dialogs and system UI
+
+Patrol's **native automation** feature solves these problems by providing a unified API to interact with the underlying platform.
+
+## What is Native Automation?
+
+Native automation allows your Flutter integration tests to:
+
+1. **Control device settings** - Toggle Wi-Fi, cellular, Bluetooth, dark mode, and more
+2. **Handle permissions** - Automatically grant or deny runtime permission requests
+3. **Interact with notifications** - Open notification shade, tap notifications, verify content
+4. **Navigate native UI** - Tap buttons, enter text in WebViews and native screens
+5. **Simulate device actions** - Press home button, open recent apps, simulate hardware buttons
+
+## Platform Support
+
+<Info>
+Native automation is available on **Android**, **iOS**, and **Web** platforms.
+</Info>
+
+<Warning>
+macOS support is in alpha and does not have platform automation implemented yet.
+</Warning>
+
+## Quick Example
+
+Here's a simple example showing the power of native automation:
+
+```dart title="patrol_test/app_test.dart"
+import 'package:patrol/patrol.dart';
+
+void main() {
+  patrolTest('handle location permission and test map', (PatrolIntegrationTester $) async {
+    await $.pumpWidgetAndSettle(MyApp());
+
+    // Prepare network conditions
+    await $.platform.mobile.enableCellular();
+    await $.platform.mobile.disableWifi();
+
+    // Enable dark mode
+    await $.platform.mobile.enableDarkMode();
+
+    // Open map screen which requests location permission
+    await $('Map').tap();
+
+    // Handle the native permission dialog
+    await $.platform.mobile.selectFineLocation();
+    await $.platform.mobile.grantPermissionWhenInUse();
+
+    // Verify map is working
+    expect($('Current Location'), findsOneWidget);
+  });
+}
+```
+
+## The $.platform API
+
+Patrol provides native automation through the `$.platform` property on `PatrolIntegrationTester`. This API is organized into platform-specific namespaces:
+
+### Cross-Platform Mobile
+
+```dart
+// Works on both Android and iOS
+await $.platform.mobile.pressHome();
+await $.platform.mobile.openNotifications();
+await $.platform.mobile.grantPermissionWhenInUse();
+```
+
+### Android-Specific
+
+```dart
+// Android only
+await $.platform.android.pressBack();
+await $.platform.android.pressDoubleRecentApps();
+await $.platform.android.enableLocation();
+```
+
+### iOS-Specific
+
+```dart
+// iOS only
+await $.platform.ios.swipeBack();
+await $.platform.ios.closeHeadsUpNotification();
+```
+
+### Web-Specific
+
+```dart
+// Web only
+await $.platform.web.grantPermissions(permissions: ['clipboard-read']);
+await $.platform.web.addCookie(name: 'session', value: 'abc123');
+await $.platform.web.acceptNextDialog();
+```
+
+## Key Capabilities
+
+<CardGroup cols={2}>
+  <Card title="Permissions" icon="shield-check">
+    Handle runtime permission dialogs automatically with support for location accuracy selection
+  </Card>
+  
+  <Card title="Notifications" icon="bell">
+    Open notification shade, tap notifications by index or selector, verify notification content
+  </Card>
+  
+  <Card title="Device Settings" icon="gear">
+    Control Wi-Fi, cellular, Bluetooth, dark mode, airplane mode, and location
+  </Card>
+  
+  <Card title="Native UI" icon="hand-pointer">
+    Tap, swipe, and enter text in WebViews, native dialogs, and system screens
+  </Card>
+</CardGroup>
+
+## How It Works
+
+Patrol integrates Flutter tests with native Android and iOS testing frameworks:
+
+- **Android**: Uses [UiAutomator](https://developer.android.com/training/testing/other-components/ui-automator) to interact with native UI
+- **iOS**: Uses [XCTest](https://developer.apple.com/documentation/xctest) to control iOS UI and device features
+- **Web**: Uses Playwright to automate browser interactions
+
+This integration allows your Dart tests to run as true native tests, giving you access to:
+
+- Native test runners (Gradle, Xcode, Firebase Test Lab)
+- Device farms and CI/CD integrations
+- HTML test reports and IDE test viewers
+- The entire native testing ecosystem
+
+<Info>
+Your tests are written in Dart but run as native Android/iOS tests under the hood. This gives you the best of both worlds!
+</Info>
+
+## Real-World Use Cases
+
+### Testing OAuth Login
+
+```dart
+patrolTest('sign in with Google', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Tap sign in button which opens WebView
+  await $('Sign in with Google').tap();
+  
+  // Interact with native WebView
+  await $.platform.mobile.enterText(
+    Selector(text: 'Email or phone'),
+    text: 'user@example.com',
+  );
+  await $.platform.mobile.tap(Selector(text: 'Next'));
+  
+  // Verify successful login
+  await $('Welcome back!').waitUntilVisible();
+});
+```
+
+### Testing Push Notifications
+
+```dart
+patrolTest('handle push notification', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Grant notification permission
+  await $('Enable Notifications').tap();
+  await $.platform.mobile.grantPermissionWhenInUse();
+  
+  // Simulate receiving a notification
+  // ... trigger notification from backend ...
+  
+  // Open notifications and tap the first one
+  await $.platform.mobile.openNotifications();
+  await $.platform.mobile.tapOnNotificationBySelector(
+    Selector(textContains: 'New message from'),
+  );
+  
+  // Verify app opened to correct screen
+  expect($('Message Details'), findsOneWidget);
+});
+```
+
+### Testing Network Conditions
+
+```dart
+patrolTest('handle offline mode', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Disable network
+  await $.platform.mobile.disableWifi();
+  await $.platform.mobile.disableCellular();
+  
+  // Try to load data
+  await $('Refresh').tap();
+  
+  // Verify offline message appears
+  expect($('No internet connection'), findsOneWidget);
+  
+  // Re-enable network
+  await $.platform.mobile.enableWifi();
+  await $('Refresh').tap();
+  
+  // Verify data loads
+  await $('Data loaded').waitUntilVisible();
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Setup" icon="wrench" href="/native/setup">
+    Configure your project for native automation
+  </Card>
+  
+  <Card title="Usage Guide" icon="book" href="/native/usage">
+    Learn the native automation API
+  </Card>
+  
+  <Card title="Advanced Topics" icon="rocket" href="/native/advanced">
+    Deep dive into advanced features
+  </Card>
+  
+  <Card title="Feature Parity" icon="table" href="/native/feature-parity">
+    See what's available on each platform
+  </Card>
+</CardGroup>

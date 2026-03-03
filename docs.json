@@ -1,122 +1,190 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Patrol",
+  "theme": "palm",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#0066FF",
+    "light": "#3D8BFF",
+    "dark": "#0052CC"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/leancodepl/patrol"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/leancodepl/patrol",
+      "discord": "https://discord.gg/ukBK5t4EZg",
+      "x": "https://x.com/patrol_leancode"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "write-your-first-test",
+              "compatibility"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/custom-finders",
+              "concepts/native-automation",
+              "concepts/hot-restart",
+              "concepts/test-isolation"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Custom Finders",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "finders/overview",
+              "finders/setup",
+              "finders/usage",
+              "finders/advanced"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Native Automation",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "native/overview",
+              "native/setup",
+              "native/usage",
+              "native/advanced",
+              "native/feature-parity"
+            ]
+          },
+          {
+            "group": "Platform Support",
+            "pages": [
+              "platforms/android",
+              "platforms/ios",
+              "platforms/macos",
+              "platforms/web",
+              "platforms/physical-devices"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "CLI Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Commands",
             "pages": [
-              "api-reference/introduction"
+              "cli/overview",
+              "cli/test",
+              "cli/develop",
+              "cli/build",
+              "cli/devices",
+              "cli/doctor",
+              "cli/update"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "CI/CD",
+            "pages": [
+              "ci/overview",
+              "ci/github-actions",
+              "ci/gitlab-ci",
+              "ci/bitrise"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Integrations",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "integrations/firebase-test-lab",
+              "integrations/browserstack",
+              "integrations/lambdatest",
+              "integrations/allure"
+            ]
+          },
+          {
+            "group": "Feature Guides",
+            "pages": [
+              "guides/permissions",
+              "guides/notifications",
+              "guides/webviews",
+              "guides/camera",
+              "guides/gallery",
+              "guides/bluetooth"
+            ]
+          },
+          {
+            "group": "Best Practices",
+            "pages": [
+              "best-practices/effective-patrol",
+              "best-practices/debugging",
+              "best-practices/tips-and-tricks"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core API",
+            "pages": [
+              "api/patrol-test",
+              "api/patrol-tester",
+              "api/custom-finders",
+              "api/native-automator"
+            ]
+          },
+          {
+            "group": "Platform APIs",
+            "pages": [
+              "api/android-automator",
+              "api/ios-automator",
+              "api/web-automator"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Tools",
+            "pages": [
+              "tools/devtools-extension",
+              "tools/vscode-extension",
+              "tools/logs"
+            ]
+          },
+          {
+            "group": "Migration",
+            "pages": [
+              "migration/v3-to-v4",
+              "migration/native-to-platform",
+              "migration/integration-test"
+            ]
+          },
+          {
+            "group": "Additional Resources",
+            "pages": [
+              "resources/cheatsheet",
+              "resources/faq",
+              "resources/contributing",
+              "resources/changelog"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

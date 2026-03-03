@@ -1,0 +1,329 @@
+---
+title: patrol doctor
+description: Verify your development environment and installed tooling
+---
+
+The `patrol doctor` command checks your development environment and reports the status of all required tools for running Patrol tests.
+
+## Synopsis
+
+```bash
+patrol doctor
+```
+
+## Description
+
+This command validates your development environment by checking:
+
+- Patrol CLI version
+- Flutter installation and version
+- Android development tools (adb, ANDROID_HOME)
+- iOS/macOS development tools (xcodebuild, ideviceinstaller)
+- Web development tools (Node.js, npm)
+
+Use this command when:
+- Setting up Patrol for the first time
+- Troubleshooting test execution issues
+- Verifying environment configuration on CI/CD
+- Checking if all required tools are installed
+
+## Basic Usage
+
+```bash
+patrol doctor
+```
+
+## Output
+
+The command produces a comprehensive report of your development environment:
+
+```
+Patrol doctor:
+Patrol CLI version: 3.0.0
+✓ Flutter command: flutter
+  Flutter 3.22.0 • channel stable
+Android:
+✓ • Program adb found in /Users/user/Library/Android/sdk/platform-tools/adb
+✓ • Env var $ANDROID_HOME set to /Users/user/Library/Android/sdk
+iOS / macOS:
+✓ • Program xcodebuild found in /usr/bin/xcodebuild
+✓ • Program ideviceinstaller found in /opt/homebrew/bin/ideviceinstaller
+Web:
+✓ • Program node found in /usr/local/bin/node
+✓ • Program npm found in /usr/local/bin/npm
+```
+
+## What Gets Checked
+
+### Patrol CLI
+
+**Version Information**
+
+Displays the currently installed Patrol CLI version.
+
+```
+Patrol CLI version: 3.0.0
+```
+
+### Flutter
+
+**Flutter Command**
+
+Verifies that the Flutter command is accessible and working.
+
+```
+✓ Flutter command: flutter
+  Flutter 3.22.0 • channel stable
+```
+
+If Flutter is not found:
+
+```
+✗ Invalid Flutter command: flutter
+```
+
+<Info>
+You can customize the Flutter command using the `--flutter-command` flag or `PATROL_FLUTTER_COMMAND` environment variable.
+</Info>
+
+### Android Tools
+
+**adb (Android Debug Bridge)**
+
+Required for communicating with Android devices and emulators.
+
+```
+✓ • Program adb found in /Users/user/Library/Android/sdk/platform-tools/adb
+```
+
+If not found:
+
+```
+✗ • Program adb not found (install with `export PATH="$ANDROID_HOME/platform-tools:$PATH"`)
+```
+
+**ANDROID_HOME Environment Variable**
+
+Required for Android development.
+
+```
+✓ • Env var $ANDROID_HOME set to /Users/user/Library/Android/sdk
+```
+
+If not set:
+
+```
+✗ • Env var $ANDROID_HOME is not set. (See the link: https://developer.android.com/tools/variables#set)
+```
+
+### iOS / macOS Tools
+
+<Note>
+iOS/macOS tools are only checked on macOS systems.
+</Note>
+
+**xcodebuild**
+
+Required for building and running iOS/macOS apps.
+
+```
+✓ • Program xcodebuild found in /usr/bin/xcodebuild
+```
+
+If not found:
+
+```
+✗ • Program xcodebuild not found (Install Xcode on your Mac)
+```
+
+**ideviceinstaller**
+
+Required for installing apps on physical iOS devices.
+
+```
+✓ • Program ideviceinstaller found in /opt/homebrew/bin/ideviceinstaller
+```
+
+If not found:
+
+```
+✗ • Program ideviceinstaller not found (install with `brew install ideviceinstaller`)
+```
+
+### Web Tools
+
+**Node.js**
+
+Required for running Patrol tests on the web platform.
+
+```
+✓ • Program node found in /usr/local/bin/node
+```
+
+If not found:
+
+```
+✗ • Program node not found (Install Node.js)
+```
+
+**npm**
+
+Required for managing web dependencies.
+
+```
+✓ • Program npm found in /usr/local/bin/npm
+```
+
+If not found:
+
+```
+✗ • Program npm not found (Install npm)
+```
+
+## Fixing Common Issues
+
+### Android Setup
+
+**Missing adb**
+
+1. Install Android SDK
+2. Add platform-tools to your PATH:
+
+```bash
+export PATH="$ANDROID_HOME/platform-tools:$PATH"
+```
+
+Add this to your `~/.bashrc`, `~/.zshrc`, or equivalent.
+
+**Missing ANDROID_HOME**
+
+Set the environment variable to your Android SDK location:
+
+**macOS/Linux:**
+```bash
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+```
+
+**Windows:**
+```cmd
+setx ANDROID_HOME "C:\Users\<username>\AppData\Local\Android\Sdk"
+```
+
+See [Android documentation](https://developer.android.com/tools/variables#set) for detailed instructions.
+
+### iOS Setup (macOS only)
+
+**Missing xcodebuild**
+
+Install Xcode from the Mac App Store or [Apple Developer](https://developer.apple.com/xcode/).
+
+**Missing ideviceinstaller**
+
+Install using Homebrew:
+
+```bash
+brew install ideviceinstaller
+```
+
+<Warning>
+`ideviceinstaller` is required only if you plan to test on physical iOS devices. It's not needed for simulators.
+</Warning>
+
+### Web Setup
+
+**Missing Node.js or npm**
+
+Download and install Node.js from [nodejs.org](https://nodejs.org/), which includes npm.
+
+Or use a version manager like `nvm`:
+
+```bash
+# Install nvm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+
+# Install Node.js
+nvm install node
+```
+
+## Exit Codes
+
+- **0**: Always returns success (even if checks fail)
+
+The command is informational and does not fail based on missing tools. It's up to you to review the output and install missing dependencies.
+
+## Examples
+
+### Basic health check
+
+```bash
+patrol doctor
+```
+
+### Check with custom Flutter command
+
+```bash
+patrol doctor --flutter-command "fvm flutter"
+```
+
+Or using environment variable:
+
+```bash
+export PATROL_FLUTTER_COMMAND="fvm flutter"
+patrol doctor
+```
+
+### On CI/CD
+
+Use in your CI pipeline to verify the environment:
+
+```yaml
+# GitHub Actions example
+- name: Check Patrol environment
+  run: patrol doctor
+```
+
+## When to Use
+
+**Initial Setup**
+
+Run after installing Patrol CLI to ensure all dependencies are present:
+
+```bash
+dart pub global activate patrol_cli
+patrol doctor
+```
+
+**Troubleshooting**
+
+If `patrol test` or other commands fail, run `doctor` to diagnose:
+
+```bash
+patrol doctor
+# Review output and fix any issues
+patrol test
+```
+
+**CI/CD Validation**
+
+Add to your CI pipeline to catch environment issues early:
+
+```bash
+patrol doctor
+patrol test
+```
+
+## Related Commands
+
+- [patrol devices](/cli/devices) - List available devices
+- [patrol test](/cli/test) - Run integration tests
+- [patrol update](/cli/update) - Update Patrol CLI
+
+## Understanding the Output
+
+- **✓** (green checkmark): Tool found and working
+- **✗** (red X): Tool not found or issue detected
+- Hints in parentheses show how to fix issues
+
+<Info>
+All checks are performed, even if some fail. This gives you a complete picture of your environment.
+</Info>

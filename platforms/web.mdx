@@ -1,0 +1,520 @@
+---
+title: Web
+description: Testing Flutter web applications with Patrol and Playwright
+---
+
+Patrol provides comprehensive support for testing Flutter web applications using [Playwright](https://playwright.dev/), a powerful browser automation framework. This enables you to write cross-platform tests that work on both mobile and web.
+
+## How It Works
+
+When running Patrol tests on web, the following architecture is used:
+
+<Steps>
+  <Step title="Flutter Web Server">
+    Patrol starts a development server that serves your Flutter web application.
+  </Step>
+  
+  <Step title="Playwright Test Runner">
+    Patrol automatically launches Chromium using Playwright to load your app.
+  </Step>
+  
+  <Step title="Platform Actions Bridge">
+    For platform automation calls (like `$.platform.web.*`), your Dart test code sends requests to Playwright, which executes browser-specific actions.
+  </Step>
+  
+  <Step title="Results Collection">
+    Test results are collected and reported back in Patrol's standard format.
+  </Step>
+</Steps>
+
+<Info>
+  This architecture allows you to write the same Patrol tests that work across mobile and web platforms, with Playwright handling browser-specific interactions.
+</Info>
+
+## Prerequisites
+
+Before running Patrol tests on web:
+
+<Steps>
+  <Step title="Install Node.js">
+    Playwright requires Node.js. Install it from [nodejs.org](https://nodejs.org/).
+    
+    Verify installation:
+    ```bash
+    node --version
+    npm --version
+    ```
+  </Step>
+  
+  <Step title="First Run Setup">
+    On first run, Patrol automatically installs:
+    - Node.js dependencies
+    - Playwright package
+    - Chromium browser binaries
+    
+    <Tip>
+      This setup happens automatically the first time you run `patrol test --device chrome`. It may take a moment.
+    </Tip>
+  </Step>
+</Steps>
+
+## Running Tests
+
+### Basic Usage
+
+Run your Patrol tests on Chrome:
+
+```bash
+patrol test --device chrome --target patrol_test/login_test.dart
+```
+
+<Info>
+  On first run, Patrol will install Playwright and browser binaries. This is a one-time setup.
+</Info>
+
+### Headless Mode
+
+By default, Patrol runs web tests in **headed mode** (visible browser). For CI/CD pipelines, use headless mode:
+
+```bash
+patrol test \
+  --device chrome \
+  --target patrol_test/login_test.dart \
+  --web-headless true
+```
+
+<Tip>
+  CI environments typically don't provide a graphical display. Always use `--web-headless true` in CI pipelines.
+</Tip>
+
+### Running All Tests
+
+Run all web tests in your project:
+
+```bash
+patrol test --device chrome
+```
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml title=".github/workflows/test.yml"
+name: Patrol Web Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+      
+      - name: Install Patrol CLI
+        run: flutter pub global activate patrol_cli
+      
+      - name: Run web tests
+        run: |
+          patrol test \
+            --device chrome \
+            --web-headless true
+```
+
+### GitLab CI
+
+```yaml title=".gitlab-ci.yml"
+test:web:
+  image: ghcr.io/cirruslabs/flutter:stable
+  
+  before_script:
+    - flutter pub global activate patrol_cli
+    - export PATH="$PATH:$HOME/.pub-cache/bin"
+  
+  script:
+    - patrol test --device chrome --web-headless true
+```
+
+<Note>
+  Ensure your CI environment has Node.js installed. Most CI images include it by default.
+</Note>
+
+## Web-Specific Features
+
+Patrol provides comprehensive browser automation through `$.platform.web`:
+
+### Dark Mode
+
+```dart
+// Enable dark mode
+await $.platform.web.enableDarkMode();
+
+// Disable dark mode
+await $.platform.web.disableDarkMode();
+```
+
+### Keyboard Input
+
+```dart
+// Press a single key
+await $.platform.web.pressKey(key: 'Enter');
+await $.platform.web.pressKey(key: 'Escape');
+await $.platform.web.pressKey(key: 'a');
+
+// Press key combinations
+await $.platform.web.pressKeyCombo(keys: ['Control', 'a']); // Select all
+await $.platform.web.pressKeyCombo(keys: ['Control', 'c']); // Copy
+await $.platform.web.pressKeyCombo(keys: ['Control', 'v']); // Paste
+await $.platform.web.pressKeyCombo(keys: ['Meta', 's']);    // Save (Cmd+S on Mac)
+```
+
+### Permissions
+
+```dart
+// Grant browser permissions
+await $.platform.web.grantPermissions(
+  permissions: ['clipboard-read', 'clipboard-write'],
+);
+
+// Available permissions:
+// - 'clipboard-read'
+// - 'clipboard-write'
+// - 'geolocation'
+// - 'notifications'
+// - 'camera'
+// - 'microphone'
+
+// Clear all permissions
+await $.platform.web.clearPermissions();
+```
+
+### Clipboard
+
+```dart
+// Set clipboard content
+await $.platform.web.setClipboard(text: 'Hello, Patrol!');
+
+// Read clipboard content
+final clipboardText = await $.platform.web.getClipboard();
+expect(clipboardText, 'Hello, Patrol!');
+```
+
+### Browser Navigation
+
+```dart
+// Navigate back
+await $.platform.web.goBack();
+
+// Navigate forward
+await $.platform.web.goForward();
+```
+
+### Cookies
+
+```dart
+// Add a cookie
+await $.platform.web.addCookie(
+  name: 'session_id',
+  value: 'abc123',
+  url: 'http://localhost:8080',
+);
+
+// Get all cookies
+final cookies = await $.platform.web.getCookies();
+for (final cookie in cookies) {
+  print('${cookie.name}: ${cookie.value}');
+}
+
+// Clear all cookies
+await $.platform.web.clearCookies();
+```
+
+### File Operations
+
+#### Upload Files
+
+```dart
+import 'dart:convert';
+
+// Create file data
+final fileContent = utf8.encode('Hello from Patrol!');
+final file = UploadFileData(
+  name: 'test_file.txt',
+  content: fileContent,
+  mimeType: 'text/plain',
+);
+
+// Upload single file
+await $.platform.web.uploadFile(files: [file]);
+
+// Upload multiple files
+final files = [
+  UploadFileData(
+    name: 'file1.txt',
+    content: utf8.encode('Content 1'),
+    mimeType: 'text/plain',
+  ),
+  UploadFileData(
+    name: 'file2.txt',
+    content: utf8.encode('Content 2'),
+    mimeType: 'text/plain',
+  ),
+];
+await $.platform.web.uploadFile(files: files);
+```
+
+#### Verify Downloads
+
+```dart
+// Trigger download in your app
+await $('Download Report').tap();
+
+// Verify files were downloaded
+final downloads = await $.platform.web.verifyFileDownloads();
+expect(downloads, isNotEmpty);
+expect(downloads.first.suggestedFilename, 'report.pdf');
+```
+
+### Dialog Handling
+
+<Warning>
+  Dialogs block JavaScript execution. You must subscribe to dialog events **before** triggering the dialog.
+</Warning>
+
+```dart
+// Accept alert/confirm dialog
+final dialogFuture = $.platform.web.acceptNextDialog();
+await $('Show Alert').tap(); // Trigger the dialog
+final dialogText = await dialogFuture;
+expect(dialogText, 'Are you sure?');
+
+// Dismiss dialog
+final dialogFuture = $.platform.web.dismissNextDialog();
+await $('Show Confirm').tap();
+final dialogText = await dialogFuture;
+expect(dialogText, 'Delete this item?');
+```
+
+### Web Element Interactions
+
+For external HTML content (like iframes):
+
+```dart
+// Scroll to element in iframe
+await $.platform.web.scrollToWeb(
+  selector: '#email-input',
+  iframeSelector: '#payment-iframe',
+);
+
+// Enter text in iframe input
+await $.platform.web.enterTextWeb(
+  selector: '#email-input',
+  text: 'user@example.com',
+  iframeSelector: '#payment-iframe',
+);
+
+// Click button in iframe
+await $.platform.web.tapWeb(
+  selector: '#submit-button',
+  iframeSelector: '#payment-iframe',
+);
+
+// For non-iframe elements, omit iframeSelector
+await $.platform.web.tapWeb(selector: '#external-button');
+```
+
+### Window Operations
+
+```dart
+// Resize browser window
+await $.platform.web.resizeWindow(size: Size(1920, 1080));
+await $.platform.web.resizeWindow(size: Size(375, 667)); // Mobile size
+```
+
+## Complete Example
+
+Here's a comprehensive example using multiple web features:
+
+```dart
+import 'dart:convert';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:patrol/patrol.dart';
+
+void main() {
+  patrolTest(
+    'complete web test example',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      // Test dark mode
+      await $.platform.web.enableDarkMode();
+      await $.pumpAndSettle();
+      expect($(#darkModeIndicator), findsOneWidget);
+      
+      // Test clipboard operations
+      await $.platform.web.grantPermissions(
+        permissions: ['clipboard-read', 'clipboard-write'],
+      );
+      await $.platform.web.setClipboard(text: 'test@example.com');
+      await $('Paste Email').tap();
+      
+      final clipboard = await $.platform.web.getClipboard();
+      expect(clipboard, 'test@example.com');
+      
+      // Test keyboard shortcuts
+      await $.platform.web.pressKeyCombo(keys: ['Control', 'a']);
+      await $.platform.web.pressKey(key: 'Delete');
+      
+      // Test file upload
+      await $('Upload File').tap();
+      final file = UploadFileData(
+        name: 'document.txt',
+        content: utf8.encode('Test document'),
+        mimeType: 'text/plain',
+      );
+      await $.platform.web.uploadFile(files: [file]);
+      
+      // Test dialog handling
+      final dialogFuture = $.platform.web.acceptNextDialog();
+      await $('Delete Account').tap();
+      final message = await dialogFuture;
+      expect(message, contains('confirm'));
+      
+      // Test browser navigation
+      await $('Go Back').tap();
+      await $.platform.web.goBack();
+    },
+  );
+}
+```
+
+## Capabilities
+
+Web platform features available through `$.platform.web`:
+
+| Feature | Status |
+|---------|--------|
+| Dark mode toggle | ✅ |
+| Keyboard input | ✅ |
+| Key combinations | ✅ |
+| Permissions management | ✅ |
+| Clipboard operations | ✅ |
+| Browser navigation | ✅ |
+| Cookie management | ✅ |
+| File uploads | ✅ |
+| File download verification | ✅ |
+| Dialog handling | ✅ |
+| Iframe interactions | ✅ |
+| Window resizing | ✅ |
+| External element tapping | ✅ |
+| External text input | ✅ |
+
+<Info>
+  For a complete feature parity comparison across all platforms, see the [Feature Parity](/documentation/native/feature-parity) page.
+</Info>
+
+## Limitations
+
+### Browser Support
+
+<Warning>
+  Currently, Patrol web tests only support **Chromium** (Chrome). Firefox and Safari support may be added in future releases.
+</Warning>
+
+### Mobile Browser Testing
+
+Patrol web testing is designed for desktop browsers. For mobile browser testing, use actual mobile devices with Android/iOS platforms.
+
+### Dialog Timing
+
+Always subscribe to dialog events before triggering them:
+
+```dart
+// ✅ Correct
+final future = $.platform.web.acceptNextDialog();
+await $('Show Dialog').tap();
+await future;
+
+// ❌ Wrong - dialog already shown
+await $('Show Dialog').tap();
+await $.platform.web.acceptNextDialog(); // Too late!
+```
+
+### File System Access
+
+Uploaded files and downloads are handled through Playwright's APIs. Direct file system access from the Flutter app is limited by browser security.
+
+## Troubleshooting
+
+### Playwright Installation Fails
+
+If automatic installation fails:
+
+```bash
+# Navigate to Patrol's web runner directory
+cd ~/.patrol/web_runner  # or your custom location
+
+# Install manually
+npm install
+npx playwright install chromium
+```
+
+### Tests Fail in Headless Mode
+
+Some visual tests may behave differently in headless mode:
+
+```bash
+# Run in headed mode for debugging
+patrol test --device chrome --web-headless false
+```
+
+### Port Already in Use
+
+If the web server port is occupied:
+
+```bash
+# Kill process using port 8080
+lsof -ti:8080 | xargs kill -9  # macOS/Linux
+
+# Or specify a different port
+patrol test --device chrome --web-port 8081
+```
+
+### Node.js Not Found
+
+Ensure Node.js is in your PATH:
+
+```bash
+# Check Node.js
+which node
+node --version
+
+# Add to PATH if needed (add to ~/.bashrc or ~/.zshrc)
+export PATH="/usr/local/bin:$PATH"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Feature Parity" icon="table" href="/documentation/native/feature-parity">
+    See all available web features
+  </Card>
+  <Card title="Write Your First Test" icon="code" href="/documentation/write-your-first-test">
+    Start writing Patrol tests
+  </Card>
+  <Card title="CI Integration" icon="github" href="/documentation/ci/overview">
+    Run tests in CI/CD pipelines
+  </Card>
+  <Card title="Android Platform" icon="android" href="/platforms/android">
+    Testing on Android devices
+  </Card>
+</CardGroup>

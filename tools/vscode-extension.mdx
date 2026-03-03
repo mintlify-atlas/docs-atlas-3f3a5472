@@ -1,0 +1,275 @@
+---
+title: VS Code Extension
+description: Run, debug, and manage Patrol tests directly from Visual Studio Code
+---
+
+The Patrol VS Code extension brings powerful testing capabilities directly into your editor, allowing you to run, debug, and manage Patrol tests without leaving VS Code.
+
+## Installation
+
+<Steps>
+  <Step title="Install the extension">
+    Install the extension from [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=LeanCode.patrol-vscode) or [Open VSX Registry](https://open-vsx.org/extension/LeanCode/patrol-vscode) for other VS Code-based editors like Cursor.
+    
+    <Note>
+      The Patrol extension requires the Dart extension. If you don't have it installed, you'll be prompted to install it.
+    </Note>
+  </Step>
+  
+  <Step title="Configure test directory (optional)">
+    If your tests are not in the default `patrol_test` directory, add this to your `pubspec.yaml`:
+    
+    ```yaml title="pubspec.yaml"
+    patrol:
+      test_directory: your_custom_directory  # default: patrol_test
+    ```
+  </Step>
+  
+  <Step title="Configure custom test wrappers (optional)">
+    If you have a method wrapping `patrolTest()`, add the `@isTest` annotation:
+    
+    ```dart title="patrol_wrapper.dart"
+    import 'package:meta/meta.dart';
+    
+    @isTest  // Add this annotation
+    void patrolWrapper(
+      String testName,
+      Future<void> Function(PatrolIntegrationTester) test,
+    ) {
+      patrolTest(testName, test);
+    }
+    ```
+    
+    <Info>
+      The `@isTest` annotation comes from the `meta` package. If it's not in your `pubspec.yaml`, add it:
+      
+      ```bash
+      flutter pub add meta --dev
+      ```
+    </Info>
+  </Step>
+</Steps>
+
+Once installed, you should see Patrol tests in the Test Explorer tab and a green play button next to `patrolTest` invocations in your code.
+
+## Features
+
+### Test Explorer Integration
+
+The extension adds a dedicated **Patrol** section to VS Code's Test Explorer:
+
+<AccordionGroup>
+  <Accordion title="View all Patrol tests" icon="list">
+    All Patrol tests in your project are automatically discovered and displayed in a hierarchical tree view in the Test Explorer sidebar.
+  </Accordion>
+  
+  <Accordion title="Run individual tests" icon="play">
+    Click the play button next to any test file to run it on the currently selected device.
+  </Accordion>
+  
+  <Accordion title="Run all tests" icon="forward">
+    Use the play button at the top of Test Explorer to run all Patrol tests in your project.
+  </Accordion>
+  
+  <Accordion title="Debug tests" icon="bug">
+    Click the debug icon next to a test file to start a debugging session with breakpoint support.
+  </Accordion>
+</AccordionGroup>
+
+### In-Editor Test Controls
+
+Run tests directly from your code editor:
+
+- **Green play button**: Appears next to `patrolTest()` invocations
+- **Quick execution**: Click to instantly run the test on your selected device
+- **Multiple tests**: Running a test file with multiple tests executes all of them
+
+<Warning>
+  If you have multiple tests in a file, the play button will run the entire test file, not just a single test.
+</Warning>
+
+### Live Test Results
+
+Monitor test execution in real-time:
+
+- **Test Results tab**: View logs and results from the latest test run
+- **Live logs**: See test output as it happens during execution
+- **Execution status**: Visual indicators show which tests are running, passed, or failed
+- **Stop button**: Halt test execution at any time using the stop button in the toolbar
+
+### Debugging with Hot Restart
+
+The extension integrates Patrol's `develop` command with VS Code's debugging capabilities:
+
+<Steps>
+  <Step title="Start debugging">
+    Click the debug icon in Test Explorer next to your test file.
+  </Step>
+  
+  <Step title="Wait for debugger to attach">
+    The test will build and start executing. After a moment, the VS Code debugger will attach, and you'll see the debugging toolbar.
+  </Step>
+  
+  <Step title="Use debugging features">
+    - Set breakpoints in your test code
+    - Step through code execution
+    - Inspect variables and call stacks
+    - Use the debug console
+  </Step>
+  
+  <Step title="Hot restart your test">
+    Use the hot restart button in the debugging toolbar to quickly restart the test without rebuilding.
+  </Step>
+</Steps>
+
+<Info>
+  Debugging uses Patrol's `develop` mode, which keeps the test running after completion. This allows you to hot restart and iterate quickly.
+</Info>
+
+#### Debugging Toolbar
+
+The debugging toolbar provides several controls:
+
+- **Pause/Continue**: Pause execution or continue to the next breakpoint
+- **Step Over**: Execute the current line and move to the next
+- **Step Into**: Step into function calls
+- **Step Out**: Step out of the current function
+- **Disconnect**: Disconnect the debugger but leave the test running
+- **Hot Restart**: Restart the test without rebuilding
+- **Stop**: Stop the test and close the app
+- **Widget Inspector**: Open the Flutter Widget Inspector
+
+<Warning>
+  Only debug one test file at a time. The "debug all tests" button at the top of Test Explorer works only for widget and unit tests, not Patrol tests.
+</Warning>
+
+### DevTools Integration
+
+Access Flutter DevTools during debugging sessions:
+
+<AccordionGroup>
+  <Accordion title="From popup notification">
+    When debugging starts, a popup appears with an option to open DevTools.
+  </Accordion>
+  
+  <Accordion title="From command palette">
+    1. Open the Command Palette (`Cmd+Shift+P` or `Ctrl+Shift+P`)
+    2. Search for "DevTools"
+    3. Select which DevTools panel to open
+  </Accordion>
+</AccordionGroup>
+
+You can choose to open specific DevTools tabs (Widget Inspector, Performance, etc.) or open all DevTools in a browser.
+
+<Note>
+  Patrol's DevTools extension for inspecting native UI elements is only available in the web browser version of DevTools.
+</Note>
+
+### Custom Command Arguments
+
+Configure additional arguments for Patrol CLI commands:
+
+1. Open VS Code Settings (`Cmd+,` or `Ctrl+,`)
+2. Search for "Patrol"
+3. Add custom arguments for `patrol test` and `patrol develop` commands
+
+<Tip>
+  Use custom arguments to pass flavor configurations, build modes, or other Patrol CLI options.
+</Tip>
+
+## Device Selection
+
+The extension uses the device currently selected in VS Code:
+
+1. Open the Command Palette
+2. Search for "Flutter: Select Device"
+3. Choose your target device or emulator
+
+All test runs and debug sessions will use the selected device.
+
+## Requirements
+
+<CardGroup cols={2}>
+  <Card title="Patrol CLI" icon="terminal">
+    The extension requires `patrol_cli` to be installed and available in your PATH. Install it globally:
+    
+    ```bash
+    flutter pub global activate patrol_cli
+    ```
+  </Card>
+  
+  <Card title="Dart Extension" icon="dart">
+    The official Dart extension must be installed for the Patrol extension to function.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Tests don't appear in Test Explorer">
+    1. Verify your test directory configuration in `pubspec.yaml`
+    2. Check that test files use `patrolTest()` or your annotated wrapper
+    3. Reload the window: **Command Palette > Developer: Reload Window**
+  </Accordion>
+  
+  <Accordion title="Can't run tests from Test Explorer">
+    This is a known bug in some VS Code versions where the PATH environment variable isn't properly imported. Update VS Code to the latest version.
+  </Accordion>
+  
+  <Accordion title="Widget Inspector shows no widgets">
+    Enable the "Show implementation widgets" toggle in the Widget Inspector toolbar.
+  </Accordion>
+  
+  <Accordion title="New tests not appearing">
+    After creating new test files, reload the window:
+    
+    **Command Palette > Developer: Reload Window**
+  </Accordion>
+  
+  <Accordion title="Debugging doesn't start">
+    Ensure:
+    - `patrol_cli` is installed and in your PATH
+    - A device is selected in VS Code
+    - Your test file has no syntax errors
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Use Test Explorer for test organization">
+    Keep Test Explorer open to easily navigate and run your test suite.
+  </Step>
+  
+  <Step title="Leverage hot restart during debugging">
+    Instead of stopping and restarting, use hot restart to iterate quickly on test changes.
+  </Step>
+  
+  <Step title="Configure custom arguments">
+    Set up project-specific Patrol CLI arguments in VS Code settings to avoid typing them repeatedly.
+  </Step>
+  
+  <Step title="Use the integrated DevTools">
+    Take advantage of DevTools integration to debug both your Flutter code and native UI.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="DevTools Extension" icon="magnifying-glass" href="/tools/devtools-extension">
+    Learn about Patrol's DevTools extension for native UI inspection.
+  </Card>
+  
+  <Card title="Writing Tests" icon="pen" href="/documentation/finders/usage">
+    Start writing Patrol tests with custom finders.
+  </Card>
+  
+  <Card title="Native Automation" icon="mobile" href="/documentation/native/usage">
+    Add native automation to your tests.
+  </Card>
+  
+  <Card title="Logging" icon="list" href="/tools/logs">
+    Configure logging for better test debugging.
+  </Card>
+</CardGroup>

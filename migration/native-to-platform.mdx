@@ -1,0 +1,594 @@
+---
+title: Migrate from Native to Platform API
+description: Complete guide for migrating from deprecated native automation APIs to the new Platform Automation API
+---
+
+Patrol 4.0 introduces the **Platform Automation API** and begins the deprecation of legacy native automation entry points. This guide provides comprehensive migration instructions to help you transition your tests smoothly.
+
+<Warning>
+  `$.native`, `$.native2`, `NativeAutomator`, `NativeAutomator2`, and `NativeAutomatorConfig` are deprecated and will be removed in a future release. Migrate to `$.platform` and `PlatformAutomatorConfig`.
+</Warning>
+
+## Why Migrate?
+
+The new Platform Automation API offers:
+
+- **Unified API**: Single, consistent interface across all platforms
+- **Web Support**: Test Flutter web applications alongside mobile
+- **Better Organization**: Clear separation between cross-platform and platform-specific actions
+- **Type Safety**: Improved type checking and better IDE support
+- **Future-Proof**: Active development and long-term support
+
+## Understanding the New API Structure
+
+The Platform Automation API is organized into clear namespaces:
+
+```dart
+$.platform.mobile    // Cross-platform mobile actions (Android + iOS)
+$.platform.android   // Android-only actions
+$.platform.ios       // iOS-only actions
+$.platform.web       // Web automation
+$.platform.tap(...)  // Platform router (automatically selects platform)
+```
+
+<Info>
+  In most cases, you'll use `$.platform.mobile` for cross-platform mobile automation.
+</Info>
+
+## Breaking Changes You'll Likely Hit
+
+Here are the most common changes you'll need to make:
+
+### Entry Point Changes
+
+<CodeGroup>
+
+```dart Before (Deprecated)
+// Using $.native
+await $.native.tap(Selector(text: 'Allow'));
+await $.native.pressBack();
+
+// Using $.native2
+await $.native2.pressHome();
+await $.native2.grantPermissionWhenInUse();
+```
+
+```dart After (Patrol 4.x)
+// Using $.platform.mobile
+await $.platform.mobile.tap(Selector(text: 'Allow'));
+await $.platform.mobile.pressHome();
+await $.platform.mobile.grantPermissionWhenInUse();
+
+// Android-specific action
+await $.platform.android.pressBack();
+```
+
+</CodeGroup>
+
+### Selector Changes
+
+<CodeGroup>
+
+```dart Before
+NativeSelector(
+  android: AndroidSelector(resourceName: 'submit_button'),
+  ios: IOSSelector(identifier: 'submitButton'),
+)
+```
+
+```dart After
+MobileSelector(
+  android: AndroidSelector(resourceName: 'submit_button'),
+  ios: IOSSelector(identifier: 'submitButton'),
+)
+```
+
+</CodeGroup>
+
+## Quick Migration Checklist
+
+Follow this checklist to ensure complete migration:
+
+<Steps>
+
+<Step title="Update Patrol">
+
+```bash
+# Update Patrol CLI
+patrol update
+
+# Update patrol package
+flutter pub upgrade patrol
+```
+
+</Step>
+
+<Step title="Rename Test Directory (Optional)">
+
+Rename `integration_test/` to `patrol_test/` and update `.gitignore`:
+
+```bash
+mv integration_test patrol_test
+```
+
+Or configure to keep using `integration_test/`:
+
+```yaml title="pubspec.yaml"
+patrol:
+  test_directory: integration_test
+```
+
+</Step>
+
+<Step title="Update Native Automation Calls">
+
+Replace all deprecated API calls:
+- `$.native.*` → `$.platform.mobile.*` or platform-specific
+- `$.native2.*` → `$.platform.mobile.*`
+
+</Step>
+
+<Step title="Update Selector Types">
+
+Replace:
+- `NativeSelector(...)` → `MobileSelector(...)`, `Selector(...)`, or `PlatformSelector(...)`
+
+</Step>
+
+<Step title="Update CI Configuration">
+
+Add device selection to avoid prompts:
+
+```bash
+patrol test --device <device-id>
+# or set CI=true environment variable
+```
+
+</Step>
+
+<Step title="Test Your Migration">
+
+```bash
+patrol test
+```
+
+</Step>
+
+</Steps>
+
+## Common Migration Patterns
+
+### Pressing Home Button
+
+<CodeGroup>
+
+```dart Before
+await $.native2.pressHome();
+```
+
+```dart After
+await $.platform.mobile.pressHome();
+```
+
+</CodeGroup>
+
+### Platform-Specific Actions
+
+Some actions are platform-specific and need the appropriate namespace:
+
+<CodeGroup>
+
+```dart Before
+await $.native.pressBack(); // Android only
+await $.native.closeHeadsUpNotification(); // iOS only
+```
+
+```dart After
+await $.platform.android.pressBack();
+await $.platform.ios.closeHeadsUpNotification();
+```
+
+</CodeGroup>
+
+## Understanding Selector Types
+
+Patrol 4.0 actions accept different selector types depending on the context. Here's when to use each:
+
+### `Selector(...)` - Universal Selector
+
+Use when the same selector works across all platforms (most common for text-based selectors):
+
+```dart
+await $.platform.mobile.tap(Selector(text: 'Allow'));
+await $.platform.mobile.tap(Selector(textContains: 'Submit'));
+```
+
+<Info>
+  `Selector` is the simplest and most portable option. Use it whenever possible.
+</Info>
+
+### `MobileSelector(...)` - Mobile-Only Selector
+
+Use when Android and iOS require different selectors:
+
+```dart
+await $.platform.mobile.tap(
+  MobileSelector(
+    android: AndroidSelector(resourceName: 'com.example:id/submit_button'),
+    ios: IOSSelector(identifier: 'submitButton'),
+  ),
+);
+```
+
+<Note>
+  This is the direct replacement for `NativeSelector` from Patrol 3.x.
+</Note>
+
+### `PlatformSelector(...)` - Cross-Platform Selector
+
+Use with the platform router (`$.platform.tap`) to support Android, iOS, and Web:
+
+```dart
+await $.platform.tap(
+  PlatformSelector(
+    android: AndroidSelector(text: 'Click Android text'),
+    ios: IOSSelector(text: 'Click iOS text'),
+    web: WebSelector(cssSelector: '#submit-button'),
+  ),
+);
+```
+
+<Info>
+  `PlatformSelector` can also be used with `$.platform.mobile.*` methods as long as it includes both Android and iOS selectors.
+</Info>
+
+## Detailed Migration Examples
+
+### Example 1: Permission Dialogs
+
+<CodeGroup>
+
+```dart Before
+patrolTest('handle permissions', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Check for permission dialog
+  if (await $.native2.isPermissionDialogVisible()) {
+    await $.native2.selectFineLocation();
+    await $.native2.grantPermissionWhenInUse();
+  }
+});
+```
+
+```dart After
+patrolTest('handle permissions', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Check for permission dialog
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    await $.platform.mobile.selectFineLocation();
+    await $.platform.mobile.grantPermissionWhenInUse();
+  }
+});
+```
+
+</CodeGroup>
+
+### Example 2: Notifications
+
+<CodeGroup>
+
+```dart Before
+patrolTest('tap notification', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Trigger notification
+  await $(#notificationButton).tap();
+  
+  // Go home and open notifications
+  await $.native2.pressHome();
+  await $.native2.openNotifications();
+  
+  // Tap notification
+  await $.native2.tapOnNotificationBySelector(
+    Selector(textContains: 'New message'),
+    timeout: Duration(seconds: 5),
+  );
+});
+```
+
+```dart After
+patrolTest('tap notification', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Trigger notification
+  await $(#notificationButton).tap();
+  
+  // Go home and open notifications
+  await $.platform.mobile.pressHome();
+  await $.platform.mobile.openNotifications();
+  
+  // Tap notification
+  await $.platform.mobile.tapOnNotificationBySelector(
+    Selector(textContains: 'New message'),
+    timeout: Duration(seconds: 5),
+  );
+});
+```
+
+</CodeGroup>
+
+### Example 3: Device Settings
+
+<CodeGroup>
+
+```dart Before
+patrolTest('toggle settings', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Disable Wi-Fi
+  await $.native2.disableWifi();
+  
+  // Enable dark mode
+  await $.native2.enableDarkMode();
+  
+  // Test app behavior
+  expect($(#offlineMessage).visible, true);
+});
+```
+
+```dart After
+patrolTest('toggle settings', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Disable Wi-Fi
+  await $.platform.mobile.disableWifi();
+  
+  // Enable dark mode
+  await $.platform.mobile.enableDarkMode();
+  
+  // Test app behavior
+  expect($(#offlineMessage).visible, true);
+});
+```
+
+</CodeGroup>
+
+### Example 4: Custom Automator with Teardown
+
+<CodeGroup>
+
+```dart Before
+patrolTearDown(() async {
+  final automator = NativeAutomator(config: nativeConfig);
+  
+  // Reset settings
+  await automator.enableWifi();
+  await automator.enableCellular();
+  await automator.disableDarkMode();
+});
+```
+
+```dart After
+patrolTearDown(() async {
+  final automator = PlatformAutomator(config: platformConfig);
+  
+  // Reset settings
+  await automator.mobile.enableWifi();
+  await automator.mobile.enableCellular();
+  await automator.mobile.disableDarkMode();
+});
+```
+
+</CodeGroup>
+
+## Configuration Migration
+
+If you're using custom automator configuration:
+
+<CodeGroup>
+
+```dart Before
+final nativeConfig = NativeAutomatorConfig(
+  keyboardBehavior: KeyboardBehavior.alternative,
+);
+
+final automator = NativeAutomator(config: nativeConfig);
+```
+
+```dart After
+final platformConfig = PlatformAutomatorConfig.fromOptions(
+  keyboardBehavior: KeyboardBehavior.alternative,
+);
+
+final automator = PlatformAutomator(config: platformConfig);
+```
+
+</CodeGroup>
+
+## Search and Replace Guide
+
+Use these patterns for bulk migration:
+
+| Find | Replace |
+|------|--------|
+| `$.native.tap(` | `$.platform.mobile.tap(` |
+| `$.native.` | `$.platform.mobile.` (review each for platform-specific) |
+| `$.native2.` | `$.platform.mobile.` |
+| `NativeSelector(` | `MobileSelector(` |
+| `NativeAutomator(` | `PlatformAutomator(` |
+| `NativeAutomatorConfig(` | `PlatformAutomatorConfig.fromOptions(` |
+
+<Warning>
+  Always review replacements manually, especially for platform-specific actions like `pressBack()` (Android) and `closeHeadsUpNotification()` (iOS).
+</Warning>
+
+## Platform-Specific Actions Reference
+
+### Android-Only Actions
+
+These actions should use `$.platform.android.*`:
+
+```dart
+await $.platform.android.pressBack();
+await $.platform.android.pressRecentApps();
+```
+
+### iOS-Only Actions
+
+These actions should use `$.platform.ios.*`:
+
+```dart
+await $.platform.ios.closeHeadsUpNotification();
+```
+
+### Cross-Platform Mobile Actions
+
+These actions work on both Android and iOS using `$.platform.mobile.*`:
+
+```dart
+await $.platform.mobile.pressHome();
+await $.platform.mobile.openNotifications();
+await $.platform.mobile.grantPermissionWhenInUse();
+await $.platform.mobile.enableWifi();
+await $.platform.mobile.enableDarkMode();
+// ... and many more
+```
+
+## Testing Web Applications
+
+With Patrol 4.0, you can now test web applications:
+
+```dart
+patrolTest('web authentication', ($) async {
+  await $.pumpWidgetAndSettle(MyWebApp());
+  
+  // Grant browser permissions
+  await $.platform.web.grantPermissions(permissions: ['clipboard-read']);
+  
+  // Add cookies
+  await $.platform.web.addCookie(name: 'session', value: 'abc123');
+  
+  // Handle browser dialogs
+  await $.platform.web.acceptNextDialog();
+  
+  // Interact with web elements
+  await $.platform.web.tap(WebSelector(cssSelector: '#login-button'));
+});
+```
+
+<Info>
+  Learn more about web testing in the [Web Testing Guide](/documentation/web).
+</Info>
+
+## Troubleshooting
+
+### "Method not found" Errors
+
+If you see errors about methods not being found:
+
+1. Check you're using the correct namespace (`mobile`, `android`, `ios`, or `web`)
+2. Verify the method exists in Patrol 4.0 (some may have been renamed)
+3. Ensure you've updated to the latest Patrol version
+
+### Type Errors with Selectors
+
+If you get type errors with selectors:
+
+```dart
+// Wrong - NativeSelector is deprecated
+await $.platform.mobile.tap(NativeSelector(...)); 
+
+// Correct - Use MobileSelector
+await $.platform.mobile.tap(MobileSelector(...));
+
+// Or use Selector for text-based
+await $.platform.mobile.tap(Selector(text: 'Button'));
+```
+
+### Platform-Specific Action on Wrong Platform
+
+If Android-specific actions fail on iOS (or vice versa):
+
+```dart
+// Wrong - pressBack is Android-only
+await $.platform.mobile.pressBack();
+
+// Correct - Use platform-specific namespace
+await $.platform.android.pressBack();
+
+// Or wrap in platform check
+if (Platform.isAndroid) {
+  await $.platform.android.pressBack();
+}
+```
+
+## Migration Validation
+
+After migration, verify your tests work correctly:
+
+<Steps>
+
+<Step title="Run All Tests">
+
+```bash
+patrol test
+```
+
+Ensure all tests pass without deprecation warnings.
+
+</Step>
+
+<Step title="Check for Deprecation Warnings">
+
+Review test output for any deprecation warnings and update those usages.
+
+</Step>
+
+<Step title="Test on Multiple Platforms">
+
+```bash
+# Test on Android
+patrol test -d emulator-5554
+
+# Test on iOS
+patrol test -d iPhone-Simulator
+```
+
+</Step>
+
+<Step title="Verify CI Pipeline">
+
+Ensure your CI pipeline runs successfully with the new API.
+
+</Step>
+
+</Steps>
+
+## Benefits of the New API
+
+After migration, you'll benefit from:
+
+- **Clearer code**: Explicit platform namespaces make intent obvious
+- **Better errors**: Improved error messages when actions fail
+- **Web support**: Ability to test Flutter web applications
+- **Type safety**: Stronger typing catches errors at compile time
+- **Future features**: New capabilities will be added to the Platform API
+
+## Need Help?
+
+If you encounter issues during migration:
+
+- Review the [v3 to v4 migration guide](/migration/v3-to-v4) for version-specific changes
+- Check the [platform automation documentation](/documentation/native/usage)
+- Visit our [GitHub repository](https://github.com/leancodepl/patrol) for issues
+- Join our [Discord community](https://discord.gg/ukBK5t4EZg) for support
+
+## Next Steps
+
+After completing the migration:
+
+- Explore [web testing capabilities](/documentation/web)
+- Learn about [platform automation features](/documentation/native/overview)
+- Review [effective Patrol patterns](/documentation/other/effective-patrol)
+- Try the [VS Code Extension](/tools/vscode-extension)

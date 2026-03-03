@@ -1,0 +1,183 @@
+---
+title: DevTools Extension
+description: Inspect native UI elements in your Flutter app with Patrol's DevTools extension
+---
+
+Patrol's DevTools extension enhances your debugging experience by providing a native UI inspector for Android and iOS apps. This powerful tool allows you to explore the native view hierarchy alongside your Flutter widgets.
+
+## Overview
+
+The Patrol DevTools extension integrates directly into Flutter DevTools, providing a dedicated panel for inspecting native UI elements. This is particularly useful when working with platform views, native integrations, or debugging complex UI hierarchies.
+
+<Info>
+  The Patrol DevTools extension is available only in the web version of DevTools.
+</Info>
+
+## Features
+
+### Native UI Inspection
+
+The extension provides a comprehensive view of your app's native UI hierarchy:
+
+- **Android**: Inspect the complete Android view tree, including all native Views and ViewGroups
+- **iOS**: Explore the iOS view hierarchy with UIViews and UIViewControllers
+- **Interactive Tree**: Navigate through the native view hierarchy with an intuitive tree interface
+- **Property Inspection**: View detailed properties and attributes of selected native elements
+
+### Split-Pane Interface
+
+The extension features a dual-pane layout for efficient debugging:
+
+<Steps>
+  <Step title="Hierarchy View">
+    The left pane displays the complete native view tree, allowing you to navigate through all native elements in your app.
+  </Step>
+  
+  <Step title="Details Panel">
+    The right pane shows detailed information about the currently selected native element, including its properties, bounds, and other attributes.
+  </Step>
+  
+  <Step title="Refresh Button">
+    Update the native view tree in real-time to reflect the current state of your app.
+  </Step>
+</Steps>
+
+## Installation
+
+The Patrol DevTools extension is automatically included when you add Patrol to your project. No additional setup is required.
+
+<Steps>
+  <Step title="Add Patrol to your project">
+    If you haven't already, add `patrol` to your `pubspec.yaml`:
+    
+    ```yaml
+    dev_dependencies:
+      patrol: ^latest_version
+    ```
+  </Step>
+  
+  <Step title="Run your app in debug mode">
+    Start your app on a connected device or emulator:
+    
+    ```bash
+    patrol develop
+    ```
+  </Step>
+  
+  <Step title="Open DevTools">
+    When prompted, open DevTools in your browser. You can also open it manually from VS Code or the command line.
+  </Step>
+  
+  <Step title="Access the Patrol extension">
+    Look for the **Patrol** tab in the DevTools interface to access the native UI inspector.
+  </Step>
+</Steps>
+
+## Using the Native Inspector
+
+### Accessing the Inspector
+
+<AccordionGroup>
+  <Accordion title="From VS Code">
+    When debugging with the VS Code extension:
+    
+    1. Start debugging a Patrol test
+    2. Click the **Widget Inspector** button in the debug toolbar
+    3. From the DevTools dropdown, select **Open DevTools in browser**
+    4. Navigate to the **Patrol** tab
+  </Accordion>
+  
+  <Accordion title="From Command Line">
+    When running tests with `patrol develop`:
+    
+    1. A DevTools URL will be printed to the console
+    2. Open the URL in your browser
+    3. Navigate to the **Patrol** tab
+  </Accordion>
+</AccordionGroup>
+
+### Inspecting Elements
+
+Once the native inspector is open:
+
+1. **Click the refresh button** to load the current native view hierarchy
+2. **Expand nodes** in the tree view to explore nested elements
+3. **Click on any element** to view its detailed properties in the details panel
+4. **Toggle between full and short node names** for better readability
+
+<Tip>
+  Use the refresh button frequently to ensure you're viewing the most up-to-date state of your app's native UI.
+</Tip>
+
+## Platform-Specific Details
+
+### Android
+
+On Android, the inspector shows:
+
+- View class names (e.g., `TextView`, `LinearLayout`, `FrameLayout`)
+- View IDs and resource names
+- Layout parameters and dimensions
+- Visibility states
+- Background colors and other styling attributes
+
+### iOS
+
+On iOS, the inspector displays:
+
+- View class names (e.g., `UIView`, `UILabel`, `UIButton`)
+- Frame and bounds information
+- AutoLayout constraints
+- Accessibility properties
+- View hierarchy relationships
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Debug Platform Views" icon="mobile">
+    Inspect native platform views embedded in your Flutter app to verify they're rendering correctly.
+  </Card>
+  
+  <Card title="Verify Native Integrations" icon="puzzle-piece">
+    Check that native UI elements are properly integrated with your Flutter code.
+  </Card>
+  
+  <Card title="Understand View Hierarchy" icon="sitemap">
+    Explore how Flutter's rendering engine maps to native views on each platform.
+  </Card>
+  
+  <Card title="Identify UI Issues" icon="bug">
+    Track down layout problems and rendering issues in the native layer.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Extension tab not visible">
+    Make sure you're using the web version of DevTools. The Patrol extension is not available in the embedded VS Code version. Select **Open DevTools in browser** from the DevTools options.
+  </Accordion>
+  
+  <Accordion title="Empty native view tree">
+    Click the refresh button to load the native UI hierarchy. If it's still empty, ensure your app is running in debug mode on a connected device or emulator.
+  </Accordion>
+  
+  <Accordion title="Extension shows API failure">
+    This can happen if the Patrol service extension is not properly initialized. Restart your app and try again.
+  </Accordion>
+</AccordionGroup>
+
+## Local Development
+
+If you're contributing to the Patrol DevTools extension:
+
+```bash
+cd packages/patrol_devtools_extension
+./publish_to_patrol_extension
+```
+
+This script builds the extension and copies it to the main Patrol package for local development.
+
+<Note>
+  The DevTools extension is maintained as part of the Patrol project. For issues or feature requests, visit the [Patrol GitHub repository](https://github.com/leancodepl/patrol).
+</Note>

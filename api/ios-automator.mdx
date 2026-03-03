@@ -1,0 +1,550 @@
+---
+title: IOSAutomator
+description: iOS-specific native automation interface for UI testing
+---
+
+`IOSAutomator` provides iOS-specific methods for native UI automation. Access it through `$.platform.ios` in your Patrol tests.
+
+## Accessing IOSAutomator
+
+```dart
+patrolTest('iOS test', ($) async {
+  // Access via platform.ios
+  await $.platform.ios.closeHeadsUpNotification();
+  
+  // Platform-specific action helper
+  await $.platform.action(
+    ios: $.platform.ios.closeHeadsUpNotification,
+  );
+});
+```
+
+## iOS-Specific Methods
+
+### Notifications
+
+<ResponseField name="closeHeadsUpNotification()" type="Future<void>">
+  Closes the currently visible heads-up notification (banner).
+  
+  If no heads-up notification is visible, behavior is undefined.
+  
+  **iOS only**
+  
+  ```dart
+  // Wait for notification to appear
+  await Future.delayed(Duration(seconds: 2));
+  
+  // Close it
+  await $.platform.ios.closeHeadsUpNotification();
+  ```
+</ResponseField>
+
+<ResponseField name="tapOnNotificationByIndex(int index, {...})" type="Future<void>">
+  Taps on a notification by its index in the notification center.
+  
+  Notification center must be opened first with `openNotifications()`.
+  
+  **Parameters:**
+  - `index` - Zero-based index of notification
+  - `timeout` - Max time to wait for notification
+  
+  ```dart
+  await $.platform.mobile.openNotifications();
+  await $.platform.ios.tapOnNotificationByIndex(0);
+  ```
+</ResponseField>
+
+<ResponseField name="tapOnNotificationBySelector(IOSSelector selector, {...})" type="Future<void>">
+  Taps on a notification using a selector.
+  
+  On iOS, `textContains`, `titleContains`, and `text` properties are used.
+  
+  ```dart
+  await $.platform.mobile.openNotifications();
+  await $.platform.ios.tapOnNotificationBySelector(
+    IOSSelector(titleContains: 'New Message'),
+  );
+  ```
+</ResponseField>
+
+### App Management
+
+<ResponseField name="openPlatformApp({required Object iosAppId})" type="Future<void>">
+  Opens a specific iOS app by bundle identifier.
+  
+  You can use `AppleApp` enum for common apps or provide a custom bundle ID string.
+  
+  ```dart
+  // Using enum
+  await $.platform.ios.openPlatformApp(
+    iosAppId: AppleApp.safari,
+  );
+  
+  // Using custom bundle ID
+  await $.platform.ios.openPlatformApp(
+    iosAppId: 'com.mycompany.myapp',
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="configure()" type="Future<void>">
+  Configures the iOS automator with settings from `IOSAutomatorConfig`.
+</ResponseField>
+
+## Element Interaction
+
+### Tapping
+
+<ResponseField name="tap(IOSSelector selector, {...})" type="Future<void>">
+  Taps on a native iOS UI element.
+  
+  **Parameters:**
+  - `selector` - IOSSelector to locate the element
+  - `appId` - Optional app bundle ID to target
+  - `timeout` - Max time to wait
+  
+  ```dart
+  await $.platform.ios.tap(
+    IOSSelector(text: 'Allow'),
+  );
+  
+  await $.platform.ios.tap(
+    IOSSelector(
+      identifier: 'submitButton',
+      elementType: IOSElementType.button,
+    ),
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="doubleTap(IOSSelector selector, {...})" type="Future<void>">
+  Double taps on a native element.
+  
+  **Parameters:**
+  - `selector` - Element to tap
+  - `appId` - Optional app bundle ID
+  - `timeout` - Max wait time
+  
+  ```dart
+  await $.platform.ios.doubleTap(
+    IOSSelector(elementType: IOSElementType.image),
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="tapAt(Offset location, {...})" type="Future<void>">
+  Taps at specific screen coordinates.
+  
+  Location values must be in the 0-1 range (normalized coordinates).
+  
+  ```dart
+  // Tap at center of screen
+  await $.platform.ios.tapAt(Offset(0.5, 0.5));
+  
+  // Tap at specific app
+  await $.platform.ios.tapAt(
+    Offset(0.2, 0.3),
+    appId: 'com.apple.springboard',
+  );
+  ```
+</ResponseField>
+
+### Text Entry
+
+<ResponseField name="enterText(IOSSelector selector, {...})" type="Future<void>">
+  Enters text into a native iOS text field.
+  
+  The element must be a `TextField` or `SecureTextField`.
+  
+  **Parameters:**
+  - `selector` - The text field to target
+  - `text` - Text to enter (required)
+  - `appId` - Optional app bundle ID
+  - `keyboardBehavior` - How to handle the keyboard
+  - `timeout` - Max wait time
+  - `tapLocation` - Where to tap before entering text
+  
+  ```dart
+  await $.platform.ios.enterText(
+    IOSSelector(identifier: 'usernameField'),
+    text: 'user@example.com',
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="enterTextByIndex(String text, {...})" type="Future<void>">
+  Enters text into the nth visible text field.
+  
+  **Parameters:**
+  - `text` - Text to enter
+  - `index` - Index of the text field (required)
+  - `appId` - Optional app bundle ID
+  - `keyboardBehavior` - Keyboard handling
+  - `timeout` - Max wait time
+  
+  ```dart
+  // Enter into first text field
+  await $.platform.ios.enterTextByIndex(
+    'username',
+    index: 0,
+  );
+  ```
+</ResponseField>
+
+### Gestures
+
+<ResponseField name="swipe({required Offset from, required Offset to, ...})" type="Future<void>">
+  Performs a swipe gesture.
+  
+  **Parameters:**
+  - `from` - Starting point (0-1 range)
+  - `to` - Ending point (0-1 range)
+  - `appId` - Optional app bundle ID
+  - `enablePatrolLog` - Whether to log action
+  
+  ```dart
+  // Swipe from bottom to top
+  await $.platform.ios.swipe(
+    from: Offset(0.5, 0.8),
+    to: Offset(0.5, 0.2),
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="swipeBack({double dy, String? appId})" type="Future<void>">
+  Performs an iOS back swipe gesture (left to right edge swipe).
+  
+  **Parameters:**
+  - `dy` - Vertical position (0-1 range, default: 0.5)
+  - `appId` - Optional app bundle ID
+  
+  ```dart
+  await $.platform.ios.swipeBack();
+  
+  // Swipe at top of screen
+  await $.platform.ios.swipeBack(dy: 0.2);
+  ```
+</ResponseField>
+
+<ResponseField name="pullToRefresh({...})" type="Future<void>">
+  Simulates a pull-to-refresh gesture.
+  
+  **Parameters:**
+  - `from` - Starting point (default: center)
+  - `to` - Ending point (default: bottom-center)
+  
+  ```dart
+  await $.platform.ios.pullToRefresh();
+  
+  // Custom gesture
+  await $.platform.ios.pullToRefresh(
+    from: Offset(0.5, 0.3),
+    to: Offset(0.5, 0.8),
+  );
+  ```
+</ResponseField>
+
+## UI Inspection
+
+<ResponseField name="getNativeViews(IOSSelector? selector, {...})" type="Future<IOSGetNativeViewsResponse>">
+  Returns the native iOS UI tree.
+  
+  **Parameters:**
+  - `selector` - Optional selector to filter results
+  - `iosInstalledApps` - List of installed app bundle IDs
+  - `appId` - Specific app to inspect
+  
+  ```dart
+  // Get entire UI tree
+  final views = await $.platform.ios.getNativeViews(null);
+  
+  // Get specific elements
+  final buttons = await $.platform.ios.getNativeViews(
+    IOSSelector(elementType: IOSElementType.button),
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="waitUntilVisible(IOSSelector selector, {...})" type="Future<void>">
+  Waits until an element becomes visible.
+  
+  ```dart
+  await $.platform.ios.waitUntilVisible(
+    IOSSelector(text: 'Submit'),
+    timeout: Duration(seconds: 10),
+  );
+  ```
+</ResponseField>
+
+## Camera & Photos
+
+<ResponseField name="takeCameraPhoto({...})" type="Future<void>">
+  Takes and confirms a photo using the device camera.
+  
+  **Parameters:**
+  - `shutterButtonSelector` - Custom shutter button selector
+  - `doneButtonSelector` - Custom done button selector
+  - `timeout` - Max wait time
+  
+  ```dart
+  await $.platform.ios.takeCameraPhoto();
+  ```
+</ResponseField>
+
+<ResponseField name="pickImageFromGallery({...})" type="Future<void>">
+  Picks a single image from the Photos app.
+  
+  ```dart
+  await $.platform.ios.pickImageFromGallery();
+  
+  // Pick specific image by index
+  await $.platform.ios.pickImageFromGallery(index: 3);
+  ```
+</ResponseField>
+
+<ResponseField name="pickMultipleImagesFromGallery({...})" type="Future<void>">
+  Picks multiple images from the Photos app.
+  
+  ```dart
+  await $.platform.ios.pickMultipleImagesFromGallery(
+    imageIndexes: [0, 2, 4],
+  );
+  ```
+</ResponseField>
+
+## IOSSelector
+
+The selector class for locating iOS UI elements:
+
+```dart
+IOSSelector({
+  String? value,
+  int? instance,
+  IOSElementType? elementType,
+  String? identifier,
+  String? text,
+  String? textStartsWith,
+  String? textContains,
+  String? label,
+  String? labelStartsWith,
+  String? labelContains,
+  String? title,
+  String? titleStartsWith,
+  String? titleContains,
+  bool? hasFocus,
+  bool? isEnabled,
+  bool? isSelected,
+  String? placeholderValue,
+  String? placeholderValueStartsWith,
+  String? placeholderValueContains,
+})
+```
+
+### IOSElementType Enum
+
+```dart
+enum IOSElementType {
+  any,
+  other,
+  application,
+  group,
+  window,
+  sheet,
+  drawer,
+  alert,
+  dialog,
+  button,
+  radioButton,
+  radioGroup,
+  checkBox,
+  disclosureTriangle,
+  popUpButton,
+  comboBox,
+  menuButton,
+  toolbarButton,
+  popover,
+  keyboard,
+  key,
+  navigationBar,
+  tabBar,
+  tabGroup,
+  toolbar,
+  statusBar,
+  table,
+  tableRow,
+  tableColumn,
+  outline,
+  outlineRow,
+  browser,
+  collectionView,
+  slider,
+  pageIndicator,
+  progressIndicator,
+  activityIndicator,
+  segmentedControl,
+  picker,
+  pickerWheel,
+  switch_,
+  toggle,
+  link,
+  image,
+  icon,
+  searchField,
+  scrollView,
+  scrollBar,
+  staticText,
+  textField,
+  secureTextField,
+  datePicker,
+  textView,
+  menu,
+  menuItem,
+  menuBar,
+  menuBarItem,
+  map,
+  webView,
+  incrementArrow,
+  decrementArrow,
+  timeline,
+  ratingIndicator,
+  valueIndicator,
+  splitGroup,
+  splitter,
+  relevanceIndicator,
+  colorWell,
+  helpTag,
+  matte,
+  dockItem,
+  ruler,
+  rulerMarker,
+  grid,
+  levelIndicator,
+  cell,
+  layoutArea,
+  layoutItem,
+  handle,
+  stepper,
+  tab,
+  touchBar,
+  statusItem,
+}
+```
+
+### Selector Examples
+
+```dart
+// By text
+IOSSelector(text: 'Submit')
+
+// By identifier
+IOSSelector(identifier: 'loginButton')
+
+// By element type
+IOSSelector(elementType: IOSElementType.button)
+
+// Complex selector
+IOSSelector(
+  elementType: IOSElementType.textField,
+  placeholderValueContains: 'Email',
+  isEnabled: true,
+)
+
+// By label
+IOSSelector(
+  labelContains: 'Continue',
+  elementType: IOSElementType.button,
+)
+```
+
+## AppleApp Enum
+
+Common iOS apps:
+
+```dart
+enum AppleApp {
+  safari,
+  settings,
+  photos,
+  camera,
+  // ... more apps
+}
+```
+
+Usage:
+```dart
+await $.platform.ios.openPlatformApp(
+  iosAppId: AppleApp.settings,
+);
+```
+
+## Usage Examples
+
+### Handle Face ID Authentication
+
+```dart
+patrolTest('authenticate with Face ID', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Trigger Face ID
+  await $('Login with Face ID').tap();
+  
+  // Approve Face ID prompt
+  await $.platform.ios.tap(
+    IOSSelector(text: 'Face ID'),
+  );
+  
+  await $.platform.ios.tap(
+    IOSSelector(text: 'OK'),
+  );
+  
+  // Verify logged in
+  await $(Text('Dashboard')).waitUntilVisible();
+});
+```
+
+### Open Settings App
+
+```dart
+patrolTest('open iOS settings', ($) async {
+  // Open Settings app
+  await $.platform.ios.openPlatformApp(
+    iosAppId: AppleApp.settings,
+  );
+  
+  // Navigate in Settings
+  await $.platform.ios.tap(
+    IOSSelector(text: 'Privacy & Security'),
+  );
+});
+```
+
+### Handle Notification Banner
+
+```dart
+patrolTest('dismiss notification banner', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Trigger notification
+  await $('Send Notification').tap();
+  
+  // Wait for banner to appear
+  await Future.delayed(Duration(seconds: 1));
+  
+  // Close the banner
+  await $.platform.ios.closeHeadsUpNotification();
+});
+```
+
+## Simulator vs Device Limitations
+
+Some features don't work on iOS Simulator:
+- Control Center (`openQuickSettings`)
+- Volume buttons
+- Face ID / Touch ID (use runtime simulation instead)
+- Camera (use Photos picker instead)
+
+## See Also
+
+- [PlatformAutomator](/api/patrol-tester) - Cross-platform interface
+- [AndroidAutomator](/api/android-automator) - Android-specific methods
+- [MobileAutomator](/api/native-automator) - Shared mobile methods

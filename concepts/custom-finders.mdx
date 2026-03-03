@@ -1,0 +1,388 @@
+---
+title: Custom Finders
+description: Learn about Patrol's powerful custom finder system and the $ syntax that makes widget testing intuitive and concise
+---
+
+Patrol introduces a revolutionary custom finder system that makes Flutter widget testing more intuitive, concise, and maintainable. At its core is the `$` syntax, which dramatically simplifies how you locate and interact with widgets in your tests.
+
+## The PatrolFinder System
+
+Patrol's custom finders build on top of Flutter's `flutter_test` package rather than replacing it. The `PatrolFinder` class is a decorator around the standard `Finder` that extends it with powerful features while preserving all original functionality.
+
+### The $ Syntax
+
+The `$` function is your primary interface for finding widgets. It accepts multiple types of arguments and automatically creates the appropriate finder:
+
+<CodeGroup>
+
+```dart Finding by Type
+// Flutter's way
+find.byType(TextField);
+
+// Patrol's way
+$(TextField);
+```
+
+```dart Finding by Text
+// Flutter's way
+find.text('Subscribe');
+
+// Patrol's way
+$('Subscribe');
+```
+
+```dart Finding by Key
+// Flutter's way
+find.byKey(Key('loginButton'));
+
+// Patrol's way
+$(Key('loginButton'));
+$(#loginButton);  // Using Symbol syntax
+```
+
+```dart Finding by Icon
+// Flutter's way
+find.byIcon(Icons.add);
+
+// Patrol's way
+$(Icons.add);
+```
+
+</CodeGroup>
+
+<Info>
+The `#` syntax uses Dart's [Symbol](https://api.dart.dev/dart-core/Symbol-class.html) type. When you write `$(#loginButton)`, it's equivalent to `$(Key('loginButton'))`.
+</Info>
+
+## Supported Finder Types
+
+The `$` syntax supports a wide range of argument types, each mapping to an appropriate Flutter finder:
+
+| Type | Maps to | Example |
+|------|---------|----------|
+| `Type` | `find.byType()` | `$(TextField)` |
+| `String` | `find.text()` | `$('Submit')` |
+| `Key` | `find.byKey()` | `$(Key('email'))` |
+| `Symbol` | `find.byKey()` | `$(#password)` |
+| `IconData` | `find.byIcon()` | `$(Icons.search)` |
+| `Pattern` | `find.textContaining()` | `$(RegExp('.*login.*'))` |
+| `Widget` | `find.byWidget()` | `$(Text('Hello'))` |
+| `Finder` | Returns as-is | `$(find.byTooltip('Help'))` |
+| `PatrolFinder` | Unwraps to `Finder` | `$($(TextField))` |
+
+## Chaining Finders
+
+One of Patrol's most powerful features is the ability to chain finders to locate widgets based on their relationships in the widget tree.
+
+### Descendant Relationships
+
+<CodeGroup>
+
+```dart Simple Chain
+// Find 'Subscribe' text within a ListView
+await $(ListView).$('Subscribe').tap();
+```
+
+```dart Deep Chain
+// Find 'Subscribe' text within a ListTile within a ListView
+await $(ListView).$(ListTile).$('Subscribe').tap();
+```
+
+```dart Complex Chain
+// Flutter's verbose way
+await tester.tap(
+  find.descendant(
+    of: find.byType(ListView),
+    matching: find.descendant(
+      of: find.byType(ListTile),
+      matching: find.text('Subscribe'),
+    ),
+  ).first
+);
+
+// Patrol's concise way
+await $(ListView).$(ListTile).$('Subscribe').tap();
+```
+
+</CodeGroup>
+
+### Ancestor Relationships with `containing()`
+
+The `containing()` method performs lookahead checks to find parent widgets that contain specific descendants:
+
+```dart
+// Find a ListTile that contains 'Activated' text, then find 'learnMore' button within it
+await $(ListTile).containing('Activated').$(#learnMore).tap();
+```
+
+This is equivalent to the verbose Flutter code:
+
+```dart
+await tester.tap(
+  find.ancestor(
+    of: find.text('Activated'),
+    matching: find.descendant(
+      of: find.byType(ListTile),
+      matching: find.byKey(Key('learnMore')),
+    ),
+  ).first
+);
+```
+
+## Advanced Filtering with `which()`
+
+When hierarchical relationships aren't enough, use the `which()` method to filter widgets by their properties:
+
+<Steps>
+
+<Step title="Filter by widget properties">
+
+```dart
+// Find a TextField where text is not empty
+await $(#cityTextField)
+    .which<TextField>((widget) => widget.controller!.text.isNotEmpty)
+    .enterText('Warsaw, Poland');
+```
+
+</Step>
+
+<Step title="Check widget appearance">
+
+```dart
+// Verify icon has correct color
+await $(Icons.error)
+    .which<Icon>((widget) => widget.color == Colors.red)
+    .waitUntilVisible();
+```
+
+</Step>
+
+<Step title="Combine multiple conditions">
+
+```dart
+// Check button is disabled and has correct styling
+await $('Delete account')
+  .which<ElevatedButton>((button) => !button.enabled)
+  .which<ElevatedButton>(
+    (btn) => btn.style?.backgroundColor?.resolve({}) == Colors.red,
+  )
+  .waitUntilVisible();
+```
+
+</Step>
+
+</Steps>
+
+## Smart Assertions
+
+Patrol finders provide convenient getters for common assertions:
+
+### Existence Checks
+
+```dart
+// Check if widget exists in tree (visible or not)
+expect($('Log in').exists, equals(true));
+expect($('Hidden').exists, equals(false));
+```
+
+### Visibility Checks
+
+```dart
+// Check if widget is visible to user
+expect($('Log in').visible, equals(true));
+expect($('Offscreen').visible, equals(false));
+
+// Check visibility at specific alignment
+expect($('Button').isVisibleAt(alignment: Alignment.topLeft), equals(true));
+```
+
+<Warning>
+The `visible` getter checks if the widget is hit-testable at `Alignment.center`. If your widget is partially visible or visible at a different alignment, use `isVisibleAt()` instead.
+</Warning>
+
+### Text Extraction
+
+```dart
+// Get text from Text or RichText widgets
+final buttonText = await $(Key('signInButton')).waitUntilVisible().text;
+expect(buttonText, 'Sign in');
+```
+
+## Actions with Built-in Waiting
+
+Patrol's action methods automatically wait for widgets to become visible before interacting with them:
+
+<CodeGroup>
+
+```dart Tap Action
+// Waits for widget to be visible, then taps
+await $('Subscribe').tap();
+
+// Tap with custom timeout
+await $('Subscribe').tap(
+  visibleTimeout: Duration(seconds: 5),
+);
+```
+
+```dart Enter Text
+// Waits for widget to be visible, then enters text
+await $(#email).enterText('user@example.com');
+
+// Enter text without settling afterwards
+await $(#password).enterText(
+  'secret123',
+  settlePolicy: SettlePolicy.noSettle,
+);
+```
+
+```dart Long Press
+// Waits for widget, then performs long press
+await $(#menuButton).longPress();
+```
+
+```dart Scroll To
+// Scrolls until widget is visible
+await $('Bottom Button').scrollTo();
+
+// Scroll with custom parameters
+await $('Item 50').scrollTo(
+  view: find.byType(ListView),
+  maxScrolls: 100,
+  step: 300,
+);
+```
+
+</CodeGroup>
+
+## Working with Multiple Widgets
+
+When a finder matches multiple widgets, use indexing methods:
+
+```dart
+// Get the first match (default behavior for actions)
+await $('Subscribe').first.tap();
+
+// Get the last match
+await $('Subscribe').last.tap();
+
+// Get a specific index (zero-based)
+await $('Subscribe').at(2).tap();  // Taps the third match
+```
+
+<Tip>
+Patrol actions like `tap()` automatically operate on the first visible widget. You only need to use `.first`, `.last`, or `.at()` when you specifically need a different match.
+</Tip>
+
+## Waiting Methods
+
+Patrol provides explicit waiting methods for better test control:
+
+```dart
+// Wait for widget to exist in tree
+await $('Loading').waitUntilExists();
+
+// Wait for widget to be visible
+await $('Dashboard').waitUntilVisible();
+
+// Wait with custom timeout
+await $('Slow Loading').waitUntilVisible(
+  timeout: Duration(seconds: 10),
+);
+
+// Chain waiting with actions
+await $('Submit')
+  .waitUntilVisible()
+  .tap();
+```
+
+## Integration with flutter_test
+
+Patrol finders work seamlessly with standard Flutter test matchers:
+
+```dart
+// Use with standard matchers
+expect($('Log in'), findsOneWidget);
+expect($(Card), findsNWidgets(3));
+expect($('Nonexistent'), findsNothing);
+
+// Access underlying WidgetTester when needed
+patrolTest('example', ($) async {
+  final WidgetTester tester = $.tester;
+  await tester.drag(find.byType(ListView), Offset(0, -300));
+});
+```
+
+## Real-World Example
+
+Here's a complete example showing custom finders in action:
+
+```dart Example Test
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:patrol/patrol.dart';
+
+void main() {
+  patrolTest(
+    'complete user registration flow',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+
+      // Navigate to registration
+      await $(#registerButton).tap();
+
+      // Fill registration form
+      await $(#emailField).enterText('user@example.com');
+      await $(#passwordField).enterText('securePass123');
+      await $(#confirmPasswordField).enterText('securePass123');
+
+      // Accept terms and conditions
+      await $(Checkbox).containing('I agree to terms').tap();
+
+      // Submit form
+      await $(ElevatedButton).$('Create Account').tap();
+
+      // Verify success message appears
+      await $('Account created successfully!').waitUntilVisible();
+      
+      // Verify we're on the dashboard
+      expect($(#dashboard).visible, equals(true));
+    },
+  );
+}
+```
+
+## Configuration
+
+You can configure global behavior for all finders using `PatrolTesterConfig`:
+
+```dart
+patrolTest(
+  'example with custom config',
+  config: PatrolTesterConfig(
+    visibleTimeout: Duration(seconds: 10),  // Default timeout for visibility checks
+    settleTimeout: Duration(seconds: 5),    // Default timeout for settling
+    printLogs: true,                         // Enable action logging
+  ),
+  ($) async {
+    // Your test code
+  },
+);
+```
+
+<Note>
+All the examples on this page use real code patterns from Patrol's source at [packages/patrol_finders/lib/src/custom_finders/patrol_finder.dart](https://github.com/leancodepl/patrol/blob/master/packages/patrol_finders/lib/src/custom_finders/patrol_finder.dart).
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+
+<Card title="Native Automation" icon="mobile" href="/concepts/native-automation">
+  Learn how Patrol interacts with native platform features
+</Card>
+
+<Card title="Advanced Finders" icon="magnifying-glass" href="/finders/advanced">
+  Explore advanced finder patterns and techniques
+</Card>
+
+</CardGroup>

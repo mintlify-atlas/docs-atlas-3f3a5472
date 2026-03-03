@@ -1,0 +1,706 @@
+---
+title: Native Automation Usage
+description: Learn how to use Patrol's native automation API to interact with device settings, permissions, notifications, and native UI
+---
+
+Once native automation is set up, you can interact with the OS through the `$.platform` API. This guide covers all major use cases with real examples from the source code.
+
+## Accessing Platform Automation
+
+Native automation is accessed through the `platform` property on `PatrolIntegrationTester`:
+
+```dart
+patrolTest('example', (PatrolIntegrationTester $) async {
+  // $.platform provides platform automation
+  await $.platform.mobile.pressHome();
+});
+```
+
+## Platform Namespaces
+
+The platform API is organized into several namespaces:
+
+- `$.platform.mobile` - Cross-platform mobile (Android & iOS)
+- `$.platform.android` - Android-specific features
+- `$.platform.ios` - iOS-specific features  
+- `$.platform.web` - Web-specific features
+
+## Basic Interactions
+
+### Tapping Native Elements
+
+Tap native views like buttons in WebViews or system dialogs:
+
+```dart
+// Tap by text
+await $.platform.mobile.tap(Selector(text: 'Sign up for newsletter'));
+
+// Tap by content description (accessibility label)
+await $.platform.mobile.tap(
+  Selector(contentDescription: 'Submit button'),
+);
+
+// Tap by resource ID
+await $.platform.mobile.tap(
+  Selector(resourceId: 'com.example:id/submit'),
+);
+```
+
+### Platform-Specific Selectors
+
+When selectors differ between platforms, use `MobileSelector`:
+
+```dart
+await $.platform.mobile.tap(
+  MobileSelector(
+    android: AndroidSelector(resourceName: 'com.example:id/button'),
+    ios: IOSSelector(identifier: 'myButton'),
+  ),
+);
+```
+
+### Entering Text
+
+Enter text in native text fields:
+
+```dart
+// Enter text by selector
+await $.platform.mobile.enterText(
+  Selector(text: 'Enter your email'),
+  text: 'charlie@example.com',
+);
+
+// Enter text in the nth visible text field (index starts at 0)
+await $.platform.mobile.enterTextByIndex('username', index: 0);
+await $.platform.mobile.enterTextByIndex('password', index: 1);
+```
+
+<Info>
+Text fields on Android include `EditText` and `AutoCompleteTextView`. On iOS, they include `TextField` and `SecureTextField`.
+</Info>
+
+### Double Tap
+
+```dart
+await $.platform.mobile.doubleTap(
+  Selector(text: 'Like'),
+  delayBetweenTaps: Duration(milliseconds: 300),
+);
+```
+
+### Tap at Coordinates
+
+Tap at specific screen coordinates (0-1 range):
+
+```dart
+// Tap at center of screen
+await $.platform.mobile.tapAt(Offset(0.5, 0.5));
+
+// Tap at top-right corner
+await $.platform.mobile.tapAt(Offset(0.9, 0.1));
+```
+
+### Swiping
+
+```dart
+// Swipe from one point to another
+await $.platform.mobile.swipe(
+  from: Offset(0.5, 0.8),
+  to: Offset(0.5, 0.2),
+  steps: 12,  // Controls speed (Android)
+);
+
+// Swipe back gesture (left to right)
+await $.platform.mobile.swipeBack(dy: 0.5);
+
+// Pull to refresh
+await $.platform.mobile.pullToRefresh(
+  from: Offset(0.5, 0.5),
+  to: Offset(0.5, 0.9),
+  steps: 50,
+);
+```
+
+<Info>
+On Android, `steps` controls swipe speed (1 step = 5ms). Increase steps for slower, smoother swipes.
+</Info>
+
+## Permissions
+
+### Handling Permission Dialogs
+
+Grant or deny native permission request dialogs:
+
+```dart
+// Request permission in your app
+await $('Enable Location').tap();
+
+// Handle the native dialog
+await $.platform.mobile.grantPermissionWhenInUse();
+
+// Or deny permission
+await $.platform.mobile.denyPermission();
+
+// Or grant one-time permission (Android 11+, iOS)
+await $.platform.mobile.grantPermissionOnlyThisTime();
+```
+
+### Location Permission Accuracy
+
+For location permissions, select accuracy level:
+
+```dart
+// Request location permission
+await $('Enable Location').tap();
+
+// Select accuracy
+await $.platform.mobile.selectFineLocation();      // Precise location
+// or
+await $.platform.mobile.selectCoarseLocation();    // Approximate location
+
+// Then grant permission
+await $.platform.mobile.grantPermissionWhenInUse();
+```
+
+### Checking for Permission Dialog
+
+Check if permission dialog is visible before handling:
+
+```dart
+if (await $.platform.mobile.isPermissionDialogVisible()) {
+  await $.platform.mobile.grantPermissionWhenInUse();
+}
+
+// With custom timeout
+if (await $.platform.mobile.isPermissionDialogVisible(
+  timeout: Duration(seconds: 5),
+)) {
+  await $.platform.mobile.grantPermissionWhenInUse();
+}
+```
+
+<Warning>
+On iOS, permission handling only works when device language is set to English (US). For other languages, use manual selectors:
+
+```dart
+await $.platform.ios.tap(
+  IOSSelector(text: 'Allow'),
+  appId: 'com.apple.springboard',
+);
+```
+</Warning>
+
+## Notifications
+
+### Opening Notification Shade
+
+```dart
+// Open notification shade (drawer on Android, notification center on iOS)
+await $.platform.mobile.openNotifications();
+```
+
+### Tapping Notifications
+
+```dart
+// Tap notification by index (0-based)
+await $.platform.mobile.tapOnNotificationByIndex(0);  // First notification
+await $.platform.mobile.tapOnNotificationByIndex(1);  // Second notification
+
+// Tap notification by content
+await $.platform.mobile.tapOnNotificationBySelector(
+  Selector(textContains: 'Someone liked your post'),
+);
+
+// With custom timeout
+await $.platform.mobile.tapOnNotificationBySelector(
+  Selector(text: 'New message'),
+  timeout: Duration(seconds: 5),
+);
+```
+
+<Info>
+Notification shade must be opened with `openNotifications()` before tapping notifications.
+</Info>
+
+### Getting Notification Details
+
+```dart
+// Get first notification
+final notification = await $.platform.mobile.getFirstNotification();
+print('Title: ${notification.title}');
+print('Content: ${notification.content}');
+
+// Get all visible notifications
+final notifications = await $.platform.mobile.getNotifications();
+for (var notif in notifications) {
+  print('Notification: ${notif.title}');
+}
+```
+
+### Closing Notifications
+
+```dart
+// Close notification shade
+await $.platform.mobile.closeNotifications();
+
+// iOS: Close heads-up notification (banner at top)
+await $.platform.ios.closeHeadsUpNotification();
+```
+
+## Device Settings
+
+### Dark Mode
+
+```dart
+// Enable dark mode
+await $.platform.mobile.enableDarkMode();
+
+// Disable dark mode (light mode)
+await $.platform.mobile.disableDarkMode();
+
+// For specific app (optional)
+await $.platform.mobile.enableDarkMode(appId: 'com.example.otherapp');
+```
+
+### Network Settings
+
+```dart
+// Wi-Fi
+await $.platform.mobile.enableWifi();
+await $.platform.mobile.disableWifi();
+
+// Cellular / Mobile Data
+await $.platform.mobile.enableCellular();
+await $.platform.mobile.disableCellular();
+
+// Airplane Mode
+await $.platform.mobile.enableAirplaneMode();
+await $.platform.mobile.disableAirplaneMode();
+
+// Bluetooth (Android 12+ / iOS)
+await $.platform.mobile.enableBluetooth();
+await $.platform.mobile.disableBluetooth();
+```
+
+<Warning>
+Bluetooth control doesn't work on Android versions lower than 12.
+</Warning>
+
+### Location
+
+```dart
+// Android only: Enable/disable location service
+await $.platform.android.enableLocation();
+await $.platform.android.disableLocation();
+
+// Set mock location (works on emulators/simulators + iOS real devices)
+await $.platform.mobile.setMockLocation(
+  37.7749,  // latitude
+  -122.4194, // longitude (San Francisco)
+);
+```
+
+<Warning>
+Setting mock location does NOT work on Android real devices.
+</Warning>
+
+### Volume Controls
+
+```dart
+// Press volume up
+await $.platform.mobile.pressVolumeUp();
+
+// Press volume down
+await $.platform.mobile.pressVolumeDown();
+```
+
+<Warning>
+Volume buttons don't work on iOS Simulator (only real devices).
+</Warning>
+
+## App Navigation
+
+### System Navigation
+
+```dart
+// Press home button
+await $.platform.mobile.pressHome();
+
+// Open your app (or specific app by ID)
+await $.platform.mobile.openApp();
+await $.platform.mobile.openApp(appId: 'com.example.otherapp');
+
+// Press recent apps / app switcher
+await $.platform.mobile.pressRecentApps();
+
+// Android: Double press recent apps (switches to previous app)
+await $.platform.android.pressDoubleRecentApps();
+
+// Open quick settings (Android) or Control Center (iOS)
+await $.platform.mobile.openQuickSettings();
+```
+
+### Opening URLs
+
+```dart
+// Open URL in default browser
+await $.platform.mobile.openUrl('https://example.com');
+```
+
+### Platform-Specific Navigation
+
+<CodeGroup>
+```dart Android
+// Press back button
+await $.platform.android.pressBack();
+
+// Open a specific Android app
+await $.platform.android.openPlatformApp(
+  androidAppId: 'com.android.settings',
+);
+```
+
+```dart iOS
+// Swipe back gesture (edge swipe)
+await $.platform.ios.swipeBack();
+
+// Open a specific iOS app
+await $.platform.ios.openPlatformApp(
+  iosAppId: 'com.apple.Preferences',
+);
+```
+</CodeGroup>
+
+<Warning>
+On iOS, to interact with UI elements in other apps, you must specify the app's bundle ID:
+
+```dart
+await $.platform.ios.tap(
+  IOSSelector(text: 'Add'),
+  appId: 'com.apple.MobileAddressBook',  // Contacts app
+);
+```
+</Warning>
+
+## Camera and Gallery
+
+### Taking Photos
+
+```dart
+// Take photo with default selectors
+await $.platform.mobile.takeCameraPhoto();
+
+// With custom selectors for shutter and done buttons
+await $.platform.mobile.takeCameraPhoto(
+  shutterButtonSelector: Selector(resourceId: 'com.android.camera:id/shutter'),
+  doneButtonSelector: Selector(text: 'OK'),
+  timeout: Duration(seconds: 5),
+);
+```
+
+### Selecting from Gallery
+
+```dart
+// Pick single image (first image by default)
+await $.platform.mobile.pickImageFromGallery();
+
+// Pick specific image by index
+await $.platform.mobile.pickImageFromGallery(index: 2);
+
+// Pick with custom selector
+await $.platform.mobile.pickImageFromGallery(
+  imageSelector: Selector(contentDescription: 'Photo taken on Jan 1'),
+);
+
+// Pick multiple images
+await $.platform.mobile.pickMultipleImagesFromGallery(
+  imageIndexes: [0, 2, 4],  // First, third, and fifth images
+);
+```
+
+## Device Information
+
+### Check Device Type
+
+```dart
+// Check if running on emulator/simulator
+final isVirtual = await $.platform.mobile.isVirtualDevice();
+if (isVirtual) {
+  print('Running on emulator/simulator');
+} else {
+  print('Running on real device');
+}
+```
+
+### Get OS Version
+
+```dart
+// Get OS version as integer
+final osVersion = await $.platform.mobile.getOsVersion();
+
+if (osVersion >= 30) {
+  // Android 11+ or iOS 14+ specific behavior
+  await $.platform.mobile.grantPermissionOnlyThisTime();
+} else {
+  await $.platform.mobile.grantPermissionWhenInUse();
+}
+```
+
+## Android-Specific Features
+
+### Hardware Buttons
+
+```dart
+// Press back button
+await $.platform.android.pressBack();
+
+// Double press recent apps
+await $.platform.android.pressDoubleRecentApps();
+```
+
+### Location Service
+
+```dart
+// Open location settings and enable location
+await $.platform.android.enableLocation();
+
+// Disable location
+await $.platform.android.disableLocation();
+```
+
+### Selectors
+
+```dart
+// Use Android-specific selector properties
+await $.platform.android.tap(
+  AndroidSelector(
+    resourceName: 'com.example:id/submit_button',
+    className: 'android.widget.Button',
+    text: 'Submit',
+    contentDescription: 'Submit form',
+    isEnabled: true,
+    instance: 0,  // First matching element
+  ),
+);
+```
+
+## iOS-Specific Features
+
+### Gestures
+
+```dart
+// Swipe back gesture (edge swipe)
+await $.platform.ios.swipeBack(dy: 0.5);
+
+// Close heads-up notification banner
+await $.platform.ios.closeHeadsUpNotification();
+```
+
+### Selectors
+
+```dart
+// Use iOS-specific selector properties
+await $.platform.ios.tap(
+  IOSSelector(
+    identifier: 'submitButton',  // Accessibility identifier
+    text: 'Submit',
+    textStartsWith: 'Sub',
+    textContains: 'mit',
+  ),
+  appId: 'com.example.app',  // Required when tapping in other apps
+);
+```
+
+## Web-Specific Features
+
+### Element Interaction
+
+```dart
+// Tap by text
+await $.platform.web.tap(WebSelector(text: 'Submit'));
+
+// Tap by CSS selector
+await $.platform.web.tap(WebSelector(cssOrXpath: 'css=#submit-button'));
+
+// Tap by XPath
+await $.platform.web.tap(WebSelector(cssOrXpath: 'xpath=//button[@id="submit"]'));
+
+// Tap by test ID
+await $.platform.web.tap(WebSelector(testId: 'login-button'));
+
+// Enter text
+await $.platform.web.enterText(
+  WebSelector(placeholder: 'Email address'),
+  text: 'user@example.com',
+);
+
+// Scroll to element
+await $.platform.web.scrollTo(WebSelector(text: 'Load more'));
+```
+
+### Browser Dialogs
+
+```dart
+// Accept next alert/confirm dialog
+await $.platform.web.acceptNextDialog();
+
+// Dismiss next dialog
+await $.platform.web.dismissNextDialog();
+```
+
+### Cookies
+
+```dart
+// Add cookie
+await $.platform.web.addCookie(name: 'session', value: 'abc123');
+
+// Clear all cookies
+await $.platform.web.clearCookies();
+```
+
+### Browser Controls
+
+```dart
+// Navigation
+await $.platform.web.goBack();
+await $.platform.web.goForward();
+
+// Dark mode
+await $.platform.web.enableDarkMode();
+await $.platform.web.disableDarkMode();
+
+// Resize window
+await $.platform.web.resizeWindow(size: Size(1920, 1080));
+```
+
+### Keyboard
+
+```dart
+// Press single key
+await $.platform.web.pressKey(key: 'Enter');
+await $.platform.web.pressKey(key: 'Escape');
+
+// Press key combination
+await $.platform.web.pressKeyCombo(keys: ['Control', 'a']);  // Select all
+await $.platform.web.pressKeyCombo(keys: ['Meta', 'v']);    // Paste (Mac)
+```
+
+### Clipboard
+
+```dart
+// Set clipboard content
+await $.platform.web.setClipboard(text: 'Copied text');
+
+// Get clipboard content
+final content = await $.platform.web.getClipboard();
+expect(content, 'Copied text');
+```
+
+### Permissions
+
+```dart
+// Grant browser permissions
+await $.platform.web.grantPermissions(
+  permissions: ['geolocation', 'notifications', 'clipboard-read'],
+);
+
+// Clear permissions
+await $.platform.web.clearPermissions();
+```
+
+### File Operations
+
+```dart
+// Upload file
+await $.platform.web.uploadFile(
+  files: [
+    UploadFileData(name: 'document.pdf', content: pdfBytes),
+    UploadFileData(name: 'image.png', content: imageBytes),
+  ],
+);
+
+// Verify downloads
+final downloads = await $.platform.web.verifyFileDownloads();
+expect(downloads, isNotEmpty);
+```
+
+### Working with iframes
+
+```dart
+// Tap element inside an iframe
+await $.platform.web.tap(
+  WebSelector(text: 'Submit Payment'),
+  iframeSelector: WebSelector(cssOrXpath: 'css=#payment-iframe'),
+);
+```
+
+## Waiting for Elements
+
+```dart
+// Wait for native element to become visible
+await $.platform.mobile.waitUntilVisible(
+  Selector(text: 'Loading complete'),
+  timeout: Duration(seconds: 10),
+);
+```
+
+## Complete Example
+
+Here's a comprehensive test demonstrating multiple features:
+
+```dart title="patrol_test/complete_test.dart"
+import 'package:patrol/patrol.dart';
+
+void main() {
+  patrolTest('complete native automation test', ($) async {
+    await $.pumpWidgetAndSettle(MyApp());
+
+    // Set up network conditions
+    await $.platform.mobile.enableWifi();
+    await $.platform.mobile.enableCellular();
+    await $.platform.mobile.enableDarkMode();
+
+    // Navigate to profile
+    await $('Profile').tap();
+
+    // Enable location feature
+    await $('Enable Location').tap();
+    
+    // Handle permission dialog
+    await $.platform.mobile.selectFineLocation();
+    await $.platform.mobile.grantPermissionWhenInUse();
+
+    // Take profile photo
+    await $('Add Photo').tap();
+    await $.platform.mobile.takeCameraPhoto();
+
+    // Background app and verify state
+    await $.platform.mobile.pressHome();
+    await Future.delayed(Duration(seconds: 2));
+    await $.platform.mobile.openApp();
+
+    // Verify profile still shows
+    expect($('Profile'), findsOneWidget);
+
+    // Test notifications
+    // ... trigger notification from backend ...
+    await $.platform.mobile.openNotifications();
+    await $.platform.mobile.tapOnNotificationByIndex(0);
+
+    // Verify notification opened correct screen
+    expect($('Notification Details'), findsOneWidget);
+  });
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Advanced Features" icon="rocket" href="/native/advanced">
+    Learn about native view inspection, custom configs, and more
+  </Card>
+  
+  <Card title="Feature Parity" icon="table" href="/native/feature-parity">
+    See what's available on each platform
+  </Card>
+</CardGroup>

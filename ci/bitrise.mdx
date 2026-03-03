@@ -1,0 +1,647 @@
+---
+title: Bitrise
+description: Run Patrol tests on Bitrise mobile CI/CD platform
+---
+
+Bitrise is a mobile-first CI/CD platform that simplifies building, testing, and deploying mobile apps. This guide shows you how to configure Patrol tests in your Bitrise workflows.
+
+## Quick start
+
+Add Patrol testing to your `bitrise.yml`:
+
+```yaml bitrise.yml
+format_version: '13'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+app:
+  envs:
+    - FLUTTER_VERSION: 3.32.x
+
+workflows:
+  test_android:
+    steps:
+      - git-clone: {}
+      
+      - flutter-installer:
+          inputs:
+            - version: $FLUTTER_VERSION
+            - is_update: 'true'
+      
+      - script:
+          title: Install Patrol CLI
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                dart pub global activate patrol_cli
+                export PATH="$PATH:$HOME/.pub-cache/bin"
+                patrol --version
+      
+      - flutter-build:
+          title: Build test APKs
+          inputs:
+            - platform: android
+            - additional_params: |
+                --debug
+      
+      - script:
+          title: Run Patrol tests
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                patrol build android
+                patrol test --wait
+      
+      - deploy-to-bitrise-io:
+          inputs:
+            - deploy_path: build/app/outputs/apk/
+```
+
+## Platform-specific configurations
+
+<Tabs>
+  <Tab title="Android">
+    ### Android workflow with emulator.wtf
+
+    ```yaml
+    workflows:
+      patrol_android:
+        description: Run Patrol tests on Android
+        
+        steps:
+          - git-clone: {}
+          
+          - cache-pull: {}
+          
+          - flutter-installer:
+              inputs:
+                - version: 3.32.x
+                - is_update: 'true'
+          
+          - flutter-analyze:
+              inputs:
+                - project_location: .
+          
+          - script:
+              title: Install dependencies
+              inputs:
+                - content: |
+                    #!/bin/bash
+                    set -ex
+                    
+                    # Install Patrol CLI
+                    dart pub global activate patrol_cli
+                    echo "export PATH=\$PATH:$HOME/.pub-cache/bin" >> ~/.bashrc
+                    export PATH="$PATH:$HOME/.pub-cache/bin"
+                    
+                    # Get Flutter dependencies
+                    flutter pub get
+                    
+                    patrol --version
+          
+          - script:
+              title: Build Patrol test APKs
+              inputs:
+                - content: |
+                    #!/bin/bash
+                    set -ex
+                    export PATH="$PATH:$HOME/.pub-cache/bin"
+                    
+                    patrol build android \
+                      --target integration_test/app_test.dart \
+                      --flavor production \
+                      --verbose
+          
+          - script:
+              title: Run tests on emulator.wtf
+              inputs:
+                - content: |
+                    #!/bin/bash
+                    set -ex
+                    
+                    # Download ew-cli
+                    curl -o ew-cli https://maven.emulator.wtf/releases/ew-cli
+                    chmod +x ew-cli
+                    
+                    # Run tests
+                    ./ew-cli \
+                      --app build/app/outputs/apk/production/debug/app-production-debug.apk \
+                      --test build/app/outputs/apk/androidTest/production/debug/app-production-debug-androidTest.apk \
+                      --device model=Pixel7,version=34 \
+                      --device model=Pixel7,version=33 \
+                      --outputs-dir test-results/ \
+                      --token $EW_API_TOKEN
+              env:
+                - opts:
+                    is_expand: true
+                  EW_API_TOKEN: $EW_API_TOKEN
+          
+          - deploy-to-bitrise-io:
+              inputs:
+                - deploy_path: build/app/outputs/apk/
+                - is_compress: 'true'
+          
+          - deploy-to-bitrise-io:
+              inputs:
+                - deploy_path: test-results/
+                - is_compress: 'true'
+          
+          - cache-push:
+              inputs:
+                - cache_paths: |
+                    $HOME/.pub-cache
+                    $HOME/.gradle
+                    .gradle
+    ```
+
+    ### Android with Firebase Test Lab
+
+    ```yaml
+    workflows:
+      test_android_ftl:
+        steps:
+          - git-clone: {}
+          
+          - flutter-installer:
+              inputs:
+                - version: 3.32.x
+          
+          - script:
+              title: Install Patrol and build
+              inputs:
+                - content: |
+                    #!/bin/bash
+                    set -ex
+                    dart pub global activate patrol_cli
+                    export PATH="$PATH:$HOME/.pub-cache/bin"
+                    flutter pub get
+                    patrol build android --release
+          
+          - script:
+              title: Authenticate with Google Cloud
+              inputs:
+                - content: |
+                    #!/bin/bash
+                    set -ex
+                    
+                    # Decode service account key
+                    echo $GCLOUD_SERVICE_KEY | base64 -d > ${HOME}/gcp-key.json
+                    
+                    # Install gcloud CLI
+                    curl https://sdk.cloud.google.com | bash
+                    exec -l $SHELL
+                    
+                    # Authenticate
+                    gcloud auth activate-service-account --key-file ${HOME}/gcp-key.json
+                    gcloud config set project $GCP_PROJECT_ID
+              env:
+                - opts:
+                    is_expand: true
+                  GCLOUD_SERVICE_KEY: $GCLOUD_SERVICE_KEY
+                - opts:
+                    is_expand: true
+                  GCP_PROJECT_ID: $GCP_PROJECT_ID
+          
+          - script:
+              title: Run tests on Firebase Test Lab
+              inputs:
+                - content: |
+                    #!/bin/bash
+                    set -ex
+                    
+                    gcloud firebase test android run \
+                      --type instrumentation \
+                      --app build/app/outputs/apk/release/app-release.apk \
+                      --test build/app/outputs/apk/androidTest/release/app-release-androidTest.apk \
+                      --device model=Pixel7,version=34 \
+                      --timeout 30m \
+                      --results-dir=bitrise-${BITRISE_BUILD_NUMBER}
+    ```
+
+  </Tab>
+  <Tab title="iOS">
+    ### iOS workflow
+
+    ```yaml
+    workflows:
+      patrol_ios:
+        description: Run Patrol tests on iOS
+        
+        steps:
+          - git-clone: {}
+          
+          - cache-pull: {}
+          
+          - flutter-installer:
+              inputs:
+                - version: 3.32.x
+                - is_update: 'true'
+          
+          - certificate-and-profile-installer: {}
+          
+          - script:
+              title: Install Patrol CLI
+              inputs:
+                - content: |
+                    #!/bin/bash
+                    set -ex
+                    dart pub global activate patrol_cli
+                    export PATH="$PATH:$HOME/.pub-cache/bin"
+                    patrol --version
+          
+          - flutter-build:
+              title: Build iOS app
+              inputs:
+                - platform: ios
+                - ios_output_type: simulator
+          
+          - xcode-test:
+              title: Run Patrol tests
+              inputs:
+                - scheme: Runner
+                - simulator_device: iPhone 16 Pro
+                - simulator_os_version: latest
+                - should_build_before_test: 'no'
+                - generate_code_coverage_files: 'yes'
+          
+          - deploy-to-bitrise-io:
+              inputs:
+                - deploy_path: |
+                    $BITRISE_XCRESULT_PATH
+                    $BITRISE_XCODE_TEST_RESULT
+          
+          - cache-push:
+              inputs:
+                - cache_paths: |
+                    $HOME/.pub-cache
+                    ios/Pods
+    ```
+
+    ### iOS with custom simulator setup
+
+    ```yaml
+    workflows:
+      ios_custom:
+        steps:
+          - git-clone: {}
+          
+          - flutter-installer:
+              inputs:
+                - version: 3.32.x
+          
+          - script:
+              title: Setup and run tests
+              inputs:
+                - content: |
+                    #!/bin/bash
+                    set -ex
+                    
+                    # Install Patrol
+                    dart pub global activate patrol_cli
+                    export PATH="$PATH:$HOME/.pub-cache/bin"
+                    
+                    # Get dependencies
+                    flutter pub get
+                    flutter precache --ios
+                    
+                    # List available simulators
+                    xcrun simctl list devices available
+                    
+                    # Create and boot simulator
+                    SIMULATOR_ID=$(xcrun simctl create "iPad Test" "iPad Pro (12.9-inch) (6th generation)")
+                    xcrun simctl boot $SIMULATOR_ID
+                    
+                    # Wait for simulator to boot
+                    timeout 60 bash -c 'until xcrun simctl bootstatus $SIMULATOR_ID | grep -q "status: 2"; do sleep 1; done' || true
+                    
+                    # Run tests
+                    patrol test \
+                      --target integration_test/app_test.dart \
+                      --flavor development \
+                      --verbose
+                    
+                    # Clean up
+                    xcrun simctl shutdown $SIMULATOR_ID
+                    xcrun simctl delete $SIMULATOR_ID
+    ```
+
+  </Tab>
+</Tabs>
+
+## Environment variables
+
+Configure secrets and environment variables in Bitrise:
+
+<Steps>
+  <Step title="Open Workflow Editor">
+    Go to your app on Bitrise and click **Workflow Editor**
+  </Step>
+  <Step title="Add environment variables">
+    Navigate to **Env Vars** tab and add:
+    - `EW_API_TOKEN` - emulator.wtf API token
+    - `GCLOUD_SERVICE_KEY` - Base64-encoded Google Cloud service account JSON
+    - `GCP_PROJECT_ID` - Google Cloud project ID
+    - Any app-specific variables (API keys, etc.)
+  </Step>
+  <Step title="Mark as sensitive">
+    Toggle **Replace variables in inputs** and mark sensitive values as protected
+  </Step>
+</Steps>
+
+## Complete workflow example
+
+Here's a production-ready workflow with multiple stages:
+
+```yaml bitrise.yml
+format_version: '13'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+app:
+  envs:
+    - FLUTTER_VERSION: 3.32.x
+    - PATROL_CLI_VERSION: latest
+
+trigger_map:
+  - push_branch: main
+    workflow: main_workflow
+  - pull_request_source_branch: "*"
+    workflow: pr_workflow
+
+workflows:
+  # Main workflow for production builds
+  main_workflow:
+    steps:
+      - git-clone: {}
+      - script:
+          title: Setup environment
+          run_if: .IsCI
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                envman add --key BITRISE_BUILD_STATUS --value "started"
+      - _install_flutter: {}
+      - _install_patrol: {}
+      - _test_android: {}
+      - _test_ios: {}
+      - slack:
+          inputs:
+            - webhook_url: $SLACK_WEBHOOK_URL
+            - text: "Build #${BITRISE_BUILD_NUMBER} completed!"
+  
+  # Pull request workflow
+  pr_workflow:
+    steps:
+      - git-clone: {}
+      - _install_flutter: {}
+      - _install_patrol: {}
+      - _test_android: {}
+  
+  # Reusable workflow for Flutter installation
+  _install_flutter:
+    steps:
+      - cache-pull: {}
+      - flutter-installer:
+          inputs:
+            - version: $FLUTTER_VERSION
+            - is_update: 'true'
+      - script:
+          title: Flutter doctor
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                flutter doctor -v
+                flutter pub get
+  
+  # Reusable workflow for Patrol installation
+  _install_patrol:
+    steps:
+      - script:
+          title: Install Patrol CLI
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                dart pub global activate patrol_cli
+                export PATH="$PATH:$HOME/.pub-cache/bin"
+                echo "export PATH=\$PATH:$HOME/.pub-cache/bin" >> ~/.bashrc
+                patrol --version
+  
+  # Android testing workflow
+  _test_android:
+    steps:
+      - script:
+          title: Build and test Android
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                export PATH="$PATH:$HOME/.pub-cache/bin"
+                
+                # Build
+                patrol build android --verbose
+                
+                # Run on emulator.wtf
+                curl -o ew-cli https://maven.emulator.wtf/releases/ew-cli
+                chmod +x ew-cli
+                
+                ./ew-cli \
+                  --app build/app/outputs/apk/debug/app-debug.apk \
+                  --test build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk \
+                  --device model=Pixel7,version=34 \
+                  --outputs-dir test-results-android/ \
+                  --token $EW_API_TOKEN
+      - deploy-to-bitrise-io:
+          inputs:
+            - deploy_path: build/app/outputs/apk/
+      - deploy-to-bitrise-io:
+          inputs:
+            - deploy_path: test-results-android/
+  
+  # iOS testing workflow
+  _test_ios:
+    steps:
+      - certificate-and-profile-installer: {}
+      - script:
+          title: Test iOS
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                export PATH="$PATH:$HOME/.pub-cache/bin"
+                
+                # Run tests
+                patrol test \
+                  --flavor production \
+                  --verbose
+      - deploy-to-bitrise-io:
+          inputs:
+            - deploy_path: build/ios_results_*.xcresult
+      - cache-push:
+          inputs:
+            - cache_paths: |
+                $HOME/.pub-cache
+                $HOME/.gradle
+                ios/Pods
+```
+
+## Stack configuration
+
+### Android stack
+
+For Android testing, select an appropriate stack:
+
+- **Linux/Android stack** - Ubuntu-based with Android SDK
+- Recommended: `linux-docker-android-22.04`
+
+### iOS stack
+
+For iOS testing:
+
+- **Xcode stack** - macOS with Xcode pre-installed  
+- Recommended: `osx-xcode-15.2.x`
+
+<Info>
+You can configure the stack in **Workflow Editor** > **Stack** tab.
+</Info>
+
+## Parallel workflows
+
+Run tests in parallel across different configurations:
+
+```yaml
+workflows:
+  parallel_tests:
+    steps:
+      - build-router-start:
+          inputs:
+            - workflows: |
+                test_android_api_34
+                test_android_api_33
+                test_ios_iphone
+                test_ios_ipad
+  
+  test_android_api_34:
+    envs:
+      - API_LEVEL: 34
+    steps:
+      - _test_android_with_api: {}
+  
+  test_android_api_33:
+    envs:
+      - API_LEVEL: 33
+    steps:
+      - _test_android_with_api: {}
+```
+
+## Optimization tips
+
+### Caching
+
+```yaml
+steps:
+  - cache-pull: {}
+  
+  # ... your build steps ...
+  
+  - cache-push:
+      inputs:
+        - cache_paths: |
+            $HOME/.pub-cache
+            $HOME/.gradle/caches
+            $HOME/.gradle/wrapper
+            android/.gradle
+            ios/Pods
+```
+
+### Build time optimization
+
+<CardGroup cols={2}>
+  <Card title="Use Docker" icon="docker">
+    Use Bitrise's Docker-based Android stacks for faster startup times.
+  </Card>
+  
+  <Card title="Cache everything" icon="database">
+    Cache pub packages, Gradle, and CocoaPods to avoid re-downloading.
+  </Card>
+  
+  <Card title="Modular workflows" icon="layer-group">
+    Break workflows into reusable steps for better maintainability.
+  </Card>
+  
+  <Card title="Conditional steps" icon="code-branch">
+    Use `run_if` to skip unnecessary steps based on conditions.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Patrol CLI not found">
+    Make sure to export PATH after installing Patrol:
+    
+    ```bash
+    dart pub global activate patrol_cli
+    export PATH="$PATH:$HOME/.pub-cache/bin"
+    echo "export PATH=\$PATH:$HOME/.pub-cache/bin" >> ~/.bashrc
+    ```
+  </Accordion>
+
+  <Accordion title="Build fails on first run">
+    Clear Bitrise's cache and rebuild:
+    
+    1. Go to your app's page
+    2. Click on a build
+    3. Click **Rebuild with Clear Cache**
+  </Accordion>
+
+  <Accordion title="iOS signing issues">
+    Ensure you've configured code signing:
+    
+    1. Add **Certificate and profile installer** step
+    2. Upload certificates in **Code Signing** tab
+    3. Or use automatic signing with Xcode
+  </Accordion>
+
+  <Accordion title="Timeouts on Android builds">
+    Increase the timeout and use device labs instead of emulators:
+    
+    ```yaml
+    steps:
+      - script:
+          timeout: 3600  # 60 minutes
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Integration with device labs
+
+### emulator.wtf
+
+1. Sign up at [emulator.wtf](https://emulator.wtf)
+2. Get your API token
+3. Add `EW_API_TOKEN` to Bitrise environment variables
+4. Use the ew-cli in your workflow (shown in examples above)
+
+### Firebase Test Lab
+
+1. Create a Google Cloud service account
+2. Download the JSON key file
+3. Base64 encode it: `base64 -i service-account.json`
+4. Add encoded value as `GCLOUD_SERVICE_KEY` in Bitrise
+5. Add your project ID as `GCP_PROJECT_ID`
+
+See the [Firebase Test Lab integration guide](/integrations/firebase-test-lab) for details.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Firebase Test Lab" icon="google" href="/integrations/firebase-test-lab">
+    Learn how to use Firebase Test Lab with Bitrise
+  </Card>
+  <Card title="CI/CD Overview" icon="arrow-left" href="/ci/overview">
+    Back to CI/CD overview
+  </Card>
+</CardGroup>

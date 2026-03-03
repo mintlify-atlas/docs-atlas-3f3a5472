@@ -1,0 +1,430 @@
+---
+title: AndroidAutomator
+description: Android-specific native automation interface for UI testing
+---
+
+`AndroidAutomator` provides Android-specific methods for native UI automation. Access it through `$.platform.android` in your Patrol tests.
+
+## Accessing AndroidAutomator
+
+```dart
+patrolTest('android test', ($) async {
+  // Access via platform.android
+  await $.platform.android.pressBack();
+  
+  // Platform-specific action helper
+  await $.platform.action(
+    android: $.platform.android.enableLocation,
+  );
+});
+```
+
+## Android-Specific Methods
+
+### System Navigation
+
+<ResponseField name="pressBack()" type="Future<void>">
+  Presses the Android back button.
+  
+  Not available on iOS.
+  
+  **Reference**: [UiDevice.pressBack](https://developer.android.com/reference/androidx/test/uiautomator/UiDevice#pressback)
+  
+  ```dart
+  await $.platform.android.pressBack();
+  ```
+</ResponseField>
+
+<ResponseField name="pressDoubleRecentApps()" type="Future<void>">
+  Quickly double-presses the recent apps button.
+  
+  ```dart
+  await $.platform.android.pressDoubleRecentApps();
+  ```
+</ResponseField>
+
+### Location Services
+
+<ResponseField name="enableLocation()" type="Future<void>">
+  Enables location services on Android.
+  
+  Opens the location settings screen and toggles the switch. If location is already enabled, does nothing.
+  
+  ```dart
+  await $.platform.android.enableLocation();
+  ```
+</ResponseField>
+
+<ResponseField name="disableLocation()" type="Future<void>">
+  Disables location services on Android.
+  
+  Opens the location settings screen and toggles the switch.
+  
+  ```dart
+  await $.platform.android.disableLocation();
+  ```
+</ResponseField>
+
+### Initialization
+
+<ResponseField name="initialize()" type="Future<void>">
+  Initializes the Android native automator.
+  
+  Used internally to initialize `android.app.UiAutomation` before Flutter tests start. This method is idempotent.
+  
+  **Reference**: [Flutter Issue #129231](https://github.com/flutter/flutter/issues/129231)
+</ResponseField>
+
+<ResponseField name="configure()" type="Future<void>">
+  Configures the Android automator with settings from `AndroidAutomatorConfig`.
+</ResponseField>
+
+## Element Interaction
+
+### Tapping
+
+<ResponseField name="tap(AndroidSelector selector, {...})" type="Future<void>">
+  Taps on a native Android UI element.
+  
+  **Parameters:**
+  - `selector` - AndroidSelector to locate the element
+  - `timeout` - Max time to wait (defaults to `findTimeout` from config)
+  
+  ```dart
+  await $.platform.android.tap(
+    AndroidSelector(text: 'Allow'),
+  );
+  
+  await $.platform.android.tap(
+    AndroidSelector(
+      resourceName: 'com.example:id/submit_button',
+    ),
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="doubleTap(AndroidSelector selector, {...})" type="Future<void>">
+  Double taps on a native element.
+  
+  **Parameters:**
+  - `selector` - Element to tap
+  - `timeout` - Max wait time
+  - `delayBetweenTaps` - Time between taps (default: 300ms)
+  
+  ```dart
+  await $.platform.android.doubleTap(
+    AndroidSelector(className: 'android.widget.ImageView'),
+    delayBetweenTaps: Duration(milliseconds: 500),
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="tapAt(Offset location)" type="Future<void>">
+  Taps at specific screen coordinates.
+  
+  Location values must be in the 0-1 range (normalized coordinates).
+  
+  ```dart
+  // Tap at center of screen
+  await $.platform.android.tapAt(Offset(0.5, 0.5));
+  
+  // Tap at top-right corner
+  await $.platform.android.tapAt(Offset(0.9, 0.1));
+  ```
+</ResponseField>
+
+### Text Entry
+
+<ResponseField name="enterText(AndroidSelector selector, {...})" type="Future<void>">
+  Enters text into a native Android text field.
+  
+  The element must be an `EditText` or `AutoCompleteTextView`.
+  
+  **Parameters:**
+  - `selector` - The text field to target
+  - `text` - Text to enter (required)
+  - `keyboardBehavior` - How to handle the keyboard
+  - `timeout` - Max wait time
+  - `tapLocation` - Where to tap before entering text
+  
+  ```dart
+  await $.platform.android.enterText(
+    AndroidSelector(resourceName: 'com.google:id/username'),
+    text: 'user@example.com',
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="enterTextByIndex(String text, {...})" type="Future<void>">
+  Enters text into the nth visible text field.
+  
+  **Parameters:**
+  - `text` - Text to enter
+  - `index` - Index of the text field (required)
+  - `keyboardBehavior` - Keyboard handling
+  - `timeout` - Max wait time
+  
+  ```dart
+  // Enter into first text field
+  await $.platform.android.enterTextByIndex(
+    'username',
+    index: 0,
+  );
+  
+  // Enter into second text field
+  await $.platform.android.enterTextByIndex(
+    'password',
+    index: 1,
+  );
+  ```
+</ResponseField>
+
+### Gestures
+
+<ResponseField name="swipe({required Offset from, required Offset to, ...})" type="Future<void>">
+  Performs a swipe gesture.
+  
+  **Parameters:**
+  - `from` - Starting point (0-1 range)
+  - `to` - Ending point (0-1 range)
+  - `steps` - Speed control (default: 12, one step = 5ms)
+  - `enablePatrolLog` - Whether to log action
+  
+  ```dart
+  // Swipe from bottom to top (scroll up)
+  await $.platform.android.swipe(
+    from: Offset(0.5, 0.8),
+    to: Offset(0.5, 0.2),
+    steps: 20, // Slower swipe
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="swipeBack({double dy})" type="Future<void>">
+  Performs a back swipe gesture (left to right).
+  
+  **Parameters:**
+  - `dy` - Vertical position (0-1 range, default: 0.5)
+  
+  ```dart
+  await $.platform.android.swipeBack();
+  
+  // Swipe at top of screen
+  await $.platform.android.swipeBack(dy: 0.2);
+  ```
+</ResponseField>
+
+<ResponseField name="pullToRefresh({...})" type="Future<void>">
+  Simulates a pull-to-refresh gesture.
+  
+  **Parameters:**
+  - `from` - Starting point (default: center)
+  - `to` - Ending point (default: bottom-center)
+  - `steps` - Gesture speed (default: 50)
+  
+  ```dart
+  await $.platform.android.pullToRefresh();
+  
+  // Custom gesture
+  await $.platform.android.pullToRefresh(
+    from: Offset(0.5, 0.3),
+    to: Offset(0.5, 0.8),
+    steps: 30,
+  );
+  ```
+</ResponseField>
+
+## Notification Handling
+
+<ResponseField name="tapOnNotificationByIndex(int index, {...})" type="Future<void>">
+  Taps on a notification by its index.
+  
+  Notification shade must be opened first with `openNotifications()`.
+  
+  ```dart
+  await $.platform.mobile.openNotifications();
+  await $.platform.android.tapOnNotificationByIndex(0);
+  ```
+</ResponseField>
+
+<ResponseField name="tapOnNotificationBySelector(AndroidSelector selector, {...})" type="Future<void>">
+  Taps on a notification using a selector.
+  
+  ```dart
+  await $.platform.mobile.openNotifications();
+  await $.platform.android.tapOnNotificationBySelector(
+    AndroidSelector(textContains: 'New message'),
+  );
+  ```
+</ResponseField>
+
+## UI Inspection
+
+<ResponseField name="getNativeViews(AndroidSelector? selector)" type="Future<AndroidGetNativeViewsResponse>">
+  Returns the native Android UI tree.
+  
+  If `selector` is null, returns the entire UI tree.
+  
+  ```dart
+  // Get entire UI tree
+  final views = await $.platform.android.getNativeViews(null);
+  
+  // Get specific elements
+  final buttons = await $.platform.android.getNativeViews(
+    AndroidSelector(className: 'android.widget.Button'),
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="waitUntilVisible(AndroidSelector selector, {...})" type="Future<void>">
+  Waits until an element becomes visible.
+  
+  ```dart
+  await $.platform.android.waitUntilVisible(
+    AndroidSelector(text: 'Submit'),
+    timeout: Duration(seconds: 10),
+  );
+  ```
+</ResponseField>
+
+## Camera & Gallery
+
+<ResponseField name="takeCameraPhoto({...})" type="Future<void>">
+  Takes and confirms a photo using the device camera.
+  
+  **Parameters:**
+  - `shutterButtonSelector` - Custom shutter button selector
+  - `doneButtonSelector` - Custom done button selector
+  - `timeout` - Max wait time
+  
+  ```dart
+  await $.platform.android.takeCameraPhoto();
+  
+  // With custom selectors
+  await $.platform.android.takeCameraPhoto(
+    shutterButtonSelector: AndroidSelector(
+      resourceName: 'com.android.camera2:id/shutter_button',
+    ),
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="pickImageFromGallery({...})" type="Future<void>">
+  Picks a single image from the gallery.
+  
+  ```dart
+  await $.platform.android.pickImageFromGallery();
+  
+  // Pick specific image by index
+  await $.platform.android.pickImageFromGallery(index: 5);
+  ```
+</ResponseField>
+
+<ResponseField name="pickMultipleImagesFromGallery({...})" type="Future<void>">
+  Picks multiple images from the gallery.
+  
+  ```dart
+  await $.platform.android.pickMultipleImagesFromGallery(
+    imageIndexes: [0, 1, 2, 5],
+  );
+  ```
+</ResponseField>
+
+## AndroidSelector
+
+The selector class for locating Android UI elements:
+
+```dart
+AndroidSelector({
+  String? className,
+  bool? isCheckable,
+  bool? isChecked,
+  bool? isClickable,
+  bool? isEnabled,
+  bool? isFocusable,
+  bool? isFocused,
+  bool? isLongClickable,
+  bool? isScrollable,
+  bool? isSelected,
+  String? applicationPackage,
+  String? contentDescription,
+  String? contentDescriptionStartsWith,
+  String? contentDescriptionContains,
+  String? text,
+  String? textStartsWith,
+  String? textContains,
+  String? resourceName,
+  int? instance,
+})
+```
+
+### Examples
+
+```dart
+// By text
+AndroidSelector(text: 'Submit')
+
+// By resource ID
+AndroidSelector(resourceName: 'com.example:id/button')
+
+// By class and state
+AndroidSelector(
+  className: 'android.widget.Button',
+  isEnabled: true,
+)
+
+// Complex selector
+AndroidSelector(
+  textContains: 'Continue',
+  isClickable: true,
+  instance: 0,
+)
+```
+
+## Usage Examples
+
+### Complete Login Flow
+
+```dart
+patrolTest('login with Google on Android', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Tap Flutter button
+  await $('Sign in with Google').tap();
+  
+  // Interact with native Google Sign-In
+  await $.platform.android.tap(
+    AndroidSelector(text: 'user@gmail.com'),
+  );
+  
+  await $.platform.android.tap(
+    AndroidSelector(
+      resourceName: 'com.google.android.gms:id/continue_button',
+    ),
+  );
+  
+  // Back in Flutter
+  await $(Text('Welcome')).waitUntilVisible();
+});
+```
+
+### Handle System Settings
+
+```dart
+patrolTest('enable location', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Enable location via system settings
+  await $.platform.android.enableLocation();
+  
+  // Verify in app
+  await $('Request Location').tap();
+  await $(Text('Location Enabled')).waitUntilVisible();
+});
+```
+
+## See Also
+
+- [PlatformAutomator](/api/patrol-tester) - Cross-platform interface
+- [IOSAutomator](/api/ios-automator) - iOS-specific methods
+- [MobileAutomator](/api/native-automator) - Shared mobile methods

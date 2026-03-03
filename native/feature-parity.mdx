@@ -1,0 +1,278 @@
+---
+title: Native Automation Feature Parity
+description: Comprehensive overview of native automation features available on Android, iOS, and Web platforms
+---
+
+This page documents which native automation features are available on each platform. We strive for high feature parity across platforms, but some platform-specific limitations exist.
+
+<Warning>
+macOS support is in alpha and does not have platform automation implemented yet.
+</Warning>
+
+## Cross-Platform Mobile Features
+
+These features are available via `$.platform.mobile` and work on both Android and iOS:
+
+| Feature | Android | iOS | Notes |
+|---------|---------|-----|-------|
+| [Press home](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/pressHome.html) | ✅ | ✅ | |
+| [Open app](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/openApp.html) | ✅ | ✅ | |
+| [Open notifications](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/openNotifications.html) | ✅ | ✅ | |
+| [Close notifications](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/closeNotifications.html) | ✅ | ✅ | |
+| [Open quick settings](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/openQuickSettings.html) | ✅ | ✅ | iOS: Control Center (not available on simulator) |
+| [Open URL](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/openUrl.html) | ✅ | ✅ | |
+| [Enable dark mode](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/enableDarkMode.html) | ✅ | ✅ | |
+| [Disable dark mode](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/disableDarkMode.html) | ✅ | ✅ | |
+| [Enable airplane mode](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/enableAirplaneMode.html) | ✅ | ✅ | |
+| [Disable airplane mode](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/disableAirplaneMode.html) | ✅ | ✅ | |
+| [Enable cellular](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/enableCellular.html) | ✅ | ✅ | |
+| [Disable cellular](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/disableCellular.html) | ✅ | ✅ | |
+| [Enable Wi-Fi](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/enableWifi.html) | ✅ | ✅ | |
+| [Disable Wi-Fi](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/disableWifi.html) | ✅ | ✅ | |
+| [Enable Bluetooth](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/enableBluetooth.html) | ✅ | ✅ | Android: Requires API 31+ (Android 12) |
+| [Disable Bluetooth](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/disableBluetooth.html) | ✅ | ✅ | Android: Requires API 31+ (Android 12) |
+| [Press volume up](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/pressVolumeUp.html) | ✅ | ✅ | iOS: Real devices only (not simulator) |
+| [Press volume down](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/pressVolumeDown.html) | ✅ | ✅ | iOS: Real devices only (not simulator) |
+| [Handle permissions](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/grantPermissionWhenInUse.html) | ✅ | ✅ | iOS: Requires English (US) device language |
+| [Set mock location](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/setMockLocation.html) | ✅ | ✅ | Android: Emulator only; iOS: All devices |
+| [Get OS version](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/getOsVersion.html) | ✅ | ✅ | |
+| [Check virtual device](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/isVirtualDevice.html) | ✅ | ✅ | Android: May not be 100% accurate |
+| [Tap](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/tap.html) | ✅ | ✅ | |
+| [Double tap](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/doubleTap.html) | ✅ | ✅ | |
+| [Tap at coordinate](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/tapAt.html) | ✅ | ✅ | |
+| [Enter text](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/enterText.html) | ✅ | ✅ | |
+| [Enter text by index](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/enterTextByIndex.html) | ✅ | ✅ | |
+| [Swipe](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/swipe.html) | ✅ | ✅ | |
+| [Swipe back](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/swipeBack.html) | ✅ | ✅ | Android: May require gesture navigation |
+| [Pull to refresh](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/pullToRefresh.html) | ✅ | ✅ | |
+| [Tap notification by index](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/tapOnNotificationByIndex.html) | ✅ | ✅ | |
+| [Tap notification by selector](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/tapOnNotificationBySelector.html) | ✅ | ✅ | |
+| [Get notifications](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/getNotifications.html) | ✅ | ✅ | |
+| [Take camera photo](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/takeCameraPhoto.html) | ✅ | ✅ | |
+| [Pick image from gallery](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/pickImageFromGallery.html) | ✅ | ✅ | |
+| [Pick multiple images](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/pickMultipleImagesFromGallery.html) | ✅ | ✅ | |
+
+## Permission Handling
+
+Permission dialog handling APIs:
+
+| Feature | Android | iOS | Notes |
+|---------|---------|-----|-------|
+| [Grant permission when in use](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/grantPermissionWhenInUse.html) | ✅ | ✅ | |
+| [Grant permission only this time](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/grantPermissionOnlyThisTime.html) | ✅ | ✅ | Android: API 30+ (Android 11) |
+| [Deny permission](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/denyPermission.html) | ✅ | ✅ | |
+| [Select fine location](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/selectFineLocation.html) | ✅ | ✅ | Precise/exact location |
+| [Select coarse location](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/selectCoarseLocation.html) | ✅ | ✅ | Approximate location |
+| [Check permission dialog visible](https://pub.dev/documentation/patrol/latest/patrol/MobileAutomator/isPermissionDialogVisible.html) | ✅ | ✅ | |
+
+## Android-Specific Features
+
+These features are available via `$.platform.android`:
+
+| Feature | Status | API Reference |
+|---------|--------|---------------|
+| Press back | ✅ | [pressBack](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/pressBack.html) |
+| Double press recent apps | ✅ | [pressDoubleRecentApps](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/pressDoubleRecentApps.html) |
+| Tap with Android selector | ✅ | [tap](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/tap.html) |
+| Double tap | ✅ | [doubleTap](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/doubleTap.html) |
+| Tap at coordinate | ✅ | [tapAt](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/tapAt.html) |
+| Enter text | ✅ | [enterText](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/enterText.html) |
+| Enter text by index | ✅ | [enterTextByIndex](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/enterTextByIndex.html) |
+| Swipe | ✅ | [swipe](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/swipe.html) |
+| Swipe back | ✅ | [swipeBack](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/swipeBack.html) |
+| Pull to refresh | ✅ | [pullToRefresh](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/pullToRefresh.html) |
+| Enable location service | ✅ | [enableLocation](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/enableLocation.html) |
+| Disable location service | ✅ | [disableLocation](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/disableLocation.html) |
+| Open platform app | ✅ | [openPlatformApp](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/openPlatformApp.html) |
+| Get native views | ✅ | [getNativeViews](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/getNativeViews.html) |
+| Wait until visible | ✅ | [waitUntilVisible](https://pub.dev/documentation/patrol/latest/patrol/AndroidAutomator/waitUntilVisible.html) |
+| Interact with WebView | ⚠️ | See [GitHub issue #244](https://github.com/leancodepl/patrol/issues/244) |
+
+### Android Selector Properties
+
+```dart
+AndroidSelector(
+  resourceName: String?,        // Resource ID
+  text: String?,               // Exact text
+  textStartsWith: String?,     // Text prefix
+  textContains: String?,       // Text substring
+  className: String?,          // Widget class
+  contentDescription: String?, // Accessibility label
+  contentDescriptionStartsWith: String?,
+  contentDescriptionContains: String?,
+  isEnabled: bool?,           // Enabled state
+  isFocused: bool?,           // Focus state
+  applicationPackage: String?, // App package
+  instance: int?,             // Which instance (0-based)
+)
+```
+
+## iOS-Specific Features
+
+These features are available via `$.platform.ios`:
+
+| Feature | Status | API Reference |
+|---------|--------|---------------|
+| Tap with iOS selector | ✅ | [tap](https://pub.dev/documentation/patrol/latest/patrol/IOSAutomator/tap.html) |
+| Double tap | ✅ | [doubleTap](https://pub.dev/documentation/patrol/latest/patrol/IOSAutomator/doubleTap.html) |
+| Tap at coordinate | ✅ | [tapAt](https://pub.dev/documentation/patrol/latest/patrol/IOSAutomator/tapAt.html) |
+| Enter text | ✅ | [enterText](https://pub.dev/documentation/patrol/latest/patrol/IOSAutomator/enterText.html) |
+| Enter text by index | ✅ | [enterTextByIndex](https://pub.dev/documentation/patrol/latest/patrol/IOSAutomator/enterTextByIndex.html) |
+| Swipe | ✅ | [swipe](https://pub.dev/documentation/patrol/latest/patrol/IOSAutomator/swipe.html) |
+| Swipe back | ✅ | [swipeBack](https://pub.dev/documentation/patrol/latest/patrol/IOSAutomator/swipeBack.html) |
+| Pull to refresh | ✅ | [pullToRefresh](https://pub.dev/documentation/patrol/latest/patrol/IOSAutomator/pullToRefresh.html) |
+| Close heads-up notification | ✅ | [closeHeadsUpNotification](https://pub.dev/documentation/patrol/latest/patrol/IOSAutomator/closeHeadsUpNotification.html) |
+| Open platform app | ✅ | [openPlatformApp](https://pub.dev/documentation/patrol/latest/patrol/IOSAutomator/openPlatformApp.html) |
+| Get native views | ✅ | [getNativeViews](https://pub.dev/documentation/patrol/latest/patrol/IOSAutomator/getNativeViews.html) |
+| Wait until visible | ✅ | [waitUntilVisible](https://pub.dev/documentation/patrol/latest/patrol/IOSAutomator/waitUntilVisible.html) |
+| Interact with WebView | ✅ | Works with Safari and WKWebView |
+
+### iOS Selector Properties
+
+```dart
+IOSSelector(
+  identifier: String?,         // Accessibility identifier
+  text: String?,              // Label text (exact)
+  textStartsWith: String?,    // Label prefix
+  textContains: String?,      // Label substring
+  accessibilityLabel: String?, // Accessibility label
+  elementType: IOSElementType?, // Element type
+)
+```
+
+<Info>
+When interacting with UI elements in apps other than your app under test, you must provide the app's bundle ID via the `appId` parameter.
+</Info>
+
+## Web-Specific Features
+
+These features are available via `$.platform.web` for Flutter Web apps:
+
+| Feature | Status | API Reference |
+|---------|--------|---------------|
+| Tap | ✅ | [tap](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/tap.html) |
+| Enter text | ✅ | [enterText](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/enterText.html) |
+| Scroll to element | ✅ | [scrollTo](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/scrollTo.html) |
+| Enable dark mode | ✅ | [enableDarkMode](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/enableDarkMode.html) |
+| Disable dark mode | ✅ | [disableDarkMode](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/disableDarkMode.html) |
+| Grant permissions | ✅ | [grantPermissions](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/grantPermissions.html) |
+| Clear permissions | ✅ | [clearPermissions](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/clearPermissions.html) |
+| Add cookie | ✅ | [addCookie](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/addCookie.html) |
+| Clear cookies | ✅ | [clearCookies](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/clearCookies.html) |
+| Accept dialog | ✅ | [acceptNextDialog](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/acceptNextDialog.html) |
+| Dismiss dialog | ✅ | [dismissNextDialog](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/dismissNextDialog.html) |
+| Press key | ✅ | [pressKey](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/pressKey.html) |
+| Press key combo | ✅ | [pressKeyCombo](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/pressKeyCombo.html) |
+| Go back | ✅ | [goBack](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/goBack.html) |
+| Go forward | ✅ | [goForward](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/goForward.html) |
+| Get clipboard | ✅ | [getClipboard](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/getClipboard.html) |
+| Set clipboard | ✅ | [setClipboard](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/setClipboard.html) |
+| Upload file | ✅ | [uploadFile](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/uploadFile.html) |
+| Verify file downloads | ✅ | [verifyFileDownloads](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/verifyFileDownloads.html) |
+| Resize window | ✅ | [resizeWindow](https://pub.dev/documentation/patrol/latest/patrol/WebAutomator/resizeWindow.html) |
+| Work with iframes | ✅ | All methods support `iframeSelector` parameter |
+
+### Web Selector Properties
+
+```dart
+WebSelector(
+  text: String?,            // Visible text
+  cssOrXpath: String?,      // CSS selector or XPath
+  testId: String?,          // data-testid attribute
+  placeholder: String?,     // Placeholder text
+)
+```
+
+### Browser Permissions
+
+Supported permission strings for `grantPermissions()`:
+
+- `geolocation`
+- `notifications`
+- `clipboard-read`
+- `clipboard-write`
+- `camera`
+- `microphone`
+- `midi`
+- `background-sync`
+
+## Platform Comparison
+
+### Common Use Cases
+
+<Tabs>
+  <Tab title="Permissions">
+    | Use Case | Android | iOS | Web |
+    |----------|---------|-----|-----|
+    | Camera permission | ✅ | ✅ | ✅ |
+    | Location permission | ✅ | ✅ | ✅ |
+    | Notification permission | ✅ | ✅ | ✅ |
+    | Microphone permission | ✅ | ✅ | ✅ |
+    | Select location accuracy | ✅ | ✅ | ❌ |
+    | One-time permissions | ✅ (API 30+) | ✅ | ❌ |
+  </Tab>
+  
+  <Tab title="Device Settings">
+    | Use Case | Android | iOS | Web |
+    |----------|---------|-----|-----|
+    | Toggle Wi-Fi | ✅ | ✅ | ❌ |
+    | Toggle cellular | ✅ | ✅ | ❌ |
+    | Toggle Bluetooth | ✅ (API 31+) | ✅ | ❌ |
+    | Toggle airplane mode | ✅ | ✅ | ❌ |
+    | Toggle dark mode | ✅ | ✅ | ✅ |
+    | Toggle location service | ✅ | ❌ | ❌ |
+    | Set mock location | ✅ (emulator) | ✅ | ❌ |
+  </Tab>
+  
+  <Tab title="Notifications">
+    | Use Case | Android | iOS | Web |
+    |----------|---------|-----|-----|
+    | Open notification shade | ✅ | ✅ | ❌ |
+    | Tap notification | ✅ | ✅ | ❌ |
+    | Get notification content | ✅ | ✅ | ❌ |
+    | Close notification shade | ✅ | ✅ | ❌ |
+    | Close heads-up notification | ❌ | ✅ | ❌ |
+  </Tab>
+  
+  <Tab title="Native UI">
+    | Use Case | Android | iOS | Web |
+    |----------|---------|-----|-----|
+    | Tap native button | ✅ | ✅ | ✅ |
+    | Enter text | ✅ | ✅ | ✅ |
+    | Swipe gestures | ✅ | ✅ | ❌ |
+    | Double tap | ✅ | ✅ | ❌ |
+    | Interact with WebView | ⚠️ | ✅ | N/A |
+    | Work with iframes | ❌ | ❌ | ✅ |
+  </Tab>
+</Tabs>
+
+## Legend
+
+- ✅ **Fully supported** - Feature works as documented
+- ⚠️ **Partial support** - Feature works with limitations (see notes)
+- ❌ **Not supported** - Feature not available on this platform
+- N/A - Not applicable to this platform
+
+## Reporting Issues
+
+If you find that a feature doesn't work as documented or discover platform-specific bugs:
+
+1. Check the [GitHub issues](https://github.com/leancodepl/patrol/issues)
+2. Search for existing reports
+3. Create a new issue with:
+   - Platform and OS version
+   - Device type (real/simulator/emulator)
+   - Minimal reproduction code
+   - Expected vs actual behavior
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Usage Guide" icon="book" href="/native/usage">
+    Learn how to use these features in your tests
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="https://pub.dev/documentation/patrol/latest/">
+    View complete API documentation on pub.dev
+  </Card>
+</CardGroup>

@@ -1,0 +1,495 @@
+---
+title: BrowserStack
+description: Run Patrol tests on BrowserStack App Automate with real Android and iOS devices
+---
+
+[BrowserStack App Automate](https://www.browserstack.com/app-automate) is a popular cloud-based device farm that provides access to thousands of real mobile devices for testing. This guide shows you how to run Patrol tests on BrowserStack.
+
+## Overview
+
+BrowserStack App Automate allows you to run your Patrol tests on real Android and iOS devices in the cloud. You can test across different device models, OS versions, and configurations without maintaining physical devices.
+
+<Info>
+  BrowserStack offers both real devices and emulators/simulators. For the most accurate testing, we recommend using real devices.
+</Info>
+
+## Prerequisites
+
+<Steps>
+  <Step title="Create BrowserStack account">
+    Sign up for a [BrowserStack account](https://www.browserstack.com/users/sign_up) if you don't have one already.
+  </Step>
+
+  <Step title="Get your credentials">
+    Retrieve your username and access key from [BrowserStack's account page](https://www.browserstack.com/accounts/profile).
+  </Step>
+
+  <Step title="Set environment variable">
+    Export your credentials as an environment variable:
+
+    ```bash
+    export BS_CREDENTIALS="YOUR_USERNAME:YOUR_ACCESS_KEY"
+    ```
+
+    Add this to your shell profile (`~/.zshrc` or `~/.bashrc`) to persist it:
+
+    ```bash
+    echo 'export BS_CREDENTIALS="YOUR_USERNAME:YOUR_ACCESS_KEY"' >> ~/.zshrc
+    source ~/.zshrc
+    ```
+  </Step>
+</Steps>
+
+## Setup for Android
+
+<Steps>
+  <Step title="Update test runner">
+    Modify your **app-level build.gradle** or **build.gradle.kts** file to use the BrowserStack-specific test runner:
+
+    <CodeGroup>
+    ```groovy build.gradle
+    android {
+      // ...
+      defaultConfig {
+        // ...
+        testInstrumentationRunner "pl.leancode.patrol.BrowserstackPatrolJUnitRunner"
+      }
+      // ...
+    }
+    ```
+
+    ```kotlin build.gradle.kts
+    android {
+      // ...
+      defaultConfig {
+        // ...
+        testInstrumentationRunner = "pl.leancode.patrol.BrowserstackPatrolJUnitRunner"
+      }
+      // ...
+    }
+    ```
+    </CodeGroup>
+
+    <Info>
+      The `BrowserstackPatrolJUnitRunner` is a specialized test runner that integrates with BrowserStack's infrastructure and provides better test reporting.
+    </Info>
+  </Step>
+
+  <Step title="Sync Gradle">
+    After making this change, sync your Gradle files:
+
+    ```bash
+    cd android && ./gradlew --refresh-dependencies
+    ```
+  </Step>
+</Steps>
+
+That's it for Android! You can now proceed to running tests.
+
+## Setup for iOS
+
+<Warning>
+  Before configuring BrowserStack for iOS, you must complete the [Setup for physical iOS devices](/physical-ios-devices-setup) guide.
+</Warning>
+
+BrowserStack requires tests to use Xcode test plans. Follow these steps to convert your project:
+
+<Steps>
+  <Step title="Open Xcode">
+    Open your iOS project in Xcode:
+
+    ```bash
+    open ios/Runner.xcworkspace
+    ```
+  </Step>
+
+  <Step title="Edit the scheme">
+    Click on the scheme selector in the toolbar and select **Edit Scheme...**
+
+    ![Edit scheme](/assets/edit_scheme.png)
+  </Step>
+
+  <Step title="Convert to test plans">
+    In the scheme editor:
+    1. Go to the **Test** tab
+    2. Click **Convert to use Test Plans...**
+
+    ![Convert to test plans](/assets/convert_to_use_test_plans.png)
+  </Step>
+
+  <Step title="Create from scheme">
+    Select **Create from Scheme** when prompted:
+
+    ![Create from scheme](/assets/create_test_plan_from_scheme.png)
+  </Step>
+
+  <Step title="Name the test plan">
+    **Important:** Name the test plan exactly **"TestPlan"** (case-sensitive) and save it to the project root:
+
+    ![Rename to TestPlan](/assets/rename_to_testplan.png)
+
+    <Warning>
+      The test plan must be named "TestPlan" to work with the `bs_ios` script.
+    </Warning>
+  </Step>
+</Steps>
+
+<Note>
+  Make sure your project name is "Runner" and the scheme is named "Runner" - these are the default names for Flutter projects and are expected by BrowserStack.
+</Note>
+
+## Running Tests
+
+You have two options for running tests on BrowserStack: using automated scripts (recommended) or manually via API.
+
+<Tabs>
+  <Tab title="Using Scripts (Recommended)">
+    
+### Install mobile-tools
+
+LeanCode provides convenient scripts (`bs_android` and `bs_ios`) for scheduling test runs on BrowserStack. These scripts are part of the [mobile-tools](https://github.com/leancodepl/mobile-tools) package.
+
+Install via Homebrew:
+
+```bash
+brew tap leancodepl/tools
+brew install mobile-tools
+```
+
+After installation, reload your shell:
+
+```bash
+exec $SHELL
+```
+
+### Configure environment variables
+
+The scripts use the `BS_CREDENTIALS` environment variable that you set earlier. You can also configure optional variables:
+
+<CodeGroup>
+```bash Android
+# Required
+export BS_CREDENTIALS="YOUR_USERNAME:YOUR_ACCESS_KEY"
+
+# Optional
+export BS_PROJECT="AwesomeApp"  # Project name in BrowserStack dashboard
+export BS_ANDROID_DEVICES='["Google Pixel 4-10.0"]'  # Target devices
+```
+
+```bash iOS
+# Required
+export BS_CREDENTIALS="YOUR_USERNAME:YOUR_ACCESS_KEY"
+
+# Optional
+export BS_PROJECT="AwesomeApp"  # Project name in BrowserStack dashboard
+export BS_IOS_DEVICES='["iPhone 14 Pro-16"]'  # Target devices
+```
+</CodeGroup>
+
+### Run tests
+
+The scripts forward all arguments to `patrol build`, so you can use all the same flags:
+
+<CodeGroup>
+```bash Android
+bs_android \
+  --target integration_test/example_test.dart \
+  --verbose \
+  --dart-define 'API_KEY=your_key_here'
+```
+
+```bash iOS
+bs_ios \
+  --target integration_test/example_test.dart \
+  --verbose \
+  --dart-define 'API_KEY=your_key_here'
+```
+</CodeGroup>
+
+### Example output
+
+Here's what a successful test execution looks like:
+
+```
+$ bs_android --target integration_test/app_test.dart
+• Building apk with entrypoint test_bundle.dart...
+✓ Completed building apk with entrypoint test_bundle.dart (11.0s)
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 87.4M  100   235  100 87.4M      7  2857k  0:00:33  0:00:31  0:00:02 2052k
+Uploaded app, url: bs://fb61a714e1a0c60e2578d940dad52b74da244d54
+Uploaded test, url: bs://a715b1231d41ac627bd683f1b16c28476babd72e
+{"message":"Success","build_id":"a30440db559fcab65554ab0273437f3bd45d761b"}
+Scheduled test execution
+```
+
+<Tip>
+  The "Success" message means your test was scheduled successfully. You can view progress in the BrowserStack dashboard.
+</Tip>
+
+  </Tab>
+  <Tab title="Manual API Usage">
+
+### Manual workflow
+
+If you prefer to use BrowserStack's REST API directly, or if you're integrating with a CI/CD system, follow these steps:
+
+<Steps>
+  <Step title="Build test artifacts">
+    Build your app and test instrumentation app using Patrol:
+
+    <CodeGroup>
+    ```bash Android
+    patrol build android --target integration_test/example_test.dart
+    ```
+
+    ```bash iOS
+    patrol build ios --target integration_test/example_test.dart --release
+    ```
+    </CodeGroup>
+
+    See the [patrol build documentation](/cli-commands/build) for more options.
+  </Step>
+
+  <Step title="Upload app under test">
+    Upload your app to BrowserStack:
+
+    <CodeGroup>
+    ```bash Android
+    curl -u "$BS_CREDENTIALS" \
+      -X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/app" \
+      -F "file=@build/app/outputs/apk/debug/app-debug.apk"
+    ```
+
+    ```bash iOS
+    curl -u "$BS_CREDENTIALS" \
+      -X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/app" \
+      -F "file=@build/ios_integ/Build/Products/Release-iphoneos/Runner.app"
+    ```
+    </CodeGroup>
+
+    Response will contain an `app_url` like `bs://abc123...`
+
+    <Info>
+      See BrowserStack docs: [Android](https://www.browserstack.com/docs/app-automate/api-reference/espresso/apps#upload-an-app) | [iOS](https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/apps#upload-an-app)
+    </Info>
+  </Step>
+
+  <Step title="Upload test suite">
+    Upload your test instrumentation app:
+
+    <CodeGroup>
+    ```bash Android
+    curl -u "$BS_CREDENTIALS" \
+      -X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/test-suite" \
+      -F "file=@build/app/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
+    ```
+
+    ```bash iOS
+    # First, zip the test artifacts
+    cd build/ios_integ/Build/Products
+    zip -r test-suite.zip Release-iphoneos/*.app *.xctestrun
+    cd -
+
+    curl -u "$BS_CREDENTIALS" \
+      -X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/test-suite" \
+      -F "file=@build/ios_integ/Build/Products/test-suite.zip"
+    ```
+    </CodeGroup>
+
+    Response will contain a `test_suite_url` like `bs://def456...`
+
+    <Info>
+      See BrowserStack docs: [Android](https://www.browserstack.com/docs/app-automate/api-reference/espresso/tests#upload-a-test-suite) | [iOS](https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/tests#upload-a-test-suite)
+    </Info>
+  </Step>
+
+  <Step title="Execute tests">
+    Start the test execution with your preferred device configuration:
+
+    <CodeGroup>
+    ```bash Android
+    curl -u "$BS_CREDENTIALS" \
+      -X POST "https://api-cloud.browserstack.com/app-automate/espresso/v2/build" \
+      -d '{"devices": ["Google Pixel 4-10.0"], "app": "bs://abc123...", "testSuite": "bs://def456...", "project": "MyProject"}' \
+      -H "Content-Type: application/json"
+    ```
+
+    ```bash iOS
+    curl -u "$BS_CREDENTIALS" \
+      -X POST "https://api-cloud.browserstack.com/app-automate/xcuitest/v2/build" \
+      -d '{"devices": ["iPhone 14 Pro-16"], "app": "bs://abc123...", "testSuite": "bs://def456...", "project": "MyProject"}' \
+      -H "Content-Type: application/json"
+    ```
+    </CodeGroup>
+
+    <Info>
+      See BrowserStack docs: [Android](https://www.browserstack.com/docs/app-automate/api-reference/espresso/builds#execute-a-build) | [iOS](https://www.browserstack.com/docs/app-automate/api-reference/xcuitest/builds#execute-a-build)
+    </Info>
+  </Step>
+</Steps>
+
+  </Tab>
+</Tabs>
+
+## Viewing Results
+
+After scheduling a test execution, view the results in the [BrowserStack App Automate Dashboard](https://app-automate.browserstack.com/dashboard/v2).
+
+The dashboard provides:
+- Live test execution videos
+- Device logs
+- Network logs
+- Screenshots at each step
+- Crash reports
+- Performance metrics
+
+## Available Devices
+
+To see all available devices and OS versions, check the [BrowserStack Devices List](https://www.browserstack.com/list-of-browsers-and-platforms/app_automate).
+
+Popular device configurations:
+
+<AccordionGroup>
+  <Accordion title="Android Devices">
+    ```json
+    [
+      "Google Pixel 7 Pro-13.0",
+      "Google Pixel 6-12.0",
+      "Samsung Galaxy S23-13.0",
+      "Samsung Galaxy S21-11.0",
+      "OnePlus 9-11.0"
+    ]
+    ```
+  </Accordion>
+
+  <Accordion title="iOS Devices">
+    ```json
+    [
+      "iPhone 14 Pro-16",
+      "iPhone 14-16",
+      "iPhone 13-15",
+      "iPhone 12-14",
+      "iPad Pro 12.9 2022-16"
+    ]
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Real Devices" icon="mobile">
+    Always test on real devices rather than simulators for the most accurate results.
+  </Card>
+
+  <Card title="Target Popular Devices" icon="chart-line">
+    Focus your testing on the most popular devices among your user base.
+  </Card>
+
+  <Card title="Organize with Projects" icon="folder">
+    Use the `BS_PROJECT` environment variable to organize tests by project in the dashboard.
+  </Card>
+
+  <Card title="Review Videos" icon="video">
+    Always review test execution videos to understand failures quickly.
+  </Card>
+</CardGroup>
+
+## CI/CD Integration
+
+Integrate BrowserStack into your CI/CD pipeline:
+
+<CodeGroup>
+```yaml GitHub Actions
+name: BrowserStack Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        
+      - name: Install mobile-tools
+        run: |
+          brew tap leancodepl/tools
+          brew install mobile-tools
+          
+      - name: Run Android tests
+        env:
+          BS_CREDENTIALS: ${{ secrets.BS_CREDENTIALS }}
+          BS_PROJECT: ${{ github.repository }}
+        run: bs_android --target integration_test/app_test.dart
+```
+
+```yaml GitLab CI
+test_browserstack:
+  stage: test
+  image: ghcr.io/cirruslabs/flutter:stable
+  script:
+    - brew tap leancodepl/tools
+    - brew install mobile-tools
+    - bs_android --target integration_test/app_test.dart
+  variables:
+    BS_CREDENTIALS: $BS_USERNAME:$BS_ACCESS_KEY
+    BS_PROJECT: $CI_PROJECT_NAME
+```
+</CodeGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Authentication failed">
+    Verify your credentials are correct:
+    ```bash
+    echo $BS_CREDENTIALS
+    ```
+    
+    Make sure it's in the format `USERNAME:ACCESS_KEY` with no extra spaces or quotes.
+  </Accordion>
+
+  <Accordion title="Device not available">
+    The device you specified might not be available in your BrowserStack plan or might be busy. Check:
+    - The [devices list](https://www.browserstack.com/list-of-browsers-and-platforms/app_automate) for correct device names
+    - Your BrowserStack plan's device access
+    - Try a different device or wait and retry
+  </Accordion>
+
+  <Accordion title="Upload failed">
+    If app upload fails:
+    - Check that the APK/IPA file exists at the specified path
+    - Ensure the file size is under BrowserStack's limits (currently 4GB)
+    - Verify your BrowserStack plan allows app uploads
+  </Accordion>
+
+  <Accordion title="Tests don't start">
+    If tests are uploaded but don't execute:
+    - Verify you're using the correct test runner (`BrowserstackPatrolJUnitRunner` for Android)
+    - For iOS, ensure the test plan is named "TestPlan"
+    - Check the BrowserStack dashboard for error messages
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Firebase Test Lab" icon="fire" href="/integrations/firebase-test-lab">
+    Compare with Google's Firebase Test Lab
+  </Card>
+
+  <Card title="LambdaTest" icon="flask" href="/integrations/lambdatest">
+    Explore another cloud testing platform
+  </Card>
+</CardGroup>
+
+## Resources
+
+- [BrowserStack App Automate Documentation](https://www.browserstack.com/docs/app-automate)
+- [mobile-tools GitHub Repository](https://github.com/leancodepl/mobile-tools)
+- [BrowserStack API Reference](https://www.browserstack.com/docs/app-automate/api-reference)
+- [Available Devices and Browsers](https://www.browserstack.com/list-of-browsers-and-platforms/app_automate)

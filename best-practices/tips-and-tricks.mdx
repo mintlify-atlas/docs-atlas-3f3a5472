@@ -1,0 +1,383 @@
+---
+title: Tips and Tricks
+description: Helpful shortcuts, patterns, and techniques for Patrol testing
+---
+
+This collection of tips and tricks will help you work more efficiently with Patrol and handle common scenarios.
+
+## Test Configuration
+
+### Configuring Test Directory
+
+By default, Patrol looks for tests in the `patrol_test/` directory. This default was changed from `integration_test/` to avoid conflicts with Flutter's official integration testing plugin and to give Patrol tests their own dedicated space.
+
+<Info>
+This change was introduced in Patrol 4.0.0.
+</Info>
+
+#### Using Custom Test Directory
+
+You can configure Patrol to use a different directory by adding `test_directory` to your `pubspec.yaml`:
+
+```yaml title="pubspec.yaml"
+patrol:
+  app_name: My App
+  test_directory: my_custom_tests  # Custom directory
+  android:
+    package_name: com.example.myapp
+  ios:
+    bundle_id: com.example.MyApp
+```
+
+#### Migrating from integration_test Directory
+
+If you have existing Patrol tests in the `integration_test/` directory, you have two options:
+
+<Accordion title="Option 1: Rename integration_test directory to patrol_test">
+  Simply rename your existing directory:
+  
+  ```bash
+  mv integration_test patrol_test
+  ```
+  
+  This is the recommended approach for new projects.
+</Accordion>
+
+<Accordion title="Option 2: Configure Patrol to use integration_test">
+  Keep using your old directory by updating `pubspec.yaml`:
+  
+  ```yaml title="pubspec.yaml"
+  patrol:
+    app_name: My App
+    test_directory: integration_test  # Keep using old directory
+    android:
+      package_name: com.example.myapp
+    ios:
+      bundle_id: com.example.MyApp
+  ```
+</Accordion>
+
+<Note>
+Non-patrol integration tests should remain in the `integration_test` directory.
+</Note>
+
+## Security Best Practices
+
+### Avoiding Hardcoded Credentials
+
+It's a bad practice to hardcode data such as emails, usernames, and passwords in test code.
+
+<CodeGroup>
+```dart title="Bad Practice"
+await $(#nameTextField).enterText('Bartek'); // bad!
+await $(#passwordTextField).enterText('ny4ncat'); // bad as well!
+```
+
+```dart title="Good Practice"
+await $(#nameTextField).enterText(const String.fromEnvironment('USERNAME'));
+await $(#passwordTextField).enterText(const String.fromEnvironment('PASSWORD'));
+```
+</CodeGroup>
+
+<Warning>
+Make sure that you're using `const` here because of [Flutter issue #55870](https://github.com/flutter/flutter/issues/55870).
+</Warning>
+
+#### Method 1: Using --dart-define
+
+To set environment variables, use `--dart-define`:
+
+```bash
+patrol test --dart-define 'USERNAME=Bartek' --dart-define 'PASSWORD=ny4ncat'
+```
+
+#### Method 2: Using .patrol.env File
+
+Alternatively, create a `.patrol.env` file in your project's root. Comments are supported using the `#` symbol:
+
+```bash title=".patrol.env"
+# Add your username here
+EMAIL=user@example.com
+PASSWORD=ny4ncat # The password for the API
+```
+
+<Tip>
+Add `.patrol.env` to your `.gitignore` to prevent accidentally committing sensitive credentials.
+</Tip>
+
+## Working with Permissions
+
+### Granting Sensitive Permissions Through Settings
+
+Some particularly sensitive permissions (such as access to background location or controlling the Do Not Disturb feature) cannot be requested in the permission dialog like most common permissions. Instead, you have to ask the user to go to the Settings app.
+
+Testing such flows is not as simple as simply granting normal permission, but it's totally possible with Patrol.
+
+#### Example: Granting Do Not Disturb Permission on Android
+
+Below is a snippet that will make the built-in Camera app have access to the Do Not Disturb feature on Android:
+
+```dart
+await $.platform.mobile.tap(Selector(text: 'Camera')); // tap on the list tile
+await $.platform.mobile.tap(Selector(text: 'ALLOW')); // handle the confirmation dialog
+await $.platform.mobile.pressBack(); // go back to the app under test
+```
+
+<Warning>
+The UI of the Settings app differs across operating systems, their versions, and OEM flavors (in case of Android). You'll have to handle all edge cases yourself.
+</Warning>
+
+### Handling Permissions Before Pumping Widget
+
+Sometimes you might want to manually request permissions in the test before the main app widget is pumped. Let's say that you're using the [geolocator](https://pub.dev/packages/geolocator) package:
+
+<CodeGroup>
+```dart title="Wrong Approach"
+// This won't work as expected
+final permission = await Geolocator.requestPermission();
+final position = await Geolocator.getCurrentPosition();
+await $.pumpWidgetAndSettle(MyApp(position: position));
+```
+
+```dart title="Correct Approach"
+// 1. Request the permission (don't await yet)
+final permissionRequestFuture = Geolocator.requestPermission();
+
+// 2. Grant the permission using Patrol
+await $.platform.mobile.grantPermissionWhenInUse();
+
+// 3. Wait for permission being granted
+final permissionRequestResult = await permissionRequestFuture;
+expect(permissionRequestResult, equals(LocationPermission.whileInUse));
+
+final position = await Geolocator.getCurrentPosition();
+await $.pumpWidgetAndSettle(MyApp(position: position));
+```
+</CodeGroup>
+
+<Info>
+See also: [Patrol issue #628](https://github.com/leancodepl/patrol/issues/628)
+</Info>
+
+## Finder Shortcuts
+
+### Using Symbol Notation for Keys
+
+Patrol supports a convenient shorthand for keys using Dart symbols:
+
+```dart
+// These are equivalent:
+find.byKey(Key('loginButton'));
+$(Key('loginButton'));
+$(#loginButton);  // Shortest and cleanest!
+```
+
+<Tip>
+The `#` symbol notation only works with keys that don't contain special characters or spaces. For complex keys, use `Key('keyName')` instead.
+</Tip>
+
+### Finding Widgets by Semantics
+
+If you want to use semantics finders to locate widgets by their semantics properties, you can use flutter_test finders inside Patrol finders:
+
+```dart
+await $(find.bySemanticsLabel('Edit profile')).tap();
+```
+
+## Waiting and Timing
+
+### Wait for Widget Visibility
+
+Instead of using arbitrary delays, wait for widgets to become visible:
+
+```dart
+// Bad: Arbitrary delay
+await Future.delayed(Duration(seconds: 2));
+await $(#myWidget).tap();
+
+// Good: Wait for visibility
+await $(#myWidget).waitUntilVisible();
+await $(#myWidget).tap();
+```
+
+### Custom Timeouts for Long Operations
+
+Some operations take longer than the default timeout. Specify custom timeouts:
+
+```dart
+// For delayed notifications
+await $.platform.mobile.tapOnNotificationBySelector(
+  Selector(textContains: 'Patrol says hello!'),
+  timeout: const Duration(seconds: 5),
+);
+
+// For slow-loading widgets
+await $(#loadingContent).waitUntilVisible(
+  timeout: const Duration(seconds: 10),
+);
+```
+
+## Advanced Patterns
+
+### Organizing Keys by Page
+
+For larger apps, organize your keys by page or feature:
+
+```dart title="lib/integration_test_keys.dart"
+import 'package:flutter/foundation.dart';
+
+class SignInPageKeys {
+  final emailTextField = const Key('emailTextField');
+  final passwordTextField = const Key('passwordTextField');
+  final signInButton = const Key('signInButton');
+}
+
+class HomePageKeys {
+  final notificationIcon = const Key('notificationIcon');
+  final successSnackbar = const Key('successSnackbar');
+}
+
+class Keys {
+  final signInPage = SignInPageKeys();
+  final homePage = HomePageKeys();
+}
+
+final keys = Keys();
+```
+
+Then use them in your tests:
+
+```dart
+await $(keys.signInPage.emailTextField).enterText('test@email.com');
+await $(keys.signInPage.passwordTextField).enterText('password');
+await $(keys.signInPage.signInButton).tap();
+```
+
+<Info>
+Feel free to put your page-specific key classes (e.g. `SignInPageKeys`) into separate files in more complex apps.
+</Info>
+
+### Scrolling to Widgets
+
+When testing lists or scrollable content, you may need to scroll to a widget before interacting with it:
+
+```dart
+// Scroll to a widget that's off-screen
+await $(#myWidget).scrollTo();
+
+// Then interact with it
+await $(#myWidget).tap();
+```
+
+### Working with Multiple Matching Widgets
+
+When multiple widgets match your finder, use `.at(index)` to specify which one:
+
+```dart
+// Access by index (0-based)
+await $(TextFormField).at(0).enterText('first field');
+await $(TextFormField).at(1).enterText('second field');
+
+// Check count of matching widgets
+expect($(Card), findsNWidgets(3));
+```
+
+## Platform-Specific Tips
+
+<AccordionGroup>
+  <Accordion title="Android: Using ADB Commands">
+    You can use ADB commands alongside Patrol tests for advanced scenarios:
+
+    ```bash
+    # Clear app data before test
+    adb shell pm clear com.example.myapp
+
+    # Grant permissions via ADB
+    adb shell pm grant com.example.myapp android.permission.CAMERA
+
+    # Check logs
+    adb logcat | grep -i flutter
+    ```
+  </Accordion>
+
+  <Accordion title="iOS: Working with Simulators">
+    Useful iOS simulator commands:
+
+    ```bash
+    # Reset simulator
+    xcrun simctl erase all
+
+    # Grant permissions
+    xcrun simctl privacy booted grant photos com.example.myapp
+
+    # Check logs
+    xcrun simctl spawn booted log stream --predicate 'processImagePath endswith "Runner"'
+    ```
+  </Accordion>
+
+  <Accordion title="Handling Platform Differences">
+    Use platform checks when behavior differs between iOS and Android:
+
+    ```dart
+    import 'dart:io';
+
+    if (Platform.isAndroid) {
+      // Android-specific test code
+      await $.platform.mobile.tap(Selector(text: 'ALLOW'));
+    } else if (Platform.isIOS) {
+      // iOS-specific test code
+      await $.platform.mobile.tap(Selector(text: 'Allow'));
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance Tips
+
+<CardGroup cols={2}>
+  <Card title="Use patrol develop" icon="bolt">
+    For faster iteration during test development:
+    ```bash
+    patrol develop --target patrol_test/app_test.dart
+    ```
+    Press 'r' to hot restart tests without rebuilding.
+  </Card>
+
+  <Card title="Minimize pumpAndSettle" icon="clock">
+    Use `pumpAndSettle()` sparingly as it waits for all animations:
+    ```dart
+    // Only when necessary
+    await $.pumpAndSettle();
+    
+    // Prefer specific waits
+    await $(#widget).waitUntilVisible();
+    ```
+  </Card>
+
+  <Card title="Reuse Test Setup" icon="recycle">
+    Extract common setup into helper functions:
+    ```dart
+    Future<void> signIn(PatrolIntegrationTester $) async {
+      await $(#email).enterText('user@example.com');
+      await $(#password).enterText('password');
+      await $(#signInButton).tap();
+    }
+    ```
+  </Card>
+
+  <Card title="Group Related Tests" icon="layer-group">
+    Use `group()` to organize tests and share setup:
+    ```dart
+    group('User authentication', () {
+      patrolTest('signs in', ($) async { ... });
+      patrolTest('signs out', ($) async { ... });
+    });
+    ```
+  </Card>
+</CardGroup>
+
+## Useful Resources
+
+- [Patrol Cheat Sheet](/resources/cheatsheet) - Quick reference for common operations
+- [VS Code Extension](/tools/vscode-extension) - IDE integration for better DX
+- [DevTools Extension](/tools/devtools-extension) - Monitor test execution in real-time

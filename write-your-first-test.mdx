@@ -1,0 +1,616 @@
+---
+title: Write Your First Test
+description: A comprehensive hands-on tutorial for writing a full Patrol test with native interactions
+---
+
+This tutorial guides you through writing a substantial Patrol test that interacts with both Flutter widgets and native platform features like permission dialogs and notifications.
+
+<Info>
+Before starting this tutorial, make sure you've completed the [Quickstart guide](/quickstart) to set up Patrol in your project.
+</Info>
+
+## Tutorial Project
+
+We'll use a starter project that's already configured with Patrol. Clone it to follow along:
+
+<Card title="Clone the Starter Project" icon="github" href="https://github.com/ResoCoder/patrol-basics-tutorial">
+  ```bash
+  git clone https://github.com/ResoCoder/patrol-basics-tutorial.git
+  cd patrol-basics-tutorial
+  flutter pub get
+  ```
+</Card>
+
+<Note>
+To learn how to set up Patrol in your own project from scratch, refer back to the [Quickstart guide](/quickstart).
+</Note>
+
+## Video Tutorial
+
+Watch the video walkthrough for a visual guide:
+
+<iframe
+  width="560"
+  height="315"
+  src="https://www.youtube.com/embed/8pG8CheUZOw"
+  title="Patrol Testing Tutorial"
+  frameborder="0"
+  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowfullscreen
+></iframe>
+
+## App Overview
+
+Before writing tests, let's understand what the app does:
+
+### Sign In Screen
+The first screen validates email and password:
+- **Valid email**: Must be in proper email format
+- **Valid password**: At least 8 characters long
+- Only valid credentials allow progression to the home screen
+
+### Home Screen
+After signing in:
+1. A **notification permission dialog** appears
+2. After granting permission, tap the notification icon to trigger a notification
+3. The notification appears after **3 seconds** (works in foreground and background)
+4. Tapping the notification shows a snackbar: "Notification was tapped!"
+
+<Info>
+Patrol can test real authentication providers that use WebView for sign-in using native automation.
+</Info>
+
+## Testing Philosophy: The Happy Path
+
+UI tests should focus on the **happy path** - the main flow users take to accomplish their goal:
+
+✅ **Test**: Successful sign-in, notification trigger, and notification tap  
+❌ **Don't test**: Validation error messages for invalid input
+
+<Note>
+Validation errors exist to *enable* the happy path, not as features to exhaustively test in integration tests. Save detailed validation testing for unit tests.
+</Note>
+
+## Writing the Test
+
+Let's build the test step by step. We'll create a single test that covers the entire flow.
+
+### Step 1: Set Up the Test Structure
+
+Create `patrol_test/app_test.dart`:
+
+```dart patrol_test/app_test.dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:patrol/patrol.dart';
+
+void main() {
+  patrolTest(
+    'signs in, triggers a notification, and taps on it',
+    ($) async {
+      // Test code will go here
+    },
+  );
+}
+```
+
+### Step 2: Enable Hot Restart for Fast Development
+
+Instead of running the full build each time you change the test, use hot restart:
+
+```bash
+patrol develop -t patrol_test/app_test.dart
+```
+
+Make sure you have an emulator or device running first. After the test runs, press `r` to restart without rebuilding!
+
+<Tip>
+**Hot Restart vs Full Test:**
+- `patrol develop` - Fast iteration during test development (press `r` to restart)
+- `patrol test` - Full test run for CI/CD or final verification
+</Tip>
+
+### Step 3: Initialize and Pump the App
+
+Start by initializing the app and pumping the root widget:
+
+```dart patrol_test/app_test.dart
+import 'package:my_app/main.dart'; // Import your app
+import 'package:flutter_test/flutter_test.dart';
+import 'package:patrol/patrol.dart';
+
+void main() {
+  patrolTest(
+    'signs in, triggers a notification, and taps on it',
+    ($) async {
+      // Initialize any required services
+      initApp();
+      
+      // Pump the app widget
+      await $.pumpWidgetAndSettle(const MainApp());
+    },
+  );
+}
+```
+
+Hot-restart to see the sign-in page appear briefly before the test completes.
+
+### Step 4: Finding Widgets - First Attempt
+
+Let's try entering text in the email and password fields. We'll start by finding them by type:
+
+```dart
+await $.pumpWidgetAndSettle(const MainApp());
+
+// This won't work correctly!
+await $(TextFormField).enterText('test@email.com');
+await $(TextFormField).enterText('password');
+```
+
+<Warning>
+**Problem**: Both fields are `TextFormField` widgets. The finder always selects the **first** matching widget, so both texts go into the email field!
+</Warning>
+
+**Solution**: Use `.at()` to specify the index:
+
+```dart
+await $(TextFormField).enterText('test@email.com');
+await $(TextFormField).at(1).enterText('password');  // Second field
+```
+
+### Step 5: Better Practice - Using Keys
+
+Finding by type is fragile. The recommended approach is using **Keys**.
+
+Add keys to your widgets in `sign_in_page.dart`:
+
+```dart lib/pages/sign_in_page.dart
+class SignInPage extends StatelessWidget {
+  const SignInPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextFormField(
+                key: const Key('emailTextField'),  // Add key
+                decoration: const InputDecoration(labelText: 'Email'),
+                // ... rest of widget
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                key: const Key('passwordTextField'),  // Add key
+                decoration: const InputDecoration(labelText: 'Password'),
+                // ... rest of widget
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                key: const Key('signInButton'),  // Add key
+                onPressed: () { /* ... */ },
+                child: const Text('Sign in'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+Now use the symbol syntax in your test:
+
+```dart
+await $.pumpWidgetAndSettle(const MainApp());
+
+await $(#emailTextField).enterText('test@email.com');
+await $(#passwordTextField).enterText('password');
+await $(#signInButton).tap();
+```
+
+<Tip>
+The `#keyName` syntax is a shorthand for `Key('keyName')`. It only works with keys that have valid Dart symbol names (no spaces or special characters).
+</Tip>
+
+### Step 6: Best Practice - Centralized Keys
+
+Hardcoding key strings in both your app and tests creates duplication. Use a centralized keys file:
+
+```dart lib/integration_test_keys.dart
+import 'package:flutter/foundation.dart';
+
+class SignInPageKeys {
+  final emailTextField = const Key('emailTextField');
+  final passwordTextField = const Key('passwordTextField');
+  final signInButton = const Key('signInButton');
+}
+
+class HomePageKeys {
+  final notificationIcon = const Key('notificationIcon');
+  final successSnackbar = const Key('successSnackbar');
+}
+
+class Keys {
+  final signInPage = SignInPageKeys();
+  final homePage = HomePageKeys();
+}
+
+final keys = Keys();
+```
+
+Update your widgets to use the centralized keys:
+
+```dart lib/pages/sign_in_page.dart
+import 'package:my_app/integration_test_keys.dart';
+
+class SignInPage extends StatelessWidget {
+  const SignInPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              TextFormField(
+                key: keys.signInPage.emailTextField,  // Centralized
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                key: keys.signInPage.passwordTextField,  // Centralized
+                decoration: const InputDecoration(labelText: 'Password'),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                key: keys.signInPage.signInButton,  // Centralized
+                onPressed: () { /* ... */ },
+                child: const Text('Sign in'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+Update your test to use centralized keys:
+
+```dart patrol_test/app_test.dart
+import 'package:my_app/integration_test_keys.dart';
+
+patrolTest(
+  'signs in, triggers a notification, and taps on it',
+  ($) async {
+    initApp();
+    await $.pumpWidgetAndSettle(const MainApp());
+    
+    await $(keys.signInPage.emailTextField).enterText('test@email.com');
+    await $(keys.signInPage.passwordTextField).enterText('password');
+    await $(keys.signInPage.signInButton).tap();
+  },
+);
+```
+
+<Note>
+**Benefits of centralized keys:**
+- Single source of truth
+- Refactoring updates keys everywhere automatically
+- Type-safe access
+- Better IDE autocomplete
+</Note>
+
+### Step 7: Handle Permission Dialog
+
+After signing in, the app requests notification permission. Use Patrol's native automation:
+
+```dart
+await $(keys.signInPage.signInButton).tap();
+
+// Handle native permission dialog
+if (await $.platform.mobile.isPermissionDialogVisible()) {
+  await $.platform.mobile.grantPermissionWhenInUse();
+}
+```
+
+<Info>
+**Native automation** lets you interact with the OS your Flutter app runs on. Patrol supports Android, iOS, and macOS. [Learn more](/native/overview)
+</Info>
+
+<Warning>
+**Why check before granting?**
+
+The first time you run the test with `patrol develop`, the permission isn't granted yet, so the dialog appears. But on subsequent hot restarts (pressing `r`), the permission is already granted, so the dialog won't appear. Checking first prevents the test from failing.
+
+In CI/CD, the app is always built fresh, so the check isn't strictly necessary there.
+</Warning>
+
+### Step 8: Trigger Notification and Go to Home Screen
+
+Add keys to the home page:
+
+```dart lib/pages/home_page.dart
+import 'package:my_app/integration_test_keys.dart';
+
+class HomePage extends StatefulWidget {
+  // ...
+}
+
+class _HomePageState extends State<HomePage> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Home'),
+        actions: [
+          IconButton(
+            key: keys.homePage.notificationIcon,  // Add key
+            icon: const Icon(Icons.notification_add),
+            onPressed: () {
+              triggerLocalNotification(
+                onPressed: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      key: keys.homePage.successSnackbar,  // Add key
+                      content: const Text('Notification was tapped!'),
+                    ),
+                  );
+                },
+                onError: () { /* ... */ },
+              );
+            },
+          ),
+        ],
+      ),
+      // ...
+    );
+  }
+}
+```
+
+Trigger the notification and go to home screen in the test:
+
+```dart
+if (await $.platform.mobile.isPermissionDialogVisible()) {
+  await $.platform.mobile.grantPermissionWhenInUse();
+}
+
+// Tap notification icon
+await $(keys.homePage.notificationIcon).tap();
+
+// Go to device home screen
+await $.platform.mobile.pressHome();
+```
+
+### Step 9: Tap the Notification
+
+Open the notification shade and tap the notification by finding its text:
+
+```dart
+await $.platform.mobile.pressHome();
+
+// Open notification shade
+await $.platform.mobile.openNotifications();
+
+// Tap notification by text content
+await $.platform.mobile.tapOnNotificationBySelector(
+  Selector(textContains: 'Patrol says hello!'),
+  timeout: const Duration(seconds: 5),  // Wait for delayed notification
+);
+```
+
+<Note>
+The notification has a 3-second delay, so we use a 5-second timeout to ensure it appears before trying to tap it.
+</Note>
+
+### Step 10: Verify the Result
+
+Finally, verify that tapping the notification showed the success snackbar:
+
+```dart
+await $.platform.mobile.tapOnNotificationBySelector(
+  Selector(textContains: 'Patrol says hello!'),
+  timeout: const Duration(seconds: 5),
+);
+
+// Verify snackbar appeared
+await $(keys.homePage.successSnackbar).waitUntilVisible();
+```
+
+## Complete Test
+
+Here's the finished test:
+
+```dart patrol_test/app_test.dart
+import 'package:my_app/main.dart';
+import 'package:my_app/integration_test_keys.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:patrol/patrol.dart';
+
+void main() {
+  patrolTest(
+    'signs in, triggers a notification, and taps on it',
+    ($) async {
+      // Initialize app
+      initApp();
+      await $.pumpWidgetAndSettle(const MainApp());
+
+      // Sign in
+      await $(keys.signInPage.emailTextField).enterText('test@email.com');
+      await $(keys.signInPage.passwordTextField).enterText('password');
+      await $(keys.signInPage.signInButton).tap();
+
+      // Handle permission dialog
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await $.platform.mobile.grantPermissionWhenInUse();
+      }
+
+      // Trigger notification
+      await $(keys.homePage.notificationIcon).tap();
+
+      // Go to home screen
+      await $.platform.mobile.pressHome();
+
+      // Open notifications and tap
+      await $.platform.mobile.openNotifications();
+      await $.platform.mobile.tapOnNotificationBySelector(
+        Selector(textContains: 'Patrol says hello!'),
+        timeout: const Duration(seconds: 5),
+      );
+
+      // Verify success
+      await $(keys.homePage.successSnackbar).waitUntilVisible();
+    },
+  );
+}
+```
+
+## Run the Complete Test
+
+Run the test on a device or emulator:
+
+```bash
+patrol test -t patrol_test/app_test.dart
+```
+
+You should see:
+```
+Test summary:
+📝 Total: 1
+✅ Successful: 1
+❌ Failed: 0
+⏩ Skipped: 0
+📊 Report: build/patrol_test/reports/app_test.json
+⏱️  Duration: 12s
+```
+
+## What You Learned
+
+Congratulations! You've learned how to:
+
+<CardGroup cols={2}>
+  <Card title="Use Custom Finders" icon="magnifying-glass">
+    - Find widgets by type, text, and keys
+    - Use the `$()` finder syntax
+    - Use `.at()` for multiple matches
+    - Implement centralized keys
+  </Card>
+  <Card title="Native Automation" icon="mobile-screen">
+    - Handle permission dialogs
+    - Press home button
+    - Open notification shade
+    - Tap on notifications
+  </Card>
+  <Card title="Test Best Practices" icon="star">
+    - Focus on happy path
+    - Use centralized keys
+    - Hot restart for fast development
+    - Handle timing with timeouts
+  </Card>
+  <Card title="Test Structure" icon="code">
+    - Create patrolTest
+    - Initialize and pump widgets
+    - Verify results with expectations
+    - Handle branching logic safely
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Steps>
+  <Step title="Learn more finders">
+    Explore advanced finder techniques like `.containing()`, `.which()`, and custom matchers in the [Finders guide](/finders/usage).
+  </Step>
+  <Step title="Master native automation">
+    Discover all native automation capabilities in the [Native Automation guide](/native/usage).
+  </Step>
+  <Step title="Run tests in CI/CD">
+    Set up automated testing in your CI/CD pipeline with our [CI/CD guides](/ci/overview).
+  </Step>
+  <Step title="Test real features">
+    Check out feature-specific guides for [permissions](/guides/permissions), [camera](/guides/camera), [WebViews](/guides/webviews), and more.
+  </Step>
+</Steps>
+
+## Additional Tips
+
+<AccordionGroup>
+  <Accordion title="Organizing tests for larger apps">
+    For more complex apps:
+    
+    - Create separate key files per feature: `lib/keys/auth_keys.dart`, `lib/keys/profile_keys.dart`
+    - Use page object models: Create classes that encapsulate page interactions
+    - Extract common flows into helper functions
+    - Group related tests in the same file
+    
+    ```dart
+    // patrol_test/helpers/auth_helpers.dart
+    Future<void> signIn(
+      PatrolIntegrationTester $,
+      {required String email, required String password}
+    ) async {
+      await $(keys.signInPage.emailTextField).enterText(email);
+      await $(keys.signInPage.passwordTextField).enterText(password);
+      await $(keys.signInPage.signInButton).tap();
+    }
+    ```
+  </Accordion>
+
+  <Accordion title="Handling branching logic in tests">
+    Generally, avoid `if` statements in tests as they can hide flakiness. However, some cases are acceptable:
+    
+    ✅ **Good use cases:**
+    - Checking for permission dialogs (may or may not appear)
+    - Platform-specific behavior (`if (Platform.isAndroid)`)
+    - Feature flags that differ between environments
+    
+    ❌ **Avoid:**
+    - Checking if elements exist before interacting (test should know the state)
+    - Working around flaky finders
+    - Conditional test logic based on previous step results
+  </Accordion>
+
+  <Accordion title="Debugging failing tests">
+    When tests fail:
+    
+    1. **Check screenshots**: Patrol saves screenshots on failure
+    2. **Use `patrol develop`**: See what's happening in real-time
+    3. **Add delays**: `await Future.delayed(Duration(seconds: 1))` to observe state
+    4. **Print widget tree**: `$.pumpAndSettle(); debugDumpApp();`
+    5. **Check logs**: Look at console output for errors
+    
+    Learn more in [Debugging Tests](/best-practices/debugging).
+  </Accordion>
+
+  <Accordion title="Testing on real devices">
+    For iOS physical devices:
+    - Follow the [Physical iOS Devices Setup](/platforms/physical-devices) guide
+    - Configure signing and provisioning profiles
+    - Use `patrol test --dart-define=PATROL_WAIT=10000` for slower devices
+    
+    For Android physical devices:
+    - Enable Developer Options and USB Debugging
+    - Connect via USB or WiFi
+    - Run `adb devices` to verify connection
+  </Accordion>
+</AccordionGroup>
+
+## Resources
+
+- [Example app in Patrol repository](https://github.com/leancodepl/patrol/tree/master/packages/patrol/example)
+- [Patrol CLI documentation](/cli/overview)
+- [Best practices guide](/best-practices/effective-patrol)
+- [Join Patrol Discord](https://discord.gg/ukBK5t4EZg)
+
+<Card title="Explore Native Automation" icon="rocket" href="/native/overview">
+  Ready to dive deeper? Learn about all the native automation features Patrol offers.
+</Card>

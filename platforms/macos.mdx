@@ -1,0 +1,373 @@
+---
+title: macOS
+description: Testing Flutter apps on macOS with Patrol
+---
+
+Patrol provides alpha-stage support for testing Flutter applications on macOS. While the framework is functional for testing macOS apps, native platform automation is not yet implemented.
+
+<Warning>
+  Support for macOS is in **alpha stage**. Some features may not work as expected, and native automation (like `$.platform.mobile.*` methods) is not yet available for macOS.
+</Warning>
+
+## Platform Support
+
+Patrol supports:
+
+- **macOS 10.14 (Mojave) and newer**
+- Flutter widget testing on macOS apps
+- Custom finders and test infrastructure
+
+<Info>
+  While you can run Patrol tests on macOS, platform automation features are limited. Focus on Flutter widget testing rather than native macOS UI automation.
+</Info>
+
+## Setup Requirements
+
+Before testing on macOS, ensure you have:
+
+<Steps>
+  <Step title="macOS with Xcode">
+    Patrol macOS testing requires:
+    - macOS 10.14 or newer
+    - Xcode 13.0 or newer
+    
+    Verify Xcode is installed:
+    ```bash
+    xcodebuild -version
+    ```
+  </Step>
+
+  <Step title="Xcode Command Line Tools">
+    Install command line tools:
+    ```bash
+    xcode-select --install
+    ```
+  </Step>
+
+  <Step title="CocoaPods">
+    Patrol uses CocoaPods for macOS dependencies:
+    ```bash
+    sudo gem install cocoapods
+    pod --version
+    ```
+  </Step>
+</Steps>
+
+## Native Integration
+
+To enable Patrol on macOS, configure your app's test infrastructure:
+
+<Steps>
+  <Step title="Configure pubspec.yaml">
+    Add your macOS bundle identifier to `pubspec.yaml`:
+    
+    ```yaml title="pubspec.yaml"
+    patrol:
+      app_name: My App
+      macos:
+        bundle_id: com.example.macos.MyApp
+    ```
+    
+    <Tip>
+      Find your bundle ID in `macos/Runner.xcodeproj/project.pbxproj` by searching for `PRODUCT_BUNDLE_IDENTIFIER`.
+    </Tip>
+  </Step>
+
+  <Step title="Open Xcode Project">
+    Open your macOS project in Xcode:
+    ```bash
+    open macos/Runner.xcworkspace
+    ```
+  </Step>
+
+  <Step title="Create UI Test Target">
+    If you don't have a UI test target:
+    
+    1. Select **File > New > Target...**
+    2. Choose **UI Testing Bundle**
+    3. Set **Product Name** to `RunnerUITests`
+    4. Set **Target to be Tested** to `Runner`
+    5. Set **Language** to `Objective-C`
+    6. Click **Finish**
+  </Step>
+
+  <Step title="Delete Unnecessary Files">
+    Delete `RunnerUITestsLaunchTests.m` through Xcode (right-click > Move to Trash).
+  </Step>
+
+  <Step title="Set Deployment Target">
+    Ensure `RunnerUITests` deployment target matches `Runner`:
+    
+    1. Select `RunnerUITests` target
+    2. Go to **Build Settings**
+    3. Search for **macOS Deployment Target**
+    4. Set to same version as `Runner` (minimum macOS 10.14)
+    
+    ![Xcode macOS deployment target](/assets/macos_deployment_target.png)
+  </Step>
+
+  <Step title="Configure RunnerUITests.m">
+    Replace the contents of `macos/RunnerUITests/RunnerUITests.m`:
+    
+    ```objective-c title="macos/RunnerUITests/RunnerUITests.m"
+    @import XCTest;
+    @import patrol;
+    @import ObjectiveC.runtime;
+
+    PATROL_INTEGRATION_TEST_MACOS_RUNNER(RunnerUITests)
+    ```
+  </Step>
+
+  <Step title="Update Podfile">
+    Add `RunnerUITests` target to `macos/Podfile`:
+    
+    ```ruby title="macos/Podfile"
+    target 'Runner' do
+      # Existing configuration...
+      
+      target 'RunnerUITests' do
+        inherit! :complete
+      end
+    end
+    ```
+  </Step>
+
+  <Step title="Build Configuration">
+    Run Flutter build to generate necessary configuration:
+    ```bash
+    flutter build macos --config-only patrol_test/example_test.dart
+    ```
+  </Step>
+
+  <Step title="Install Pods">
+    Navigate to the `macos` directory and install dependencies:
+    ```bash
+    cd macos
+    pod install --repo-update
+    cd ..
+    ```
+  </Step>
+
+  <Step title="Configure Build Phases">
+    In Xcode, select `RunnerUITests` target:
+    
+    1. Go to **Build Phases**
+    2. Click **+** > **New Run Script Phase** (add 2 phases)
+    3. Double-click to rename them:
+       - `macos_assemble build`
+       - `macos_assemble embed`
+    
+    4. Arrange in this order:
+       - Dependencies
+       - macos_assemble build
+       - Compile Sources
+       - macos_assemble embed
+       - Link Binary With Libraries
+    
+    ![Xcode macOS build phases](/assets/macos_runner_build_phases.png)
+  </Step>
+
+  <Step title="Add Build Scripts">
+    Add scripts to the build phases:
+    
+    **macos_assemble build:**
+    ```bash
+    /bin/sh "$FLUTTER_ROOT/packages/flutter_tools/bin/macos_assemble.sh" build
+    ```
+    
+    **macos_assemble embed:**
+    ```bash
+    /bin/sh "$FLUTTER_ROOT/packages/flutter_tools/bin/macos_assemble.sh" embed
+    ```
+  </Step>
+
+  <Step title="Disable Parallel Execution">
+    Disable parallel execution in Xcode:
+    
+    1. Select **Product > Scheme > Edit Scheme...**
+    2. Go to **Test** tab
+    3. Uncheck **Execute in parallel**
+    4. Repeat for all schemes if you have multiple
+    
+    <Warning>
+      Parallel execution breaks Patrol. Ensure this is disabled for all schemes.
+    </Warning>
+  </Step>
+
+  <Step title="Disable User Script Sandboxing">
+    1. Select `RunnerUITests` target
+    2. Go to **Build Settings**
+    3. Search for **User Script Sandboxing**
+    4. Set to **No**
+  </Step>
+
+  <Step title="Configure Network Entitlements">
+    1. Select `Runner` target
+    2. Go to **Signing & Capabilities**
+    3. In **App Sandbox**, check:
+       - **Incoming Connections (Server)**
+       - **Outgoing Connections (Client)**
+    
+    ![Xcode entitlements setup](/assets/macos_entitlements.png)
+  </Step>
+
+  <Step title="Copy Entitlements to RunnerUITests">
+    Copy entitlements files from `macos/Runner` to `macos/RunnerUITests`:
+    ```bash
+    cp macos/Runner/DebugProfile.entitlements macos/RunnerUITests/
+    cp macos/Runner/Release.entitlements macos/RunnerUITests/
+    ```
+  </Step>
+
+  <Step title="Set Code Signing Entitlements">
+    1. Select `RunnerUITests` target
+    2. Go to **Build Settings**
+    3. Search for **Code Signing Entitlements**
+    4. For **Debug** and **Profile**: `RunnerUITests/DebugProfile.entitlements`
+    5. For **Release**: `RunnerUITests/Release.entitlements`
+    
+    ![Xcode RunnerUITests entitlements](/assets/macos_ui_entitlements.png)
+  </Step>
+</Steps>
+
+## Running Tests
+
+Run your Patrol tests on macOS:
+
+```bash
+patrol test --target patrol_test/app_test.dart
+```
+
+<Info>
+  macOS tests run on your local machine. No simulator or device selection is needed.
+</Info>
+
+## Writing macOS Tests
+
+When writing tests for macOS, avoid using mobile platform automation:
+
+```dart
+import 'dart:io';
+import 'package:patrol/patrol.dart';
+
+void main() {
+  patrolTest(
+    'macOS app test',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+      
+      // Use Flutter finders and actions
+      await $('Login').tap();
+      await $('Email').enterText('user@example.com');
+      
+      // Avoid mobile platform methods on macOS
+      if (!Platform.isMacOS) {
+        await $.platform.mobile.pressHome();
+      }
+      
+      expect($('Welcome'), findsOneWidget);
+    },
+  );
+}
+```
+
+## Capabilities
+
+macOS support in Patrol is currently limited:
+
+| Feature | Status |
+|---------|--------|
+| Flutter widget testing | ✅ |
+| Custom finders | ✅ |
+| Test infrastructure | ✅ |
+| Platform automation | ❌ Not yet implemented |
+| Native macOS UI interaction | ❌ Not yet implemented |
+| Keyboard shortcuts | ❌ Not yet implemented |
+| Menu interactions | ❌ Not yet implemented |
+| System dialogs | ❌ Not yet implemented |
+
+<Warning>
+  Native automation methods (like `$.platform.mobile.*`) are **not implemented** for macOS. Calling these methods will result in errors or undefined behavior.
+</Warning>
+
+## Limitations
+
+### No Platform Automation
+
+The following are **not supported** on macOS:
+
+- `$.platform.mobile.*` methods (press home, open notifications, etc.)
+- Native macOS UI automation
+- System preferences interaction
+- Menu bar automation
+- Keyboard shortcuts simulation
+- System dialogs handling
+
+### Focus on Widget Testing
+
+For now, use Patrol on macOS primarily for:
+
+✅ Flutter widget testing with custom finders  
+✅ UI state verification  
+✅ Navigation flows  
+✅ Business logic testing with UI  
+
+❌ Native macOS automation  
+❌ System-level interactions  
+
+## Future Development
+
+<Note>
+  The Patrol team is working on improving macOS support. Native automation features will be added in future releases. Follow the [GitHub repository](https://github.com/leancodepl/patrol) for updates.
+</Note>
+
+If you encounter issues or have feature requests for macOS support, please report them on [GitHub Issues](https://github.com/leancodepl/patrol/issues).
+
+## Troubleshooting
+
+### Build Fails with Code Signing
+
+Ensure both `Runner` and `RunnerUITests` targets are properly signed:
+
+1. Select each target in Xcode
+2. Go to **Signing & Capabilities**
+3. Select your development team
+4. Ensure "Automatically manage signing" is checked
+
+### Network Connection Issues
+
+If tests fail to connect:
+
+1. Verify **Incoming Connections** and **Outgoing Connections** are enabled in entitlements
+2. Check that entitlements are properly set for `RunnerUITests`
+3. Ensure firewall isn't blocking connections
+
+### Pod Install Fails
+
+```bash
+# Update CocoaPods
+sudo gem install cocoapods
+
+# Clear caches
+cd macos
+rm -rf Pods Podfile.lock
+pod cache clean --all
+pod install --repo-update
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="iOS Platform" icon="apple" href="/platforms/ios">
+    Full iOS testing support with native automation
+  </Card>
+  <Card title="Custom Finders" icon="search" href="/documentation/finders/usage">
+    Learn about Patrol's powerful finder system
+  </Card>
+  <Card title="Write Your First Test" icon="code" href="/documentation/write-your-first-test">
+    Start writing Patrol tests
+  </Card>
+  <Card title="Feature Parity" icon="table" href="/documentation/native/feature-parity">
+    See platform feature availability
+  </Card>
+</CardGroup>

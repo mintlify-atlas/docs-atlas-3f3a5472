@@ -1,0 +1,352 @@
+---
+title: Testing Permissions
+description: Learn how to test permission requests in your Flutter app with Patrol
+---
+
+Testing permissions is crucial for ensuring your app handles user privacy correctly. Patrol provides powerful native automation capabilities to interact with system permission dialogs on both Android and iOS.
+
+## Overview
+
+Patrol allows you to:
+- Detect when permission dialogs appear
+- Grant permissions ("While Using", "Only This Time", or "Always")
+- Deny permissions
+- Select location accuracy (fine vs coarse)
+- Test permission flows across different app states
+
+## Permission Dialog Methods
+
+Patrol provides several methods for handling permission dialogs:
+
+<CardGroup cols={2}>
+  <Card title="isPermissionDialogVisible" icon="eye">
+    Check if a permission dialog is currently visible
+  </Card>
+  <Card title="grantPermissionWhenInUse" icon="check">
+    Grant permission for "While Using" or "Allow"
+  </Card>
+  <Card title="grantPermissionOnlyThisTime" icon="clock">
+    Grant permission for "Only This Time" (Android 11+)
+  </Card>
+  <Card title="denyPermission" icon="xmark">
+    Deny the permission request
+  </Card>
+</CardGroup>
+
+## Basic Permission Testing
+
+<Steps>
+  <Step title="Setup your test">
+    Import the necessary packages and create a test using `patrolTest`:
+    
+    ```dart
+    import 'package:patrol/patrol.dart';
+    import 'package:permission_handler/permission_handler.dart';
+    
+    void main() {
+      patrolTest('grants camera permission', ($) async {
+        // Test code here
+      });
+    }
+    ```
+  </Step>
+  
+  <Step title="Navigate to permission request">
+    Navigate to the part of your app that requests a permission:
+    
+    ```dart
+    await $.pumpWidgetAndSettle(const MyApp());
+    await $('Open permissions screen').scrollTo().tap();
+    ```
+  </Step>
+  
+  <Step title="Request and handle the permission">
+    Trigger the permission request and handle the system dialog:
+    
+    ```dart
+    if (!await Permission.camera.isGranted) {
+      await $('Request camera permission').tap();
+      
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await $.platform.mobile.grantPermissionWhenInUse();
+        await $.pump();
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Complete Examples
+
+### Granting Camera Permission
+
+This example shows how to grant camera permission when requested:
+
+```dart title="patrol_test/camera_permission_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest('grants camera permission', ($) async {
+    await $.pumpWidgetAndSettle(const MyApp());
+    
+    await $('Open permissions screen').scrollTo().tap();
+
+    if (!await Permission.camera.isGranted) {
+      await $('Request camera permission').tap();
+
+      if (await $.platform.mobile.isPermissionDialogVisible()) {
+        await Future<void>.delayed(const Duration(seconds: 1));
+        await $.platform.mobile.grantPermissionWhenInUse();
+        await $.pump();
+      }
+    }
+    
+    // Verify permission was granted
+    expect(await Permission.camera.isGranted, true);
+  });
+}
+```
+
+### Testing Multiple Permissions
+
+Test granting and denying different permissions:
+
+```dart title="patrol_test/multiple_permissions_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+const _timeout = Duration(seconds: 5);
+
+void main() {
+  patrolTest('handles multiple permissions', ($) async {
+    await $.pumpWidgetAndSettle(const MyApp());
+    await $('Open permissions screen').scrollTo().tap();
+
+    // Grant camera permission
+    await _requestAndGrantCameraPermission($);
+    
+    // Grant microphone permission (only this time)
+    await _requestAndGrantMicrophonePermission($);
+    
+    // Deny location permission
+    await _requestAndDenyLocationPermission($);
+  });
+}
+
+Future<void> _requestAndGrantCameraPermission(
+  PatrolIntegrationTester $,
+) async {
+  if (!await Permission.camera.isGranted) {
+    await $('Request camera permission').tap();
+    if (await $.platform.mobile.isPermissionDialogVisible(timeout: _timeout)) {
+      await $.platform.mobile.grantPermissionWhenInUse();
+      await $.pump();
+    }
+  }
+  expect(await Permission.camera.isGranted, true);
+}
+
+Future<void> _requestAndGrantMicrophonePermission(
+  PatrolIntegrationTester $,
+) async {
+  if (!await Permission.microphone.isGranted) {
+    await $('Request microphone permission').tap();
+    if (await $.platform.mobile.isPermissionDialogVisible(timeout: _timeout)) {
+      await $.platform.mobile.grantPermissionOnlyThisTime();
+      await $.pump();
+    }
+  }
+  expect(await Permission.microphone.isGranted, true);
+}
+
+Future<void> _requestAndDenyLocationPermission(
+  PatrolIntegrationTester $,
+) async {
+  if (!await Permission.location.isGranted) {
+    await $('Request location permission').tap();
+    if (await $.platform.mobile.isPermissionDialogVisible(timeout: _timeout)) {
+      await $.platform.mobile.denyPermission();
+      await $.pump();
+    }
+  }
+  expect(await Permission.location.isDenied, true);
+}
+```
+
+## Location Permissions
+
+Location permissions have special handling for precision selection:
+
+<CodeGroup>
+
+```dart Fine Location (Precise)
+import 'package:patrol/patrol.dart';
+
+patrolTest('grants precise location permission', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  await $('Request location').tap();
+  
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    // Select "Precise" location
+    await $.platform.mobile.selectFineLocation();
+    await $.platform.mobile.grantPermissionWhenInUse();
+    await $.pump();
+  }
+});
+```
+
+```dart Coarse Location (Approximate)
+import 'package:patrol/patrol.dart';
+
+patrolTest('grants approximate location permission', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  await $('Request location').tap();
+  
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    // Select "Approximate" location
+    await $.platform.mobile.selectCoarseLocation();
+    await $.platform.mobile.grantPermissionWhenInUse();
+    await $.pump();
+  }
+});
+```
+
+</CodeGroup>
+
+## Platform-Specific Considerations
+
+<Tabs>
+  <Tab title="Android">
+    ### Android 11+ (API 30+)
+    
+    Android 11 introduced "Only this time" permissions:
+    
+    ```dart
+    // This grants temporary permission
+    await $.platform.mobile.grantPermissionOnlyThisTime();
+    ```
+    
+    On Android versions older than 11, `grantPermissionOnlyThisTime()` behaves the same as `grantPermissionWhenInUse()`.
+    
+    ### Android 14+ Special Permissions
+    
+    Some features like scheduling notifications require additional permissions:
+    
+    ```dart
+    // Check for Android 14+ alarm permission
+    final alarmPermissionSelector = Selector(
+      text: 'Allow setting alarms and reminders',
+    );
+    final views = await $.native.getNativeViews(alarmPermissionSelector);
+    if (views.isNotEmpty) {
+      await $.native.tap(alarmPermissionSelector);
+      await $.native.pressBack();
+    }
+    ```
+  </Tab>
+  
+  <Tab title="iOS">
+    ### iOS Permission States
+    
+    iOS has different permission states:
+    - **Allow While Using App**: User can use the feature when app is active
+    - **Allow Once**: One-time permission (similar to Android 11+)
+    - **Don't Allow**: Permission denied
+    
+    ```dart
+    // Grant "While Using" permission
+    await $.platform.mobile.grantPermissionWhenInUse();
+    
+    // Or grant "Allow Once" permission
+    await $.platform.mobile.grantPermissionOnlyThisTime();
+    ```
+    
+    ### Background Permissions
+    
+    Some permissions (like location) may prompt twice - once for "When In Use" and again for "Always":
+    
+    ```dart
+    // First dialog - While Using
+    if (await $.platform.mobile.isPermissionDialogVisible()) {
+      await $.platform.mobile.grantPermissionWhenInUse();
+    }
+    
+    // Second dialog might appear for "Always" access
+    await Future<void>.delayed(const Duration(seconds: 2));
+    if (await $.platform.mobile.isPermissionDialogVisible()) {
+      await $.platform.mobile.grantPermissionWhenInUse();
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always check if dialog is visible">
+    Always use `isPermissionDialogVisible()` before attempting to interact with the dialog:
+    
+    ```dart
+    if (await $.platform.mobile.isPermissionDialogVisible()) {
+      await $.platform.mobile.grantPermissionWhenInUse();
+    }
+    ```
+    
+    This prevents test failures when permissions are already granted.
+  </Accordion>
+  
+  <Accordion title="Add appropriate timeouts">
+    Permission dialogs may take time to appear. Use timeouts appropriately:
+    
+    ```dart
+    if (await $.platform.mobile.isPermissionDialogVisible(
+      timeout: Duration(seconds: 5),
+    )) {
+      await $.platform.mobile.grantPermissionWhenInUse();
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Check permission state before requesting">
+    Use the `permission_handler` package to check permission states:
+    
+    ```dart
+    if (!await Permission.camera.isGranted) {
+      // Only request if not already granted
+      await $('Request camera permission').tap();
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Call $.pump() after handling dialogs">
+    Always call `$.pump()` after handling permission dialogs to ensure Flutter processes the state change:
+    
+    ```dart
+    await $.platform.mobile.grantPermissionWhenInUse();
+    await $.pump(); // Important!
+    ```
+  </Accordion>
+</AccordionGroup>
+
+<Info>
+Permission testing works on both physical devices and emulators/simulators. However, permission state may persist between test runs, so consider resetting permissions in your test setup.
+</Info>
+
+## Common Issues
+
+<Warning>
+**Permission already granted**: If a permission was previously granted, the dialog won't appear again. Reset app permissions between test runs or check the permission state before requesting.
+</Warning>
+
+<Tip>
+Use the [Patrol DevTools Extension](https://patrol.leancode.co/documentation/patrol-devtools-extension) to inspect native permission dialogs and find the correct selectors if you need custom handling.
+</Tip>
+
+## Related Resources
+
+- [permission_handler package](https://pub.dev/packages/permission_handler)
+- [Android Permissions Documentation](https://developer.android.com/guide/topics/permissions/overview)
+- [iOS Permissions Documentation](https://developer.apple.com/documentation/uikit/protecting_the_user_s_privacy)

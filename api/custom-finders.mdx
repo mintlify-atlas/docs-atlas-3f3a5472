@@ -1,0 +1,421 @@
+---
+title: PatrolFinder
+description: Powerful custom finder API with chainable methods and automatic waiting
+---
+
+`PatrolFinder` is Patrol's custom finder that wraps Flutter's `Finder` with enhanced capabilities like automatic waiting, scrolling, and chainable syntax.
+
+## Creating Finders
+
+### Using the $ Syntax
+
+The primary way to create finders is through the `$()` method on `PatrolIntegrationTester`:
+
+```dart
+patrolTest('example', ($) async {
+  // By widget type
+  $(ElevatedButton)
+  
+  // By key (using Symbol for keys)
+  $(#loginButton)
+  
+  // By text
+  $('Submit')
+  
+  // By text pattern (RegExp)
+  $(RegExp(r'Click.*'))
+  
+  // By icon
+  $(Icons.add)
+  
+  // By widget instance
+  $(Text('Hello'))
+});
+```
+
+### Chaining Finders
+
+You can chain finders to locate nested widgets:
+
+```dart
+// Find a Text widget inside a Container
+$(Container).$(Text)
+
+// Find a specific button in a dialog
+$(Dialog).$(ElevatedButton).$(Text('OK'))
+
+// Find by key inside a specific widget
+$(Scaffold).$(
+```
+
+## Core Methods
+
+### Interaction Methods
+
+<ResponseField name="tap({...})" type="Future<void>">
+  Waits for the widget to be visible and taps it.
+  
+  **Parameters:**
+  - `settlePolicy` - How to pump frames after action
+  - `visibleTimeout` - Max time to wait for visibility
+  - `settleTimeout` - Timeout for settling
+  - `alignment` - Where to tap (default: center)
+  
+  ```dart
+  await $(#submitButton).tap();
+  
+  // Tap at specific alignment
+  await $(Card).tap(alignment: Alignment.topRight);
+  ```
+</ResponseField>
+
+<ResponseField name="longPress({...})" type="Future<void>">
+  Waits for visibility and performs a long press.
+  
+  ```dart
+  await $(#contextMenuItem).longPress();
+  ```
+</ResponseField>
+
+<ResponseField name="enterText(String text, {...})" type="Future<void>">
+  Waits for the text field to be visible and enters text.
+  
+  ```dart
+  await $(#emailField).enterText('user@example.com');
+  ```
+</ResponseField>
+
+### Waiting Methods
+
+<ResponseField name="waitUntilVisible({...})" type="Future<PatrolFinder>">
+  Waits until the finder locates at least one visible widget.
+  
+  **Parameters:**
+  - `timeout` - Max time to wait
+  - `alignment` - Point to check for visibility
+  
+  ```dart
+  await $(Text('Welcome')).waitUntilVisible();
+  
+  // With custom timeout
+  await $(Text('Slow Widget')).waitUntilVisible(
+    timeout: Duration(seconds: 30),
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="waitUntilExists({...})" type="Future<PatrolFinder>">
+  Waits until the widget exists (not necessarily visible).
+  
+  ```dart
+  await $(Text('Hidden')).waitUntilExists();
+  ```
+</ResponseField>
+
+### Scrolling Methods
+
+<ResponseField name="scrollTo({...})" type="Future<PatrolFinder>">
+  Scrolls until this widget becomes visible.
+  
+  **Parameters:**
+  - `view` - The scrollable widget
+  - `step` - Distance to scroll per iteration
+  - `scrollDirection` - Direction to scroll
+  - `maxScrolls` - Maximum scroll attempts
+  
+  ```dart
+  await $(Text('Item 50')).scrollTo();
+  
+  // With custom parameters
+  await $(Text('Bottom')).scrollTo(
+    view: $(ListView),
+    step: 200,
+    maxScrolls: 30,
+  );
+  ```
+</ResponseField>
+
+### Refinement Methods
+
+<ResponseField name="at(int index)" type="PatrolFinder">
+  Returns the widget at the specified index when multiple matches exist.
+  
+  ```dart
+  // Tap the third button
+  await $(ElevatedButton).at(2).tap();
+  ```
+</ResponseField>
+
+<ResponseField name="first" type="PatrolFinder">
+  Returns the first widget found.
+  
+  ```dart
+  await $(TextField).first.enterText('First name');
+  ```
+</ResponseField>
+
+<ResponseField name="last" type="PatrolFinder">
+  Returns the last widget found.
+  
+  ```dart
+  await $(ListTile).last.tap();
+  ```
+</ResponseField>
+
+<ResponseField name="$(dynamic matching)" type="PatrolFinder">
+  Finds a descendant widget. Chain finders together.
+  
+  ```dart
+  // Find Text inside a Card
+  $(Card).$(Text)
+  
+  // Deeper nesting
+  $(Scaffold).$(AppBar).$(Text)
+  ```
+</ResponseField>
+
+<ResponseField name="containing(dynamic matching)" type="PatrolFinder">
+  Finds an ancestor widget containing the specified descendant.
+  
+  ```dart
+  // Find the Card that contains specific text
+  $(Card).containing(Text('Title'))
+  ```
+</ResponseField>
+
+<ResponseField name="which<T>(bool Function(T) predicate)" type="PatrolFinder">
+  Filters widgets using a predicate function.
+  
+  ```dart
+  // Find enabled buttons only
+  $(ElevatedButton).which<ElevatedButton>(
+    (btn) => btn.enabled,
+  )
+  
+  // Find text with specific style
+  $(Text).which<Text>(
+    (text) => text.style?.color == Colors.red,
+  )
+  ```
+</ResponseField>
+
+<ResponseField name="hitTestable({Alignment at})" type="PatrolFinder">
+  Returns only widgets that are hit-testable at the specified alignment.
+  
+  ```dart
+  $(Button).hitTestable(at: Alignment.center)
+  ```
+</ResponseField>
+
+### Property Getters
+
+<ResponseField name="text" type="String?">
+  Returns the text content if the widget is a `Text` or `RichText`.
+  
+  ```dart
+  final buttonText = $(#submitButton).text;
+  expect(buttonText, 'Submit');
+  ```
+</ResponseField>
+
+<ResponseField name="exists" type="bool">
+  Returns `true` if the finder locates at least one widget.
+  
+  ```dart
+  if ($(Text('Optional')).exists) {
+    await $(Text('Optional')).tap();
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="visible" type="bool">
+  Returns `true` if the finder locates at least one visible widget.
+  
+  Checks visibility at `Alignment.center`.
+  
+  ```dart
+  expect($(#errorMessage).visible, false);
+  ```
+</ResponseField>
+
+<ResponseField name="isVisibleAt({Alignment alignment})" type="bool">
+  Returns `true` if the widget is visible at the specified alignment.
+  
+  ```dart
+  if ($(Card).isVisibleAt(alignment: Alignment.topLeft)) {
+    // Widget is visible
+  }
+  ```
+</ResponseField>
+
+## Usage Examples
+
+### Basic Widget Finding
+
+```dart
+patrolTest('find widgets', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Find by type
+  await $(ElevatedButton).tap();
+  
+  // Find by key
+  await $(#loginButton).tap();
+  
+  // Find by text
+  await $('Sign In').tap();
+  
+  // Find by icon
+  await $(Icons.menu).tap();
+});
+```
+
+### Chaining and Nesting
+
+```dart
+patrolTest('nested finders', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Find a button inside a specific card
+  await $(Card).$(ElevatedButton).tap();
+  
+  // Find text inside app bar
+  final title = $(AppBar).$(Text).text;
+  expect(title, 'My App');
+  
+  // Complex nesting
+  await $(Scaffold)
+    .$(BottomNavigationBar)
+    .$(Icon).at(1)
+    .tap();
+});
+```
+
+### Handling Multiple Matches
+
+```dart
+patrolTest('multiple widgets', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Tap first button
+  await $(ElevatedButton).first.tap();
+  
+  // Tap third button
+  await $(ElevatedButton).at(2).tap();
+  
+  // Tap last button
+  await $(ElevatedButton).last.tap();
+});
+```
+
+### Using Predicates
+
+```dart
+patrolTest('filter with predicate', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Find and tap only enabled buttons
+  await $(ElevatedButton)
+    .which<ElevatedButton>((btn) => btn.enabled)
+    .first
+    .tap();
+  
+  // Find text with specific color
+  final redText = $(Text).which<Text>(
+    (text) => text.style?.color == Colors.red,
+  ).text;
+});
+```
+
+### Scrolling
+
+```dart
+patrolTest('scroll to element', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Scroll to item and tap it
+  await $(Text('Item 100')).scrollTo().tap();
+  
+  // Scroll with custom parameters
+  await $(Text('Bottom Item'))
+    .scrollTo(
+      view: $(ListView),
+      step: 150,
+      maxScrolls: 50,
+    )
+    .tap();
+});
+```
+
+### Conditional Logic
+
+```dart
+patrolTest('conditional interactions', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Check if widget exists
+  if ($(Text('Optional Dialog')).exists) {
+    await $(TextButton).containing(Text('Dismiss')).tap();
+  }
+  
+  // Check if widget is visible
+  if ($(#notificationBanner).visible) {
+    await $(#dismissButton).tap();
+  }
+});
+```
+
+### Getting Text Content
+
+```dart
+patrolTest('verify text', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Get text from widget
+  final counter = $(#counterText).text;
+  expect(counter, '0');
+  
+  await $(Icons.add).tap();
+  
+  final updatedCounter = $(#counterText).text;
+  expect(updatedCounter, '1');
+});
+```
+
+### Chained Actions
+
+```dart
+patrolTest('chain actions with scrolling', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Scroll to widget, wait for it, then tap
+  await $(Text('Submit'))
+    .scrollTo()
+    .waitUntilVisible()
+    .tap();
+});
+```
+
+## createFinder() Function
+
+The underlying function that maps types to Flutter finders:
+
+```dart
+Finder createFinder(dynamic matching)
+```
+
+**Supported types:**
+- `Type` → `find.byType()`
+- `Key` → `find.byKey()`
+- `Symbol` → `find.byKey(Key(symbol.name))`
+- `String` → `find.text()`
+- `Pattern` → `find.textContaining()`
+- `IconData` → `find.byIcon()`
+- `PatrolFinder` → Returns its underlying finder
+- `Finder` → Returns itself
+- `Widget` → `find.byWidget()`
+
+## See Also
+
+- [PatrolIntegrationTester](/api/patrol-tester) - The tester that creates finders
+- [patrolTest()](/api/patrol-test) - Test function providing the tester

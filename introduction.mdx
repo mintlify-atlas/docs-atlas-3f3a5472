@@ -1,0 +1,275 @@
+---
+title: Introduction to Patrol
+description: A powerful, open-source UI testing framework for Flutter that goes beyond the limitations of integration_test
+---
+
+<Frame>
+  <img src="/images/patrol-hero.png" alt="Patrol Testing Framework" />
+</Frame>
+
+## What is Patrol?
+
+Patrol is a powerful, open-source UI testing framework designed specifically for Flutter apps. Released in September 2022 and developed by [LeanCode](https://leancode.co), one of the world's leading Flutter development consultancies, Patrol builds upon Flutter's core testing tools to enable developers to do things that were previously impossible.
+
+<CardGroup cols={2}>
+  <Card title="Native Automation" icon="mobile" href="/native/overview">
+    Interact with permission dialogs, notifications, WebViews, and device settings directly from your Dart tests
+  </Card>
+  <Card title="Custom Finders" icon="magnifying-glass" href="/finders/overview">
+    Write cleaner, more intuitive tests with Patrol's streamlined finder syntax
+  </Card>
+  <Card title="Hot Restart" icon="rotate" href="/cli/develop">
+    Develop tests faster with hot restart support - no need to rebuild your app
+  </Card>
+  <Card title="Production-Ready" icon="shield-check" href="/best-practices/effective-patrol">
+    Battle-tested in production apps with millions of users
+  </Card>
+</CardGroup>
+
+## Why Patrol?
+
+Flutter's built-in `integration_test` package is powerful, but it has significant limitations that make it difficult to test real-world scenarios. Patrol overcomes these limitations while providing a better developer experience.
+
+### Native Platform Access
+
+Unlock **native platform features** right within your Flutter tests:
+
+- Interact with **permission dialogs**, **notifications**, and **WebViews**
+- Modify **device settings**, toggle **Wi-Fi**, and control network conditions
+- Handle **system alerts** and **native UI elements**
+- Achieve all this effortlessly using plain **Dart** code
+
+<CodeGroup>
+```dart Permission Dialogs
+patrolTest('handles location permission', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Tap button that requests location permission
+  await $('Get Location').tap();
+  
+  // Handle the native permission dialog
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    await $.platform.mobile.grantPermissionWhenInUse();
+  }
+  
+  // Continue testing your app
+  expect($('Location granted'), findsOneWidget);
+});
+```
+
+```dart Notifications
+patrolTest('taps on notification', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Trigger notification
+  await $('Send Notification').tap();
+  
+  // Go to home screen
+  await $.platform.mobile.pressHome();
+  
+  // Open notification shade and tap notification
+  await $.platform.mobile.openNotifications();
+  await $.platform.mobile.tapOnNotificationBySelector(
+    Selector(textContains: 'Hello from Patrol'),
+    timeout: Duration(seconds: 5),
+  );
+  
+  // Verify app responded to notification
+  expect($('Notification tapped'), findsOneWidget);
+});
+```
+</CodeGroup>
+
+### Intuitive Custom Finders
+
+Say goodbye to verbose test code. Patrol's custom finder system makes tests readable and maintainable.
+
+<Tabs>
+  <Tab title="With Patrol">
+    ```dart
+    patrolTest('signs up', (PatrolIntegrationTester $) async {
+      await $.pumpWidgetAndSettle(AwesomeApp());
+
+      await $(#emailTextField).enterText('charlie@root.me');
+      await $(#nameTextField).enterText('Charlie');
+      await $(#passwordTextField).enterText('ny4ncat');
+      await $(#termsCheckbox).tap();
+      await $(#signUpButton).tap();
+
+      await $('Welcome, Charlie!').waitUntilVisible();
+    });
+    ```
+  </Tab>
+  <Tab title="Without Patrol">
+    ```dart
+    testWidgets('signs up', (WidgetTester tester) async {
+      await tester.pumpWidget(AwesomeApp());
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(Key('emailTextField')),
+        'charlie@root.me',
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(Key('nameTextField')),
+        'Charlie',
+      );
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.byKey(Key('passwordTextField')),
+        'ny4ncat',
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(Key('termsCheckbox')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(Key('signUpButton')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Welcome, Charlie!'), findsOneWidget);
+    });
+    ```
+  </Tab>
+</Tabs>
+
+<Info>
+Patrol's custom finders are also available standalone in the [patrol_finders](https://pub.dev/packages/patrol_finders) package for use in widget tests.
+</Info>
+
+### Production-Grade Features
+
+Patrol revolutionizes Flutter's built-in `integration_test` plugin:
+
+- **Full test isolation** between tests prevents flaky tests
+- **Test sharding** for parallel execution on CI/CD
+- **Hot Restart** makes development fast and enjoyable
+- **Console logs** provide real-time insights during test execution
+- **DevTools extension** for inspecting Android/iOS views
+
+### Compatible with Device Farms
+
+With Patrol's native-like testing capabilities, you can use popular device farms:
+
+<CardGroup cols={3}>
+  <Card title="Firebase Test Lab" icon="fire" href="/integrations/firebase-test-lab" />
+  <Card title="BrowserStack" icon="browser" href="/integrations/browserstack" />
+  <Card title="LambdaTest" icon="vial" href="/integrations/lambdatest" />
+  <Card title="Marathon" icon="person-running" />
+  <Card title="emulator.wtf" icon="mobile" />
+  <Card title="AWS Device Farm" icon="aws" />
+</CardGroup>
+
+## Platform Support
+
+Patrol supports multiple platforms with comprehensive native automation capabilities:
+
+| Platform | Support Level | Minimum Version | Native Automation |
+|----------|--------------|-----------------|-------------------|
+| **Android** | ✅ Full | API 21 (Android 5.0) | ✅ Yes |
+| **iOS** | ✅ Full | iOS 13.0 | ✅ Yes |
+| **macOS** | 🟡 Alpha | macOS 10.14 | ⏳ Coming soon |
+| **Web** | ✅ Full | Modern browsers | ✅ Yes |
+| **Windows** | ❌ Not supported | - | - |
+| **Linux** | ❌ Not supported | - | - |
+
+<Note>
+Patrol works on both physical devices and emulators/simulators for supported platforms.
+</Note>
+
+## Version Requirements
+
+To use Patrol, you need:
+
+<CodeGroup>
+```yaml pubspec.yaml
+name: my_app
+
+environment:
+  sdk: '>=3.8.0 <4.0.0'
+  flutter: '>=3.32.0'
+
+dev_dependencies:
+  patrol: ^4.1.1
+  flutter_test:
+    sdk: flutter
+```
+
+```bash CLI Installation
+flutter pub global activate patrol_cli
+```
+</CodeGroup>
+
+**Minimum requirements:**
+- **Dart SDK**: 3.8.0 or higher
+- **Flutter SDK**: 3.32.0 or higher
+- **patrol package**: 4.1.1 (current stable)
+- **patrol_cli**: 4.1.0 (current stable)
+
+<Warning>
+Make sure `patrol` and `patrol_cli` versions are compatible. See the [compatibility table](/compatibility) for details.
+</Warning>
+
+## How Patrol Works
+
+Patrol consists of three main components:
+
+1. **Dart package** (`patrol`) - The test API you use in your test code
+2. **CLI tool** (`patrol_cli`) - Runs your tests and manages the test environment
+3. **Native automation servers** - Android and iOS native code that executes platform interactions
+
+<Steps>
+  <Step title="Write tests in Dart">
+    Use Patrol's intuitive API to write tests that interact with both Flutter widgets and native platform features.
+  </Step>
+  <Step title="Run with patrol CLI">
+    The CLI builds your app in a special test mode and runs the native test runner.
+  </Step>
+  <Step title="Native automation executes">
+    Native servers on Android/iOS receive commands from your Dart code and execute platform interactions.
+  </Step>
+  <Step title="Get results">
+    Tests run to completion and you get detailed results with logs and reports.
+  </Step>
+</Steps>
+
+## Trusted by the Flutter Community
+
+Patrol is a fully open-source project used by developers and companies worldwide. At LeanCode, we use Patrol to test production-grade apps for clients across industries.
+
+<Card title="Get Started with Patrol" icon="rocket" href="/quickstart">
+  Ready to write your first test? Follow our quickstart guide to set up Patrol in minutes.
+</Card>
+
+## Need Expert Help?
+
+LeanCode offers end-to-end automated UI testing services tailored for Flutter apps:
+
+- 🚀 [Automate Flutter App Testing with Patrol](https://leancode.co/products/automated-ui-testing-in-flutter?utm_source=patrol_docs)
+- 🎓 [Patrol Setup & Training](https://leancode.co/products/patrol-setup-training?utm_source=patrol_docs)
+
+## Learn More
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="bolt" href="/quickstart">
+    Get Patrol installed and running in your project
+  </Card>
+  <Card title="Write Your First Test" icon="code" href="/write-your-first-test">
+    Follow a hands-on tutorial to write a complete test
+  </Card>
+  <Card title="GitHub Repository" icon="github" href="https://github.com/leancodepl/patrol">
+    View the source code and contribute
+  </Card>
+  <Card title="Join Discord" icon="discord" href="https://discord.gg/ukBK5t4EZg">
+    Get help from the community
+  </Card>
+</CardGroup>
+
+---
+
+<Info>
+**Video Introduction**: Watch our [YouTube video](https://www.youtube.com/watch?v=KRWgAonXH9o) for a quick introduction to Patrol.
+</Info>

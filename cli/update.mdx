@@ -1,0 +1,314 @@
+---
+title: patrol update
+description: Update Patrol CLI to the latest version
+---
+
+The `patrol update` command updates your Patrol CLI installation to the latest available version from pub.dev.
+
+## Synopsis
+
+```bash
+patrol update [options]
+```
+
+## Description
+
+This command checks for the latest version of Patrol CLI on pub.dev and updates your global installation if a newer version is available.
+
+The update process:
+1. Checks the current installed version
+2. Queries pub.dev for the latest version
+3. Compares versions
+4. Downloads and installs the update if available
+5. Reports the result
+
+## Basic Usage
+
+```bash
+patrol update
+```
+
+## Options
+
+<ParamField path="--pub-upgrade" type="boolean" default="true">
+  Whether to upgrade the `patrol` package in your `pubspec.yaml` after updating the CLI.
+  
+  ```bash
+  patrol update --pub-upgrade
+  patrol update --no-pub-upgrade
+  ```
+</ParamField>
+
+## Output
+
+### When Already Up to Date
+
+If you're already on the latest version:
+
+```
+✓ You're on the latest patrol_cli version (3.0.0)
+```
+
+Exit code: `0`
+
+### When Update Is Available
+
+If an update is available, the command will download and install it:
+
+```
+⠋ Checking if newer patrol_cli version is available
+⠋ Updating patrol_cli to version 3.1.0
+✓ Updated patrol_cli to version 3.1.0
+```
+
+Exit code: `0`
+
+### When Update Fails
+
+If the update process encounters an error:
+
+```
+✗ Failed to update patrol_cli to version 3.1.0
+[error details]
+[stack trace]
+```
+
+Exit code: `0` (command doesn't fail even if update fails)
+
+## Examples
+
+### Basic update
+
+Update to the latest version:
+
+```bash
+patrol update
+```
+
+### Update without upgrading pubspec
+
+Update CLI but don't modify `pubspec.yaml`:
+
+```bash
+patrol update --no-pub-upgrade
+```
+
+### Check current version
+
+To see your current version before updating:
+
+```bash
+patrol --version
+```
+
+## How It Works
+
+### Version Check
+
+The command queries the pub.dev API to find the latest published version of `patrol_cli`.
+
+### Installation Method
+
+Updates are performed using Dart's `pub` package manager, equivalent to:
+
+```bash
+dart pub global activate patrol_cli
+```
+
+### Package Synchronization
+
+When `--pub-upgrade` is enabled (default), the command also ensures your project's `patrol` package matches the CLI version for compatibility.
+
+## Update Strategy
+
+### Automatic Updates
+
+Patrol CLI does **not** auto-update. You must explicitly run `patrol update` to upgrade.
+
+### Version Compatibility
+
+The CLI checks compatibility between:
+- `patrol_cli` (the command-line tool)
+- `patrol` (the Dart package in your project)
+
+Keeping both in sync ensures the best experience.
+
+<Info>
+Run `patrol update` regularly to get the latest features, bug fixes, and improvements.
+</Info>
+
+## When to Update
+
+### Regular Maintenance
+
+Check for updates periodically:
+
+```bash
+patrol update
+```
+
+### Before Important Testing
+
+Update before major test runs to ensure stability:
+
+```bash
+patrol update
+patrol test
+```
+
+### After Release Announcements
+
+When new Patrol versions are announced, update to get new features:
+
+```bash
+patrol update
+```
+
+### CI/CD Environments
+
+In CI, pin to specific versions rather than using `patrol update`:
+
+```yaml
+# GitHub Actions example - pin to specific version
+- name: Install Patrol CLI
+  run: dart pub global activate patrol_cli 3.0.0
+```
+
+<Warning>
+Avoid using `patrol update` in CI/CD pipelines. Instead, pin to specific versions to ensure reproducible builds.
+</Warning>
+
+## Troubleshooting
+
+### Update Check Fails
+
+If the version check fails:
+
+```
+✗ Failed to check if newer patrol_cli version is available
+```
+
+**Possible causes:**
+- No internet connection
+- pub.dev is unavailable
+- Network firewall blocking access
+
+**Solutions:**
+1. Check your internet connection
+2. Try again later
+3. Manually check pub.dev: https://pub.dev/packages/patrol_cli
+
+### Update Fails
+
+If installation fails:
+
+```
+✗ Failed to update patrol_cli to version 3.1.0
+```
+
+**Solutions:**
+
+1. Try manual update:
+   ```bash
+   dart pub global activate patrol_cli
+   ```
+
+2. Check Dart installation:
+   ```bash
+   dart --version
+   ```
+
+3. Clear pub cache and retry:
+   ```bash
+   dart pub cache repair
+   patrol update
+   ```
+
+### Permission Errors
+
+If you see permission errors:
+
+**macOS/Linux:**
+```bash
+sudo dart pub global activate patrol_cli
+```
+
+**Windows:**
+Run command prompt as Administrator.
+
+<Note>
+Permission errors usually indicate Dart pub global bin directory isn't writable. Consider fixing directory permissions instead of using `sudo`.
+</Note>
+
+## Version Pinning
+
+For reproducible environments, install a specific version:
+
+```bash
+# Install specific version
+dart pub global activate patrol_cli 3.0.0
+
+# Later update to latest
+patrol update
+```
+
+## Exit Codes
+
+- **0**: Success (even if no update available or update fails)
+
+The command always returns `0` to avoid breaking automation scripts.
+
+## Related Commands
+
+- [patrol doctor](/cli/doctor) - Check your environment setup
+- [patrol test](/cli/test) - Run integration tests
+- `patrol --version` - Show current CLI version
+
+## Update Frequency
+
+Patrol follows [semantic versioning](https://semver.org/):
+
+- **Major versions** (e.g., 3.0.0 → 4.0.0): Breaking changes
+- **Minor versions** (e.g., 3.0.0 → 3.1.0): New features, backwards compatible
+- **Patch versions** (e.g., 3.0.0 → 3.0.1): Bug fixes
+
+<Info>
+Patrol aims to maintain backwards compatibility within major versions. Updating minor and patch versions is generally safe.
+</Info>
+
+## Checking Release Notes
+
+Before updating to a new major version, review the changelog:
+
+- [Patrol Releases](https://github.com/leancodepl/patrol/releases)
+- [pub.dev Changelog](https://pub.dev/packages/patrol_cli/changelog)
+
+## Post-Update Steps
+
+After updating:
+
+1. **Verify installation:**
+   ```bash
+   patrol --version
+   ```
+
+2. **Check environment:**
+   ```bash
+   patrol doctor
+   ```
+
+3. **Run tests:**
+   ```bash
+   patrol test
+   ```
+
+4. **Update project package:**
+   ```yaml
+   # pubspec.yaml
+   dev_dependencies:
+     patrol: ^3.1.0  # Match CLI version
+   ```
+   
+   ```bash
+   flutter pub get
+   ```

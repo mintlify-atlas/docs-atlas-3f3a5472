@@ -1,0 +1,274 @@
+---
+title: PatrolIntegrationTester
+description: Enhanced tester class that combines Flutter widget testing with native automation
+---
+
+`PatrolIntegrationTester` is the main testing interface provided to your `patrolTest()` callback. It extends `PatrolTester` with native automation capabilities through the `platform` property.
+
+## Class Definition
+
+```dart
+class PatrolIntegrationTester extends PatrolTester {
+  PatrolIntegrationTester({
+    required WidgetTester tester,
+    required PatrolTesterConfig config,
+    required PlatformAutomator platformAutomator,
+  });
+}
+```
+
+## Properties
+
+<ResponseField name="platform" type="PlatformAutomator">
+  Provides access to native automation features for interacting with Android, iOS, and Web platforms.
+  
+  This is the primary interface for native automation.
+</ResponseField>
+
+<ResponseField name="platformAutomator" type="PlatformAutomator">
+  Alternative name for `platform`. Both provide the same functionality.
+</ResponseField>
+
+<ResponseField name="tester" type="WidgetTester">
+  The underlying Flutter `WidgetTester` instance. Use this when you need direct access to Flutter's testing APIs.
+</ResponseField>
+
+<ResponseField name="config" type="PatrolTesterConfig">
+  Configuration object controlling timeouts, settle policies, and logging behavior.
+</ResponseField>
+
+## Methods
+
+### Finder Methods
+
+<ResponseField name="$(dynamic matching)" type="PatrolFinder">
+  Creates a custom Patrol finder. This is a callable method that makes the tester instance itself callable.
+  
+  Accepts: `Type`, `Key`, `Symbol`, `String`, `Pattern`, `IconData`, `Widget`, `Finder`, or `PatrolFinder`.
+  
+  ```dart
+  // Find by widget type
+  $(ElevatedButton)
+  
+  // Find by key (using Symbol)
+  $(#loginButton)
+  
+  // Find by text
+  $('Submit')
+  
+  // Find by icon
+  $(Icons.add)
+  ```
+</ResponseField>
+
+<ResponseField name="log(String message)" type="void">
+  Logs a message to the Patrol log output.
+  
+  ```dart
+  $.log('Starting login flow');
+  ```
+</ResponseField>
+
+### Widget Interaction Methods
+
+<ResponseField name="tap(Finder finder, {...})" type="Future<void>">
+  Waits for a widget to be visible and taps it.
+  
+  **Parameters:**
+  - `settlePolicy` - How to pump frames after tapping
+  - `visibleTimeout` - How long to wait for visibility
+  - `settleTimeout` - Timeout for settling
+  - `alignment` - Where to tap within the widget
+  
+  ```dart
+  await $.tap($(#submitButton));
+  ```
+</ResponseField>
+
+<ResponseField name="longPress(Finder finder, {...})" type="Future<void>">
+  Waits for a widget to be visible and performs a long press.
+  
+  ```dart
+  await $.longPress($(#deleteButton));
+  ```
+</ResponseField>
+
+<ResponseField name="enterText(Finder finder, String text, {...})" type="Future<void>">
+  Waits for a text field to be visible and enters text.
+  
+  ```dart
+  await $.enterText($(TextField).first, 'user@example.com');
+  ```
+</ResponseField>
+
+### Waiting Methods
+
+<ResponseField name="waitUntilVisible(Finder finder, {...})" type="Future<PatrolFinder>">
+  Waits until the finder locates at least one visible widget.
+  
+  **Parameters:**
+  - `timeout` - Maximum time to wait (defaults to `config.visibleTimeout`)
+  - `alignment` - Point to check for visibility
+  
+  ```dart
+  await $.waitUntilVisible($(Text('Welcome')));
+  ```
+</ResponseField>
+
+<ResponseField name="waitUntilExists(Finder finder, {...})" type="Future<PatrolFinder>">
+  Waits until the finder locates at least one widget (doesn't need to be visible).
+  
+  ```dart
+  await $.waitUntilExists($(Text('Hidden')));
+  ```
+</ResponseField>
+
+### Scrolling Methods
+
+<ResponseField name="scrollUntilVisible({required Finder finder, ...})" type="Future<PatrolFinder>">
+  Scrolls a view until the target widget becomes visible.
+  
+  **Parameters:**
+  - `finder` - The widget to scroll to
+  - `view` - The scrollable widget (defaults to first Scrollable)
+  - `delta` - Distance to scroll per iteration
+  - `scrollDirection` - Direction to scroll
+  - `maxScrolls` - Maximum scroll attempts
+  
+  ```dart
+  await $.scrollUntilVisible(
+    finder: $(Text('Bottom Item')),
+    view: $(ListView),
+  );
+  ```
+</ResponseField>
+
+<ResponseField name="scrollUntilExists({...})" type="Future<PatrolFinder>">
+  Similar to `scrollUntilVisible`, but scrolls until the widget exists (not necessarily visible).
+</ResponseField>
+
+### Pump Methods
+
+<ResponseField name="pumpWidget(Widget widget, [...])" type="Future<void>">
+  Renders a widget in the test environment. See `WidgetTester.pumpWidget`.
+</ResponseField>
+
+<ResponseField name="pumpWidgetAndSettle(Widget widget, {...})" type="Future<void>">
+  Renders a widget and waits for all animations to complete.
+  
+  ```dart
+  await $.pumpWidgetAndSettle(MyApp());
+  ```
+</ResponseField>
+
+<ResponseField name="pump([Duration? duration])" type="Future<void>">
+  Triggers a single frame. See `WidgetTester.pump`.
+</ResponseField>
+
+<ResponseField name="pumpAndSettle({...})" type="Future<void>">
+  Repeatedly pumps frames until there are no more pending frames.
+</ResponseField>
+
+<ResponseField name="pumpAndTrySettle({...})" type="Future<void>">
+  Like `pumpAndSettle`, but doesn't throw if it times out (useful for infinite animations).
+</ResponseField>
+
+## Usage Examples
+
+### Basic Widget Testing
+
+```dart
+patrolTest('login form validation', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Enter email
+  await $(#emailField).enterText('user@example.com');
+  
+  // Enter password
+  await $(#passwordField).enterText('password123');
+  
+  // Submit
+  await $(#loginButton).tap();
+  
+  // Verify success
+  await $(Text('Welcome')).waitUntilVisible();
+});
+```
+
+### Scrolling to Elements
+
+```dart
+patrolTest('scroll to item in list', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Scroll to find a specific item
+  await $.scrollUntilVisible(
+    finder: $(Text('Item 50')),
+    view: $(ListView),
+    delta: 100,
+  );
+  
+  await $(Text('Item 50')).tap();
+});
+```
+
+### Combined Flutter + Native Testing
+
+```dart
+patrolTest('handle system permission dialog', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  // Tap button in Flutter app
+  await $('Request Location').tap();
+  
+  // Handle native permission dialog
+  await $.platform.mobile.grantPermissionWhenInUse();
+  
+  // Verify permission granted in Flutter
+  await $(Text('Location Enabled')).waitUntilVisible();
+});
+```
+
+### Using Custom Configuration
+
+```dart
+patrolTest(
+  'test with custom config',
+  ($) async {
+    // Custom timeout for this specific wait
+    await $(Text('Slow Widget')).waitUntilVisible(
+      timeout: Duration(seconds: 30),
+    );
+    
+    // Don't settle after tap (useful with infinite animations)
+    await $(#animatedButton).tap(
+      settlePolicy: SettlePolicy.noSettle,
+    );
+  },
+  config: PatrolTesterConfig(
+    visibleTimeout: Duration(seconds: 20),
+    settlePolicy: SettlePolicy.trySettle,
+  ),
+);
+```
+
+### Logging
+
+```dart
+patrolTest('test with logging', ($) async {
+  $.log('Starting test');
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  $.log('Attempting login');
+  await $(#loginButton).tap();
+  
+  $.log('Verifying success');
+  await $(Text('Dashboard')).waitUntilVisible();
+});
+```
+
+## See Also
+
+- [patrolTest()](/api/patrol-test) - Function that creates test and provides this tester
+- [PatrolFinder](/api/custom-finders) - Custom finder returned by `$()`
+- [PlatformAutomator](/api/native-automator) - Native automation interface

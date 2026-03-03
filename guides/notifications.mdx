@@ -1,0 +1,434 @@
+---
+title: Testing Notifications
+description: Learn how to test push notifications and notification interactions with Patrol
+---
+
+Notifications are a critical part of many mobile apps. Patrol provides native automation to test notification display, interaction, and handling across Android and iOS.
+
+## Overview
+
+With Patrol, you can:
+- Open and close the notification shade
+- Retrieve visible notifications
+- Tap on specific notifications
+- Test notification permissions
+- Verify notification content
+
+## Key Methods
+
+<CardGroup cols={2}>
+  <Card title="openNotifications" icon="bell">
+    Open the notification shade to view notifications
+  </Card>
+  <Card title="getNotifications" icon="list">
+    Retrieve all visible notifications
+  </Card>
+  <Card title="tapOnNotificationBySelector" icon="hand-pointer">
+    Tap on a notification matching specific criteria
+  </Card>
+  <Card title="closeNotifications" icon="xmark">
+    Close the notification shade
+  </Card>
+</CardGroup>
+
+## Basic Notification Testing
+
+<Steps>
+  <Step title="Setup notification permissions">
+    Request and grant notification permissions:
+    
+    ```dart
+    import 'package:patrol/patrol.dart';
+    
+    void main() {
+      patrolTest('taps on notification', ($) async {
+        await $.pumpWidgetAndSettle(const MyApp());
+        await $('Open notifications screen').scrollTo().tap();
+        
+        // Grant notification permission if requested
+        if (await $.platform.mobile.isPermissionDialogVisible()) {
+          await $.platform.mobile.grantPermissionWhenInUse();
+        }
+      });
+    }
+    ```
+  </Step>
+  
+  <Step title="Trigger a notification">
+    Use your app to schedule or trigger a notification:
+    
+    ```dart
+    // Trigger a notification in your app
+    await $('Send notification').tap();
+    ```
+  </Step>
+  
+  <Step title="Open notification shade and interact">
+    Open the notification shade and interact with notifications:
+    
+    ```dart
+    // Go to home screen
+    await $.platform.mobile.pressHome();
+    
+    // Open notification shade
+    await $.platform.mobile.openNotifications();
+    
+    // Wait for notification to appear
+    await Future<void>.delayed(const Duration(seconds: 2));
+    
+    // Tap on the notification
+    await $.platform.mobile.tapOnNotificationBySelector(
+      Selector(textContains: 'New message'),
+    );
+    ```
+  </Step>
+</Steps>
+
+## Complete Examples
+
+### Testing Notification Tap
+
+Test that tapping a notification opens the correct screen:
+
+```dart title="patrol_test/notification_tap_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest('taps on notification and opens detail screen', ($) async {
+    await $.pumpWidgetAndSettle(const MyApp());
+    await $('Open notifications screen').scrollTo().tap();
+
+    // Grant notification permission
+    if (await $.platform.mobile.isPermissionDialogVisible()) {
+      await $.platform.mobile.grantPermissionWhenInUse();
+    }
+
+    // Schedule a notification to appear in 3 seconds
+    await $('Schedule notification').tap();
+    
+    // Go to home screen
+    await $.platform.mobile.pressHome();
+    
+    // Open notification shade
+    await $.platform.mobile.openNotifications();
+
+    // Wait for notification to show up
+    await Future<void>.delayed(const Duration(seconds: 5));
+
+    // Tap on the notification
+    await $.platform.mobile.tapOnNotificationBySelector(
+      Selector(textContains: 'Someone liked'),
+    );
+
+    // Verify the app opened to the correct screen
+    await $('Notification Detail Screen').waitUntilVisible();
+  });
+}
+```
+
+### Retrieving Notification Content
+
+Retrieve and verify notification details:
+
+```dart title="patrol_test/notification_content_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest('verifies notification content', ($) async {
+    await $.pumpWidgetAndSettle(const MyApp());
+    
+    // Trigger notification
+    await $('Send test notification').tap();
+    
+    // Go to home and open notifications
+    await $.platform.mobile.pressHome();
+    await $.platform.mobile.openNotifications();
+    await Future<void>.delayed(const Duration(seconds: 2));
+
+    // Get all notifications
+    final notifications = await $.platform.mobile.getNotifications();
+    
+    // Verify notification exists
+    expect(notifications.length, greaterThan(0));
+    
+    // Get the first notification
+    final firstNotification = await $.platform.mobile.getFirstNotification();
+    
+    // Verify notification content
+    expect(firstNotification.title, contains('New Message'));
+    expect(firstNotification.content, contains('Hello from Patrol'));
+    
+    // Close notifications
+    await $.platform.mobile.closeNotifications();
+  });
+}
+```
+
+### Testing Multiple Notifications
+
+Test tapping on specific notifications when multiple are present:
+
+```dart title="patrol_test/multiple_notifications_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest('handles multiple notifications', ($) async {
+    await $.pumpWidgetAndSettle(const MyApp());
+    
+    // Send multiple notifications
+    await $('Send notification 1').tap();
+    await Future<void>.delayed(const Duration(seconds: 1));
+    await $('Send notification 2').tap();
+    await Future<void>.delayed(const Duration(seconds: 1));
+    await $('Send notification 3').tap();
+    
+    await $.platform.mobile.pressHome();
+    await $.platform.mobile.openNotifications();
+    await Future<void>.delayed(const Duration(seconds: 3));
+
+    // Get all notifications
+    final notifications = await $.platform.mobile.getNotifications();
+    expect(notifications.length, equals(3));
+    
+    // Tap on second notification by index
+    await $.platform.mobile.tapOnNotificationByIndex(1);
+    
+    // Or tap by specific content
+    await $.platform.mobile.openNotifications();
+    await $.platform.mobile.tapOnNotificationBySelector(
+      Selector(textContains: 'notification 2'),
+    );
+  });
+}
+```
+
+## Using NativeSelector (New API)
+
+Patrol's new `NativeSelector` API provides better type safety:
+
+```dart title="patrol_test/notification_native2_test.dart"
+import 'package:patrol/patrol.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  patrolTest('taps on notification using native2', ($) async {
+    await $.pumpWidgetAndSettle(const MyApp());
+    await $('Open notifications screen').scrollTo().tap();
+
+    if (await $.native2.isPermissionDialogVisible()) {
+      await $.native2.grantPermissionWhenInUse();
+    }
+
+    await $('Schedule notification').tap();
+    await $.native2.pressHome();
+    await $.native2.openNotifications();
+
+    await Future<void>.delayed(const Duration(seconds: 5));
+
+    // Use NativeSelector for platform-specific selectors
+    await $.native2.tapOnNotificationBySelector(
+      NativeSelector(
+        android: AndroidSelector(textContains: 'Someone liked'),
+        ios: IOSSelector(titleContains: 'Someone liked'),
+      ),
+    );
+
+    await $('Notification Detail Screen').waitUntilVisible();
+  });
+}
+```
+
+## Android 14+ Special Permissions
+
+<Warning>
+Android 14+ requires an additional permission to schedule notifications. Handle this in your tests:
+</Warning>
+
+```dart
+import 'dart:io' as io;
+import 'package:patrol/patrol.dart';
+
+patrolTest('handles Android 14+ alarm permission', ($) async {
+  await $.pumpWidgetAndSettle(const MyApp());
+  await $('Open notifications screen').scrollTo().tap();
+
+  if (await $.platform.mobile.isPermissionDialogVisible()) {
+    await $.platform.mobile.grantPermissionWhenInUse();
+  }
+
+  // Android 14+ requires additional permission to schedule notifications
+  if (io.Platform.isAndroid) {
+    final android14PermissionSelector = Selector(
+      text: 'Allow setting alarms and reminders',
+    );
+    final android14PermissionScreen = await $.native.getNativeViews(
+      android14PermissionSelector,
+    );
+    if (android14PermissionScreen.isNotEmpty) {
+      await $.native.tap(android14PermissionSelector);
+      await $.native.pressBack();
+    }
+  }
+
+  // Now schedule notification
+  await $('Schedule notification').tap();
+});
+```
+
+## Platform Differences
+
+<Tabs>
+  <Tab title="Android">
+    ### Android Notification System
+    
+    On Android, notifications appear in the notification shade which can be accessed by swiping down from the top of the screen.
+    
+    **Key considerations:**
+    - Notification channels (Android 8.0+) affect notification behavior
+    - Different Android versions have different notification layouts
+    - Some manufacturers customize notification appearance
+    
+    ```dart
+    // Android-specific selector
+    await $.native.tapOnNotificationBySelector(
+      Selector(
+        textContains: 'Message',
+        resourceId: 'android:id/notification_text',
+      ),
+    );
+    ```
+  </Tab>
+  
+  <Tab title="iOS">
+    ### iOS Notification System
+    
+    On iOS, notifications appear in the Notification Center which can be accessed by swiping down from the top.
+    
+    **Key considerations:**
+    - Lock screen notifications vs notification center
+    - Notification grouping by app
+    - Different notification styles (banner, alert)
+    
+    ```dart
+    // iOS-specific selector
+    await $.native2.tapOnNotificationBySelector(
+      NativeSelector(
+        ios: IOSSelector(
+          titleContains: 'Message',
+          elementType: IOSElementType.staticText,
+        ),
+      ),
+    );
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Wait for notifications to appear">
+    Notifications may take time to appear. Always add appropriate delays:
+    
+    ```dart
+    await $.platform.mobile.openNotifications();
+    await Future<void>.delayed(const Duration(seconds: 3));
+    ```
+  </Accordion>
+  
+  <Accordion title="Go to home screen before opening notifications">
+    For more reliable testing, navigate to the home screen first:
+    
+    ```dart
+    await $.platform.mobile.pressHome();
+    await $.platform.mobile.openNotifications();
+    ```
+  </Accordion>
+  
+  <Accordion title="Use specific selectors">
+    Be specific with your selectors to avoid tapping the wrong notification:
+    
+    ```dart
+    // Good - specific
+    await $.platform.mobile.tapOnNotificationBySelector(
+      Selector(textContains: 'Order #12345 shipped'),
+    );
+    
+    // Bad - too generic
+    await $.platform.mobile.tapOnNotificationBySelector(
+      Selector(textContains: 'shipped'),
+    );
+    ```
+  </Accordion>
+  
+  <Accordion title="Close notifications after testing">
+    Clean up by closing the notification shade:
+    
+    ```dart
+    await $.platform.mobile.closeNotifications();
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Notification Object Structure
+
+The `Notification` object returned by Patrol contains:
+
+```dart
+class Notification {
+  final String title;      // Notification title
+  final String content;    // Notification body/content
+  final String? appName;   // App that sent the notification
+  final String? raw;       // Raw notification data
+}
+```
+
+Example usage:
+
+```dart
+final notification = await $.platform.mobile.getFirstNotification();
+print('Title: ${notification.title}');
+print('Content: ${notification.content}');
+print('From: ${notification.appName}');
+```
+
+<Info>
+Notification testing requires the app to be running in the background or on the home screen. Notifications won't appear in the shade while your app is in the foreground on most devices.
+</Info>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Notification not appearing">
+    - Ensure notification permissions are granted
+    - Check if app is in background (call `pressHome()` first)
+    - Add sufficient delay after triggering notification
+    - Verify notification channels are properly configured (Android)
+  </Accordion>
+  
+  <Accordion title="Can't tap on notification">
+    - Verify the selector matches the notification content
+    - Use `getNotifications()` to inspect available notifications
+    - Ensure notification shade is open
+    - Check for device-specific notification layouts
+  </Accordion>
+  
+  <Accordion title="Test flaky on CI">
+    - Increase wait times for notification appearance
+    - Ensure stable network connection for push notifications
+    - Use `waitUntilVisible()` instead of fixed delays
+    - Consider using local notifications for testing instead of push
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+For more reliable tests, use local scheduled notifications instead of remote push notifications. This eliminates network dependencies and makes tests more deterministic.
+</Tip>
+
+## Related Resources
+
+- [flutter_local_notifications package](https://pub.dev/packages/flutter_local_notifications)
+- [Android Notification Guide](https://developer.android.com/guide/topics/ui/notifiers/notifications)
+- [iOS Notification Guide](https://developer.apple.com/documentation/usernotifications)

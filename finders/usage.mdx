@@ -1,0 +1,440 @@
+---
+title: Usage
+description: Learn how to find widgets, make assertions, and perform actions with Patrol finders
+---
+
+This page introduces Patrol's finder system and shows you how to use it effectively in your tests.
+
+## Finding Widgets
+
+The `$` operator is the heart of Patrol's finder system. It provides a concise way to find widgets by various criteria.
+
+### By Type
+
+Find widgets by their type:
+
+<CodeGroup>
+
+```dart Patrol
+$(Text)
+$(Icon)
+$(ElevatedButton)
+```
+
+```dart Flutter (equivalent)
+find.byType(Text)
+find.byType(Icon)
+find.byType(ElevatedButton)
+```
+
+</CodeGroup>
+
+### By Text
+
+Find widgets containing specific text:
+
+<CodeGroup>
+
+```dart Patrol
+$('Subscribe')
+$('Log in')
+$('Welcome, Charlie!')
+```
+
+```dart Flutter (equivalent)
+find.text('Subscribe')
+find.text('Log in')
+find.text('Welcome, Charlie!')
+```
+
+</CodeGroup>
+
+### By Key
+
+Patrol offers three ways to find widgets by key—all equivalent:
+
+```dart
+// Symbol syntax (recommended - most concise)
+$(#loginButton)
+
+// Symbol constant
+$(const Symbol('loginButton'))
+
+// Key object
+$(Key('loginButton'))
+```
+
+<Tip>
+The `#` symbol syntax is Dart's [Symbol](https://api.dart.dev/dart-core/Symbol-class.html) literal. It's the most concise way to reference keys!
+</Tip>
+
+### By Pattern
+
+Find widgets with text matching a pattern using RegExp:
+
+```dart
+// Exact match
+$(RegExp('Hello'))
+
+// Pattern matching
+$(RegExp('Hell.*'))
+$(RegExp('.*ello'))
+$(RegExp('.*ell.*'))
+```
+
+### By Icon
+
+Find widgets by their icon data:
+
+```dart
+$(Icons.add)
+$(Icons.delete)
+$(Icons.front_hand)
+```
+
+### By Widget Instance
+
+Find a specific widget instance:
+
+```dart
+final widget = $('Hello').evaluate().first.widget;
+expect($(widget), findsOneWidget);
+```
+
+### Using Flutter Finders
+
+You can also wrap Flutter's built-in finders with `$`:
+
+```dart
+// Use semantics finder
+await $(find.bySemanticsLabel('Edit profile')).tap();
+
+// Use any Flutter finder
+$(find.text('Hello'))
+$(find.byWidgetPredicate((widget) => widget is Text))
+```
+
+<Info>
+See the complete list of supported types in the [createFinder documentation](https://pub.dev/documentation/patrol_finders/latest/patrol_finders/createFinder.html).
+</Info>
+
+## Making Assertions
+
+Patrol finders work seamlessly with Flutter's matcher system.
+
+### Standard Matchers
+
+Use Flutter's built-in matchers:
+
+```dart
+expect($('Log in'), findsOneWidget);
+expect($('Error message'), findsNothing);
+expect($(Card), findsNWidgets(3));
+```
+
+### Existence Check
+
+Use the `exists` getter to check if at least one widget was found:
+
+```dart
+expect($('Log in').exists, equals(true));
+expect($('Error message').exists, equals(false));
+```
+
+### Visibility Check
+
+Check if a widget is actually visible on screen:
+
+```dart
+// Check visibility at center (default)
+expect($('Log in').visible, equals(true));
+
+// Check visibility at specific alignment
+expect($(TextField).isVisibleAt(alignment: Alignment.topLeft), equals(true));
+```
+
+<Warning>
+Flutter's default matchers like `findsOneWidget` only check if a widget exists in the widget tree, not if it's visible to the user. Use the `visible` getter for visibility checks!
+</Warning>
+
+### Extracting Text
+
+Get the text from a Text or RichText widget:
+
+```dart
+expect($(#signInButton).text, equals('Sign in'));
+
+// Wait for visibility first to avoid errors
+expect(
+  await $(#statusLabel).waitUntilVisible().text,
+  equals('Success'),
+);
+```
+
+## Performing Actions
+
+Patrol finders make it easy to interact with widgets. All actions automatically wait for widgets to become visible before acting.
+
+### Tapping
+
+Tap on a widget:
+
+```dart
+// Tap on first widget found
+await $('Subscribe').tap();
+
+// Tap on specific widget by index
+await $('Subscribe').at(2).tap();
+
+// Tap at specific alignment
+await $(#button).tap(alignment: Alignment.topRight);
+```
+
+<Info>
+**Smart waiting**: `tap()` doesn't immediately fail if the widget isn't visible. It waits up to the configured timeout and taps as soon as the widget becomes visible!
+</Info>
+
+### Long Press
+
+Perform a long press gesture:
+
+```dart
+await $(#contextMenu).longPress();
+
+// Long press on third item
+await $(ListTile).at(2).longPress();
+```
+
+### Entering Text
+
+Enter text into text fields:
+
+```dart
+await $(#emailField).enterText('user@example.com');
+await $(#passwordField).enterText('secret123');
+
+// Enter text into third TextField
+await $(TextField).at(2).enterText('Code ought to be lean');
+```
+
+### Scrolling
+
+Scroll to a widget and make it visible:
+
+```dart
+// Scroll to widget in the first Scrollable
+await $('Delete account').scrollTo().tap();
+
+// Scroll in specific direction
+await $('Bottom item').scrollTo(
+  scrollDirection: AxisDirection.down,
+);
+
+// Customize scroll behavior
+await $('Far away widget').scrollTo(
+  step: 128.0,  // pixels per scroll
+  maxScrolls: 50,  // maximum scroll attempts
+);
+```
+
+### Waiting for Visibility
+
+Wait for a widget to appear:
+
+```dart
+// Wait for widget to become visible
+await $('Success message').waitUntilVisible();
+
+// Wait with custom timeout
+await $('Slow loader').waitUntilVisible(
+  timeout: Duration(seconds: 30),
+);
+
+// Wait for existence (not necessarily visible)
+await $('Background widget').waitUntilExists();
+```
+
+### Action Configuration
+
+All actions accept optional parameters:
+
+```dart
+await $('Button').tap(
+  settlePolicy: SettlePolicy.settle,  // How to pump frames
+  visibleTimeout: Duration(seconds: 20),  // Wait time
+  settleTimeout: Duration(seconds: 10),  // Settle time
+  alignment: Alignment.center,  // Where to tap
+);
+```
+
+## Chaining Finders
+
+One of Patrol's most powerful features is the ability to chain finders to express widget hierarchies.
+
+### Basic Chaining
+
+Find descendants using the `$()` method:
+
+<CodeGroup>
+
+```dart Patrol
+await $(ListView).$('Subscribe').tap();
+```
+
+```dart Flutter (equivalent)
+await tester.tap(
+  find.descendant(
+    of: find.byType(ListView),
+    matching: find.text('Subscribe'),
+  ).first
+);
+```
+
+</CodeGroup>
+
+### Multi-level Chaining
+
+Chain multiple levels deep:
+
+<CodeGroup>
+
+```dart Patrol
+await $(ListView).$(ListTile).$('Subscribe').tap();
+```
+
+```dart Flutter (equivalent)
+await tester.tap(
+  find.descendant(
+    of: find.byType(ListView),
+    matching: find.descendant(
+      of: find.byType(ListTile),
+      matching: find.text('Subscribe'),
+    ),
+  ).first
+);
+```
+
+</CodeGroup>
+
+### Using `containing()`
+
+Find ancestors that contain specific descendants:
+
+```dart
+// Find ListTile containing 'Activated' text, then find #learnMore within it
+await $(ListTile).containing('Activated').$(#learnMore).tap();
+
+// Find Scrollable containing both ElevatedButton and Text
+await $(Scrollable)
+  .containing(ElevatedButton)
+  .containing(Text)
+  .tap();
+```
+
+<CodeGroup>
+
+```dart Patrol
+await $(ListTile).containing('Activated').$(#learnMore).tap();
+```
+
+```dart Flutter (equivalent)
+await tester.tap(
+  find.ancestor(
+    of: find.text('Activated'),
+    matching: find.descendant(
+      of: find.byType(ListTile),
+      matching: find.byKey(Key('learnMore')),
+    ),
+  ).first
+);
+```
+
+</CodeGroup>
+
+## Selecting Specific Widgets
+
+When multiple widgets match, you can select specific ones:
+
+```dart
+// Get first widget (default for actions)
+await $('Subscribe').first.tap();
+
+// Get last widget
+await $('Subscribe').last.tap();
+
+// Get widget at index
+await $('Subscribe').at(2).tap();
+```
+
+<Note>
+Indexing is zero-based: `.at(0)` gets the first widget, `.at(1)` gets the second, etc.
+</Note>
+
+## Working with WidgetTester
+
+Patrol builds on top of `flutter_test`, so you can always fall back to `WidgetTester`:
+
+```dart
+patrolWidgetTest('mixed approach', (PatrolTester $) async {
+  // Access underlying WidgetTester
+  final WidgetTester tester = $.tester;
+
+  // Use Flutter's API when needed
+  await tester.enterText(
+    find.byKey(Key('specialField')),
+    'value',
+  );
+  
+  // Mix with Patrol syntax
+  await $(#submitButton).tap();
+});
+```
+
+## Complete Example
+
+Here's a comprehensive example showing multiple techniques:
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:patrol_finders/patrol_finders.dart';
+
+void main() {
+  patrolWidgetTest(
+    'user signs up successfully',
+    ($) async {
+      await $.pumpWidgetAndSettle(const MyApp());
+
+      // Find by key and enter text
+      await $(#emailTextField).enterText('charlie@root.me');
+      await $(#nameTextField).enterText('Charlie');
+      await $(#passwordTextField).enterText('ny4ncat');
+
+      // Scroll to checkbox and tap
+      await $(#termsCheckbox).scrollTo().tap();
+
+      // Find button by text and tap
+      await $('Sign Up').tap();
+
+      // Wait for success message
+      await $('Welcome, Charlie!').waitUntilVisible();
+
+      // Make assertions
+      expect($('Welcome, Charlie!').visible, true);
+      expect($(Icons.check_circle).exists, true);
+    },
+  );
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Advanced Techniques" icon="graduation-cap" href="/finders/advanced">
+    Learn about `which()`, complex scrolling, and settle policies
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Explore the complete PatrolFinder API documentation
+  </Card>
+</CardGroup>

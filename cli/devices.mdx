@@ -1,0 +1,162 @@
+---
+title: patrol devices
+description: List attached devices, simulators, and emulators for testing
+---
+
+The `patrol devices` command lists all available devices, simulators, and emulators that can be used for running integration tests.
+
+## Synopsis
+
+```bash
+patrol devices
+```
+
+## Description
+
+This command provides a simpler, Patrol-aware alternative to `flutter devices`. It discovers and lists all attached physical devices, running simulators (iOS), and emulators (Android) that are available for testing.
+
+The command is useful for:
+- Identifying which devices are available before running tests
+- Getting device IDs for use with `patrol test --device`
+- Verifying that your devices are properly connected and recognized
+
+## Basic Usage
+
+```bash
+patrol devices
+```
+
+This will output a list of all available devices with their names and IDs:
+
+```
+iPhone 15 Pro (A1B2C3D4-E5F6-7890-ABCD-EF1234567890)
+Pixel 7 emulator (emulator-5554)
+iPad Air (12345678-90AB-CDEF-1234-567890ABCDEF)
+```
+
+## Output Format
+
+Each device is displayed on a separate line with the following format:
+
+```
+<device_name> (<device_id>)
+```
+
+- **device_name**: The human-readable name of the device
+- **device_id**: The unique identifier used to target this device
+
+## Using Device IDs
+
+Once you have a device ID from this command, you can use it with `patrol test`:
+
+```bash
+# Get list of devices
+patrol devices
+
+# Use a specific device ID
+patrol test --device emulator-5554
+patrol test --device "iPhone 15 Pro"
+```
+
+<Info>
+You can specify devices by either their ID or name when using the `--device` flag.
+</Info>
+
+## Examples
+
+### Check available devices
+
+```bash
+patrol devices
+```
+
+**Example output:**
+
+```
+iPhone 15 Pro (A1B2C3D4-E5F6-7890-ABCD-EF1234567890)
+Pixel 7 API 34 (emulator-5554)
+```
+
+### No devices found
+
+If no devices are available, you'll see:
+
+```
+No devices attached
+```
+
+Exit code: `1`
+
+## Device Types
+
+The command detects various types of devices:
+
+### Android
+
+- Physical Android devices connected via USB
+- Android emulators running on your machine
+- Remote Android devices (when properly configured)
+
+### iOS
+
+- iOS Simulators running on macOS
+- Physical iOS devices connected to macOS
+- Remote iOS devices (when properly configured)
+
+### macOS
+
+- macOS desktop (when available)
+
+### Web
+
+- Chrome browser (for web testing)
+
+## Troubleshooting
+
+### No devices showing up
+
+If expected devices don't appear:
+
+**For Android:**
+1. Ensure `adb` is installed and in your PATH
+2. Check USB debugging is enabled on physical devices
+3. Verify emulators are running: `adb devices`
+4. Check `ANDROID_HOME` environment variable is set
+
+**For iOS:**
+1. Ensure Xcode is installed on macOS
+2. Verify simulators are booted: `xcrun simctl list devices`
+3. For physical devices, check they're trusted and connected
+4. Run `patrol doctor` to verify iOS tooling
+
+### Checking your environment
+
+Run `patrol doctor` to diagnose environment issues:
+
+```bash
+patrol doctor
+```
+
+## Exit Codes
+
+- **0**: Success - at least one device was found
+- **1**: No devices found or error occurred
+
+## Related Commands
+
+- [patrol test](/cli/test) - Run tests on a specific device
+- [patrol doctor](/cli/doctor) - Check your development environment
+- [patrol develop](/cli/develop) - Develop tests on a device
+
+## Comparison with flutter devices
+
+While `flutter devices` provides comprehensive device information, `patrol devices` offers:
+
+- Simpler, more focused output
+- Faster execution
+- Better integration with Patrol commands
+- Consistent formatting for automation
+
+<Note>
+Both commands use the same underlying device detection mechanism, so they should show the same devices.
+</Note>

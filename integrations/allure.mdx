@@ -1,0 +1,515 @@
+---
+title: Allure Reports
+description: Generate beautiful and detailed Allure test reports for your Patrol tests on Android
+---
+
+[Allure](https://qameta.io/allure-report) is a flexible, lightweight test reporting tool that provides clear and detailed test reports with rich visualizations. This guide shows you how to integrate Allure reporting with your Patrol tests.
+
+<Warning>
+  This integration is currently **Android-only**. iOS support may be added in future releases.
+</Warning>
+
+## Overview
+
+Allure integration enhances your Patrol test reports with:
+- Automatic screenshot capture at test completion
+- Window hierarchy dumps for UI debugging
+- Logcat logs embedded in reports
+- Rich test execution timeline
+- Categorized test results
+- Trend analysis across test runs
+
+<Info>
+  Before you proceed, make sure you've completed the [native setup](/native-setup) guide.
+</Info>
+
+## Why Allure?
+
+Allure provides a significantly more detailed view of your test execution compared to standard JUnit reports. It's particularly useful for:
+- Debugging test failures with screenshots and logs
+- Understanding test execution flow
+- Tracking test trends over time
+- Sharing results with non-technical stakeholders
+
+## Prerequisites
+
+This guide assumes basic familiarity with Allure. If you're new to Allure:
+- [Official Allure Documentation](https://docs.qameta.io/allure-report)
+- [Allure Framework GitHub](https://github.com/allure-framework/allure2)
+
+## Setup
+
+<Steps>
+  <Step title="Add dependencies">
+    Update your **app-level build.gradle** file to add Allure dependencies:
+
+    <CodeGroup>
+    ```groovy build.gradle
+    android {
+      // ...
+      defaultConfig {
+        // ...
+        
+        // Replace the existing testInstrumentationRunner
+        testInstrumentationRunner "pl.leancode.patrol.example.AllurePatrolJUnitRunner"
+      }
+      // ...
+    }
+
+    dependencies {
+      // ... existing dependencies ...
+      
+      // Allure dependencies
+      androidTestImplementation "io.qameta.allure:allure-kotlin-model:2.4.0"
+      androidTestImplementation "io.qameta.allure:allure-kotlin-commons:2.4.0"
+      androidTestImplementation "io.qameta.allure:allure-kotlin-junit4:2.4.0"
+      androidTestImplementation "io.qameta.allure:allure-kotlin-android:2.4.0"
+    }
+    ```
+
+    ```kotlin build.gradle.kts
+    android {
+      // ...
+      defaultConfig {
+        // ...
+        
+        // Replace the existing testInstrumentationRunner
+        testInstrumentationRunner = "pl.leancode.patrol.example.AllurePatrolJUnitRunner"
+      }
+      // ...
+    }
+
+    dependencies {
+      // ... existing dependencies ...
+      
+      // Allure dependencies
+      androidTestImplementation("io.qameta.allure:allure-kotlin-model:2.4.0")
+      androidTestImplementation("io.qameta.allure:allure-kotlin-commons:2.4.0")
+      androidTestImplementation("io.qameta.allure:allure-kotlin-junit4:2.4.0")
+      androidTestImplementation("io.qameta.allure:allure-kotlin-android:2.4.0")
+    }
+    ```
+    </CodeGroup>
+
+    <Warning>
+      **Important:** Replace `pl.leancode.patrol.example` with your app's actual package name. You'll find this at the top of your `MainActivityTest.java` file.
+    </Warning>
+
+    For more details, see the [allure-kotlin README](https://github.com/allure-framework/allure-kotlin/blob/master/README.md).
+  </Step>
+
+  <Step title="Create custom test runner">
+    Create a new Kotlin file named `AllurePatrolJUnitRunner.kt` in the same directory as your `MainActivityTest.java` file (typically `android/app/src/androidTest/java/your/package/`):
+
+    ```kotlin title="AllurePatrolJUnitRunner.kt"
+    package pl.leancode.patrol.example // Replace with your app's package name
+
+    import android.os.Bundle
+    import io.qameta.allure.android.AllureAndroidLifecycle
+    import io.qameta.allure.android.listeners.ExternalStoragePermissionsListener
+    import io.qameta.allure.android.writer.TestStorageResultsWriter
+    import io.qameta.allure.kotlin.Allure
+    import io.qameta.allure.kotlin.junit4.AllureJunit4
+    import io.qameta.allure.kotlin.util.PropertiesUtils
+    import pl.leancode.patrol.PatrolJUnitRunner
+
+    class AllurePatrolJUnitRunner : PatrolJUnitRunner() {
+        override fun onCreate(arguments: Bundle) {
+            Allure.lifecycle = createAllureAndroidLifecycle()
+            val listenerArg = listOfNotNull(
+                arguments.getCharSequence("listener"),
+                AllureJunit4::class.java.name,
+                ExternalStoragePermissionsListener::class.java.name.takeIf { useTestStorage }
+            ).joinToString(separator = ",")
+            arguments.putCharSequence("listener", listenerArg)
+            super.onCreate(arguments)
+        }
+
+        private fun createAllureAndroidLifecycle() : AllureAndroidLifecycle {
+          return createDefaultAllureAndroidLifecycle()
+        }
+
+        private fun createDefaultAllureAndroidLifecycle() : AllureAndroidLifecycle {
+            if (useTestStorage) {
+                return AllureAndroidLifecycle(TestStorageResultsWriter())
+            }
+
+            return AllureAndroidLifecycle()
+        }
+
+        private val useTestStorage: Boolean
+            get() = PropertiesUtils.loadAllureProperties()
+                .getProperty("allure.results.useTestStorage", "true")
+                .toBoolean()
+    }
+    ```
+
+    <Warning>
+      Make sure to replace `package pl.leancode.patrol.example` at the top of the file with your app's package name!
+    </Warning>
+
+    This custom runner extends Patrol's `PatrolJUnitRunner` and adds Allure's reporting capabilities.
+  </Step>
+
+  <Step title="Create allure.properties">
+    Create a properties file at `android/app/src/main/res/allure.properties`:
+
+    ```properties title="android/app/src/main/res/allure.properties"
+    allure.results.useTestStorage=true
+    ```
+
+    <Info>
+      This configuration is **required** if you're using Android Test Orchestrator with the `clearPackageData` option. Without it, test reports will be cleared after each test.
+    </Info>
+  </Step>
+
+  <Step title="Update MainActivityTest">
+    Modify your `MainActivityTest.java` file to add Allure rules for enhanced reporting:
+
+    ```java title="MainActivityTest.java"
+    package pl.leancode.patrol.example; // Replace with your app's package name
+
+    import androidx.test.platform.app.InstrumentationRegistry;
+
+    import org.junit.Rule;
+    import org.junit.Test;
+    import org.junit.runner.RunWith;
+    import org.junit.runners.Parameterized;
+    import org.junit.runners.Parameterized.Parameters;
+
+    import io.qameta.allure.android.rules.LogcatRule;
+    import io.qameta.allure.android.rules.ScreenshotRule;
+    import io.qameta.allure.android.rules.WindowHierarchyRule;
+    import pl.leancode.patrol.PatrolJUnitRunner;
+
+    @RunWith(Parameterized.class)
+    public class MainActivityTest {
+        @Rule
+        public ScreenshotRule screenshotRule = new ScreenshotRule(ScreenshotRule.Mode.END, "ss_end");
+
+        @Rule
+        public WindowHierarchyRule windowHierarchyRule = new WindowHierarchyRule();
+
+        @Rule
+        public LogcatRule logcatRule = new LogcatRule();
+
+        @Parameters(name = "{0}")
+        public static Object[] testCases() {
+            PatrolJUnitRunner instrumentation = (PatrolJUnitRunner) InstrumentationRegistry.getInstrumentation();
+            instrumentation.setUp(MainActivity.class);
+            instrumentation.waitForPatrolAppService();
+            return instrumentation.listDartTests();
+        }
+
+        public MainActivityTest(String dartTestName) {
+            this.dartTestName = dartTestName;
+        }
+
+        private final String dartTestName;
+
+        @Test
+        public void runDartTest() {
+            PatrolJUnitRunner instrumentation = (PatrolJUnitRunner) InstrumentationRegistry.getInstrumentation();
+            instrumentation.runDartTest(dartTestName);
+        }
+    }
+    ```
+
+    <Warning>
+      Remember to replace `package pl.leancode.patrol.example` with your app's package name!
+    </Warning>
+
+    **What these rules do:**
+    - `ScreenshotRule` - Automatically captures a screenshot at the end of each test
+    - `WindowHierarchyRule` - Dumps the window hierarchy (view tree) at the end of each test
+    - `LogcatRule` - Embeds logcat output into the test report
+  </Step>
+
+  <Step title="Sync Gradle">
+    Sync your project with Gradle:
+
+    ```bash
+    cd android && ./gradlew --refresh-dependencies
+    ```
+  </Step>
+</Steps>
+
+## Running Tests
+
+Run your tests as usual with Patrol:
+
+```bash
+patrol test --target integration_test/app_test.dart
+```
+
+The Allure data will be generated automatically during test execution and stored on the device.
+
+## Retrieving Reports
+
+<Steps>
+  <Step title="Create reports directory">
+    Create a local directory for the reports:
+
+    ```bash
+    mkdir -p ./build/reports
+    ```
+  </Step>
+
+  <Step title="Download results from device">
+    Use `adb` to retrieve the Allure results from the Android device:
+
+    ```bash
+    adb exec-out sh -c 'cd /sdcard/googletest/test_outputfiles && tar cf - allure-results' | tar xvf - -C build/reports
+    ```
+
+    This command:
+    1. Navigates to the test output directory on the device
+    2. Creates a tar archive of the `allure-results` folder
+    3. Streams it to your local machine
+    4. Extracts it to `build/reports/`
+  </Step>
+
+  <Step title="Generate and view the report">
+    Use the Allure CLI to generate and serve the report:
+
+    ```bash
+    allure serve ./build/reports/allure-results
+    ```
+
+    This command generates the HTML report and opens it in your default browser.
+
+    <Info>
+      If you don't have Allure CLI installed:
+      
+      **macOS (Homebrew):**
+      ```bash
+      brew install allure
+      ```
+      
+      **Linux:**
+      ```bash
+      curl -o allure-2.24.0.tgz -L https://github.com/allure-framework/allure2/releases/download/2.24.0/allure-2.24.0.tgz
+      tar -zxvf allure-2.24.0.tgz
+      sudo mv allure-2.24.0 /opt/allure
+      sudo ln -s /opt/allure/bin/allure /usr/local/bin/allure
+      ```
+      
+      **Windows:**
+      Download from [Allure releases](https://github.com/allure-framework/allure2/releases) and add to PATH.
+    </Info>
+  </Step>
+</Steps>
+
+## Understanding Allure Reports
+
+### Report Features
+
+Allure reports provide rich information about your test execution:
+
+<CardGroup cols={2}>
+  <Card title="Overview" icon="chart-pie">
+    Summary statistics, pass/fail rates, and test duration trends
+  </Card>
+
+  <Card title="Suites" icon="folder-tree">
+    Tests organized by suites and categories
+  </Card>
+
+  <Card title="Graphs" icon="chart-line">
+    Visual representation of test results over time
+  </Card>
+
+  <Card title="Timeline" icon="timeline">
+    Chronological view of test execution
+  </Card>
+
+  <Card title="Behaviors" icon="list-check">
+    Tests grouped by features and stories
+  </Card>
+
+  <Card title="Packages" icon="box">
+    Tests organized by package structure
+  </Card>
+</CardGroup>
+
+### Test Details
+
+For each test, Allure captures:
+- **Execution time** - How long the test took
+- **Steps** - Detailed test steps (if annotated)
+- **Screenshots** - Captured at test end
+- **Window hierarchy** - UI structure at test end
+- **Logcat** - Complete device logs
+- **Parameters** - Test input parameters
+- **Categories** - Custom test categorization
+
+## Advanced Configuration
+
+<AccordionGroup>
+  <Accordion title="Custom screenshot timing">
+    Modify `ScreenshotRule` to capture screenshots at different points:
+
+    ```java
+    // Capture at start
+    @Rule
+    public ScreenshotRule screenshotRule = new ScreenshotRule(ScreenshotRule.Mode.START, "ss_start");
+
+    // Capture on failure only
+    @Rule
+    public ScreenshotRule screenshotRule = new ScreenshotRule(ScreenshotRule.Mode.FAILURE, "ss_failure");
+
+    // Multiple screenshots
+    @Rule
+    public ScreenshotRule screenshotStart = new ScreenshotRule(ScreenshotRule.Mode.START, "ss_start");
+    
+    @Rule
+    public ScreenshotRule screenshotEnd = new ScreenshotRule(ScreenshotRule.Mode.END, "ss_end");
+    ```
+  </Accordion>
+
+  <Accordion title="Filter logcat output">
+    Customize logcat filtering in `LogcatRule`:
+
+    ```java
+    import io.qameta.allure.android.rules.LogcatRule;
+
+    @Rule
+    public LogcatRule logcatRule = new LogcatRule()
+        .setMaxLines(500)  // Limit output
+        .setFilter("MyApp:D *:S");  // Filter by tag and level
+    ```
+  </Accordion>
+
+  <Accordion title="Generate static reports">
+    Instead of serving the report, generate static HTML files:
+
+    ```bash
+    # Generate report
+    allure generate ./build/reports/allure-results -o ./build/reports/allure-report
+
+    # Open in browser
+    open ./build/reports/allure-report/index.html
+    ```
+
+    This is useful for:
+    - Archiving reports
+    - Hosting on web servers
+    - Sharing via file systems
+  </Accordion>
+
+  <Accordion title="Integrate with CI/CD">
+    Add Allure report generation to your CI pipeline:
+
+    ```yaml title="GitHub Actions"
+    - name: Run tests
+      run: patrol test --target integration_test/app_test.dart
+
+    - name: Retrieve Allure results
+      run: |
+        mkdir -p ./build/reports
+        adb exec-out sh -c 'cd /sdcard/googletest/test_outputfiles && tar cf - allure-results' | tar xvf - -C build/reports
+
+    - name: Generate Allure report
+      uses: simple-elf/allure-report-action@master
+      if: always()
+      with:
+        allure_results: build/reports/allure-results
+        allure_history: allure-history
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: always()
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: allure-history
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Run on Real Devices" icon="mobile">
+    Allure works best with real devices where all logs and screenshots are available.
+  </Card>
+
+  <Card title="Clean Between Runs" icon="broom">
+    Clear previous results before new test runs to avoid mixing data:
+    ```bash
+    rm -rf build/reports/allure-results
+    ```
+  </Card>
+
+  <Card title="Archive Reports" icon="box-archive">
+    Save generated reports for historical comparison and trend analysis.
+  </Card>
+
+  <Card title="Review Failures" icon="magnifying-glass">
+    Use screenshots and logcat to quickly identify root causes of failures.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="No results found">
+    If you can't retrieve results from the device:
+    
+    - Verify tests ran successfully
+    - Check that `allure.properties` is in the correct location
+    - Ensure the device is connected: `adb devices`
+    - Try listing the directory manually:
+      ```bash
+      adb shell ls -la /sdcard/googletest/test_outputfiles/
+      ```
+  </Accordion>
+
+  <Accordion title="Permission denied on device">
+    If you get permission errors when retrieving results:
+    
+    ```bash
+    adb shell pm grant YOUR_PACKAGE_NAME android.permission.WRITE_EXTERNAL_STORAGE
+    adb shell pm grant YOUR_PACKAGE_NAME android.permission.READ_EXTERNAL_STORAGE
+    ```
+  </Accordion>
+
+  <Accordion title="Build errors after adding dependencies">
+    If Gradle sync fails:
+    
+    1. Verify all package names match your app
+    2. Check that Allure versions are compatible (all 2.4.0)
+    3. Clean and rebuild:
+       ```bash
+       cd android && ./gradlew clean build
+       ```
+    4. Invalidate caches in Android Studio
+  </Accordion>
+
+  <Accordion title="Report shows no data">
+    If the report loads but shows no tests:
+    
+    - Ensure tests actually ran (check adb logcat)
+    - Verify `AllurePatrolJUnitRunner` is being used
+    - Check that rules are properly added to `MainActivityTest`
+    - Confirm `allure-results` directory exists and has JSON files
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Firebase Test Lab" icon="fire" href="/integrations/firebase-test-lab">
+    Run tests with Allure reporting on Firebase Test Lab
+  </Card>
+
+  <Card title="CI/CD Integration" icon="circle-nodes" href="/ci-cd">
+    Automate Allure report generation in your pipeline
+  </Card>
+</CardGroup>
+
+## Resources
+
+- [Allure Official Documentation](https://docs.qameta.io/allure-report)
+- [allure-kotlin GitHub](https://github.com/allure-framework/allure-kotlin)
+- [allure2 GitHub](https://github.com/allure-framework/allure2)
+- [Allure Cucumber JVM Guide](https://docs.qameta.io/allure/#_cucumberjvm)

@@ -1,0 +1,568 @@
+---
+title: patrol test
+description: Run integration tests on Android, iOS, macOS, and web platforms
+---
+
+The `patrol test` command is the primary way to run your integration tests. It builds your app, installs it on the target device, and executes tests using native test runners.
+
+## Synopsis
+
+```bash
+patrol test [options]
+```
+
+## Description
+
+This command performs the following steps:
+
+1. **Bundles tests** - Creates a single test bundle from all test files
+2. **Builds apps** - Compiles both the app under test and instrumentation app
+3. **Installs apps** - Deploys to the selected device or simulator
+4. **Runs tests** - Executes tests natively via Gradle (Android) or xcodebuild (iOS)
+5. **Reports results** - Displays test output in native format
+
+By default, `patrol test` runs all test files ending with `_test.dart` in the `patrol_test` directory.
+
+## Basic Usage
+
+### Run all tests
+
+```bash
+patrol test
+```
+
+### Run a specific test file
+
+```bash
+patrol test --target patrol_test/login_test.dart
+```
+
+### Run multiple test files
+
+```bash
+patrol test \
+  --target patrol_test/login_test.dart \
+  --target patrol_test/signup_test.dart
+```
+
+Or using comma-separated values:
+
+```bash
+patrol test --targets patrol_test/login_test.dart,patrol_test/signup_test.dart
+```
+
+<Info>
+There's no difference between `--target` and `--targets`. Use whichever feels more natural.
+</Info>
+
+## Test Selection
+
+### Target Options
+
+<ParamField path="--target" type="string" default="all tests">
+  Specify integration test file(s) to run. Can be used multiple times.
+  
+  ```bash
+  patrol test --target patrol_test/app_test.dart
+  ```
+</ParamField>
+
+<ParamField path="--exclude" type="string">
+  Exclude specific test files from execution.
+  
+  ```bash
+  patrol test --exclude patrol_test/flaky_test.dart
+  ```
+</ParamField>
+
+### Tags
+
+Use tags to selectively run tests based on metadata:
+
+```dart
+patrol(
+  'login test',
+  tags: ['smoke', 'android'],
+  (\$) async {
+    // test code
+  },
+);
+```
+
+<ParamField path="--tags" type="string">
+  Boolean expression to select tests by tags.
+  
+  ```bash
+  patrol test --tags "smoke"
+  patrol test --tags "android && !flaky"
+  patrol test --tags "(ios || android) && smoke"
+  ```
+  
+  Supports operators: `&&` (AND), `||` (OR), `!` (NOT), and parentheses for grouping.
+</ParamField>
+
+<ParamField path="--exclude-tags" type="string">
+  Exclude tests with specific tags.
+  
+  ```bash
+  patrol test --exclude-tags "flaky"
+  patrol test --exclude-tags "slow || experimental"
+  ```
+</ParamField>
+
+<Info>
+For comprehensive information about tag syntax and advanced usage, see the [Patrol tags documentation](https://patrol.leancode.co/documentation/patrol-tags).
+</Info>
+
+## Device Selection
+
+<ParamField path="--device" type="string" default="first device">
+  Specify which device to run tests on. Accepts device ID, emulator name, or "all".
+  
+  ```bash
+  patrol test --device emulator-5554
+  patrol test --device "iPhone 15 Pro"
+  ```
+</ParamField>
+
+To see available devices:
+
+```bash
+patrol devices
+```
+
+## Build Configuration
+
+### Build Mode
+
+<ParamField path="--debug" type="flag" default="true">
+  Build in debug mode (default).
+  
+  ```bash
+  patrol test --debug
+  ```
+</ParamField>
+
+<ParamField path="--profile" type="flag">
+  Build in profile mode for performance testing.
+  
+  ```bash
+  patrol test --profile
+  ```
+</ParamField>
+
+<ParamField path="--release" type="flag">
+  Build in release mode. Required for physical iOS devices on device farms.
+  
+  ```bash
+  patrol test --release
+  ```
+</ParamField>
+
+<Warning>
+Only one build mode can be specified at a time.
+</Warning>
+
+### Flavors
+
+<ParamField path="--flavor" type="string">
+  Build a specific flavor of your app.
+  
+  ```bash
+  patrol test --flavor staging
+  patrol test --flavor production --release
+  ```
+</ParamField>
+
+<Note>
+Flavors are not supported on the web platform.
+</Note>
+
+### Build Versioning
+
+<ParamField path="--build-name" type="string">
+  Set the version name (e.g., "1.2.3").
+  
+  ```bash
+  patrol test --build-name 1.2.3
+  ```
+</ParamField>
+
+<ParamField path="--build-number" type="string">
+  Set the version code (e.g., "123").
+  
+  ```bash
+  patrol test --build-number 123
+  ```
+</ParamField>
+
+### Dart Defines
+
+<ParamField path="--dart-define" type="string">
+  Pass environment variables to your app. Can be used multiple times.
+  
+  ```bash
+  patrol test --dart-define API_URL=https://api.example.com
+  patrol test \
+    --dart-define API_KEY=secret123 \
+    --dart-define ENV=staging
+  ```
+</ParamField>
+
+<ParamField path="--dart-define-from-file" type="string">
+  Load environment variables from a file.
+  
+  ```bash
+  patrol test --dart-define-from-file config/test.json
+  ```
+</ParamField>
+
+## Platform-Specific Options
+
+### Android
+
+<ParamField path="--package-name" type="string">
+  Override the Android package name.
+  
+  ```bash
+  patrol test --package-name com.example.myapp
+  ```
+</ParamField>
+
+### iOS
+
+<ParamField path="--bundle-id" type="string">
+  Override the iOS bundle identifier.
+  
+  ```bash
+  patrol test --bundle-id com.example.MyApp
+  ```
+</ParamField>
+
+<ParamField path="--ios" type="string" default="latest">
+  Specify iOS version for simulators.
+  
+  ```bash
+  patrol test --ios 17.5
+  ```
+</ParamField>
+
+<ParamField path="--full-isolation" type="flag">
+  Uninstall the app between test runs on iOS Simulator for full isolation.
+  
+  ```bash
+  patrol test --full-isolation
+  ```
+</ParamField>
+
+<Warning>
+The `--full-isolation` flag is experimental and might be removed in future releases.
+</Warning>
+
+<ParamField path="--clear-permissions" type="flag">
+  Clear permissions before running each test on iOS.
+  
+  ```bash
+  patrol test --clear-permissions
+  ```
+</ParamField>
+
+## Coverage
+
+<ParamField path="--coverage" type="flag">
+  Collect code coverage during test execution.
+  
+  ```bash
+  patrol test --coverage
+  ```
+  
+  The LCOV report will be saved to `coverage/patrol_lcov.info`.
+</ParamField>
+
+<Warning>
+Coverage collection is currently not supported on macOS.
+</Warning>
+
+<ParamField path="--coverage-ignore" type="string">
+  Exclude files from coverage using glob patterns.
+  
+  ```bash
+  patrol test --coverage --coverage-ignore "**/*.g.dart"
+  patrol test --coverage --coverage-ignore "**/*.freezed.dart" --coverage-ignore "**/*.gr.dart"
+  ```
+</ParamField>
+
+<ParamField path="--coverage-package" type="string">
+  Specify package name regex for coverage (defaults to current package).
+  
+  ```bash
+  patrol test --coverage --coverage-package "my_package"
+  ```
+</ParamField>
+
+## Test Execution Options
+
+<ParamField path="--uninstall" type="flag" default="true">
+  Uninstall the app before and after testing.
+  
+  ```bash
+  patrol test --uninstall
+  patrol test --no-uninstall
+  ```
+</ParamField>
+
+<ParamField path="--show-flutter-logs" type="flag" default="false">
+  Display Flutter framework logs during test execution.
+  
+  ```bash
+  patrol test --show-flutter-logs
+  ```
+</ParamField>
+
+<ParamField path="--hide-test-steps" type="flag" default="false">
+  Hide individual test steps from output.
+  
+  ```bash
+  patrol test --hide-test-steps
+  ```
+</ParamField>
+
+<ParamField path="--clear-test-steps" type="flag" default="true">
+  Clear test steps after each test completes.
+  
+  ```bash
+  patrol test --clear-test-steps
+  ```
+</ParamField>
+
+<ParamField path="--label" type="flag" default="true">
+  Display label overlay on the app during testing.
+  
+  ```bash
+  patrol test --label
+  patrol test --no-label
+  ```
+</ParamField>
+
+## Web Platform
+
+Patrol supports running tests on Flutter web using Playwright:
+
+```bash
+patrol test --device chrome
+```
+
+When running on web:
+- Tests execute in Chromium browser via Playwright
+- Test results are generated in `test-results/`
+- Configure Playwright using web-specific flags
+
+### Web-Specific Options
+
+<ParamField path="--web-reporter" type="string">
+  Playwright reporters to use (JSON array).
+  
+  ```bash
+  patrol test --device chrome --web-reporter '["html", "json"]'
+  ```
+</ParamField>
+
+<ParamField path="--web-retries" type="number">
+  Number of times to retry failed tests.
+  
+  ```bash
+  patrol test --device chrome --web-retries 2
+  ```
+</ParamField>
+
+<ParamField path="--web-workers" type="number">
+  Maximum number of parallel workers.
+  
+  ```bash
+  patrol test --device chrome --web-workers 4
+  ```
+</ParamField>
+
+<ParamField path="--web-timeout" type="number">
+  Test timeout in milliseconds.
+  
+  ```bash
+  patrol test --device chrome --web-timeout 60000
+  ```
+</ParamField>
+
+<ParamField path="--web-headless" type="string">
+  Run browser in headless mode.
+  
+  ```bash
+  patrol test --device chrome --web-headless true
+  ```
+</ParamField>
+
+<ParamField path="--web-video" type="string">
+  Video recording mode: `off`, `on`, `retain-on-failure`, `on-first-retry`.
+  
+  ```bash
+  patrol test --device chrome --web-video retain-on-failure
+  ```
+</ParamField>
+
+<Note>
+Web tests don't support `--flavor`, `--uninstall`, `--clear-permissions`, or `--full-isolation` flags.
+</Note>
+
+## Advanced Options
+
+<ParamField path="--test-server-port" type="number" default="8081">
+  Port for the test instrumentation server.
+  
+  ```bash
+  patrol test --test-server-port 9001
+  ```
+</ParamField>
+
+<ParamField path="--app-server-port" type="number" default="8082">
+  Port for the app under test server.
+  
+  ```bash
+  patrol test --app-server-port 9002
+  ```
+</ParamField>
+
+<ParamField path="--check-compatibility" type="flag" default="true">
+  Verify dependency compatibility before running tests.
+  
+  ```bash
+  patrol test --no-check-compatibility
+  ```
+</ParamField>
+
+<ParamField path="--generate-bundle" type="flag" default="true">
+  Generate test bundle file.
+  
+  ```bash
+  patrol test --no-generate-bundle
+  ```
+</ParamField>
+
+<ParamField path="--no-tree-shake-icons" type="flag">
+  Disable icon tree shaking during build.
+  
+  ```bash
+  patrol test --no-tree-shake-icons
+  ```
+</ParamField>
+
+## Examples
+
+<CodeGroup>
+
+```bash Basic
+# Run all tests
+patrol test
+
+# Run specific test
+patrol test --target patrol_test/login_test.dart
+```
+
+```bash With Tags
+# Run smoke tests
+patrol test --tags smoke
+
+# Run platform-specific tests
+patrol test --tags android
+patrol test --tags "ios && !flaky"
+```
+
+```bash With Flavors
+# Test staging flavor
+patrol test --flavor staging
+
+# Test production flavor in release mode
+patrol test --flavor production --release
+```
+
+```bash With Coverage
+# Collect coverage
+patrol test --coverage
+
+# Coverage with exclusions
+patrol test --coverage --coverage-ignore "**/*.g.dart"
+```
+
+```bash Web Platform
+# Run on Chrome
+patrol test --device chrome
+
+# With retries and video
+patrol test --device chrome --web-retries 2 --web-video retain-on-failure
+```
+
+```bash CI/CD
+# Full isolation for clean test runs
+patrol test --full-isolation --release
+
+# With build versioning
+patrol test --build-name 1.0.0 --build-number 100
+```
+
+</CodeGroup>
+
+## Output
+
+The command outputs test results in native format:
+
+```
+✓ patrol_test/login_test.dart (5.2s)
+  ✓ user can log in (3.1s)
+  ✓ invalid credentials show error (2.1s)
+  
+✓ patrol_test/signup_test.dart (4.8s)
+  ✓ user can create account (4.8s)
+  
+All tests passed! (10.0s)
+```
+
+## Under the Hood
+
+`patrol test` essentially calls `patrol build` and then runs the built app binaries. It leverages:
+
+- **Gradle** and Android Test Orchestrator on Android
+- **xcodebuild** and XCTest on iOS/macOS  
+- **Playwright** on web
+
+This provides deep native integration and proper test reporting.
+
+## Troubleshooting
+
+### Build Failures
+
+If the build fails:
+
+1. Ensure you've completed [native setup](/quickstart)
+2. Check that your Flutter and Dart versions are compatible
+3. Run `patrol doctor` to verify your environment
+4. Try cleaning: `flutter clean && flutter pub get`
+
+### Test Failures
+
+If tests fail unexpectedly:
+
+1. Use `--show-flutter-logs` to see detailed logs
+2. Check device logs with `flutter logs`
+3. Verify network connectivity for API calls
+4. Ensure proper test isolation (use `--full-isolation` on iOS)
+
+### Port Conflicts
+
+If you see port conflict errors:
+
+```bash
+patrol test --test-server-port 9001 --app-server-port 9002
+```
+
+## Related Commands
+
+- [patrol develop](/cli/develop) - Develop tests with Hot Restart
+- [patrol build](/cli/build) - Build test binaries without running
+- [patrol devices](/cli/devices) - List available devices

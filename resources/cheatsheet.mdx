@@ -1,0 +1,365 @@
+---
+title: Cheat Sheet
+description: Quick reference guide for Patrol commands and APIs
+---
+
+## Installation
+
+```bash
+# Install Patrol CLI
+dart pub global activate patrol_cli
+
+# Add Patrol to your project
+flutter pub add patrol dev:patrol_finders
+```
+
+## Basic Test Structure
+
+```dart
+import 'package:patrol/patrol.dart';
+
+void main() {
+  patrolTest(
+    'test description',
+    ($) async {
+      await $.pumpWidgetAndSettle(MyApp());
+      // Your test code here
+    },
+  );
+}
+```
+
+## Finders
+
+```dart
+// Find by text
+$("Login")
+
+// Find by key
+$(#loginButton)
+
+// Find by type
+$(TextField)
+
+// Find by icon
+$(Icons.add)
+
+// Chaining finders
+$(Scaffold).$(ListView).$("Item")
+
+// Using at() for multiple matches
+$("Button").at(0)  // First match
+$("Button").first   // First match
+$("Button").last    // Last match
+```
+
+## Actions
+
+```dart
+// Tap
+await $(#loginButton).tap();
+
+// Enter text
+await $(#emailField).enterText('user@example.com');
+
+// Scroll
+await $(#item).scrollTo();
+
+// Drag
+await $.drag(from: $(#source), to: $(#target));
+
+// Long press
+await $(#item).longPress();
+```
+
+## Native Automation (Platform)
+
+### Permissions
+
+```dart
+// Grant permission when in use
+await $.platform.mobile.grantPermissionWhenInUse();
+
+// Grant permission always
+await $.platform.mobile.grantPermissionAlways();
+
+// Deny permission
+await $.platform.mobile.denyPermission();
+
+// Select fine location (Android)
+await $.platform.mobile.selectFineLocation();
+
+// Select coarse location (Android)
+await $.platform.mobile.selectCoarseLocation();
+```
+
+### Native Interactions
+
+```dart
+// Tap on native view
+await $.platform.mobile.tap(Selector(text: 'Allow'));
+
+// Enter text in native view
+await $.platform.mobile.enterText(
+  Selector(text: 'Email'),
+  'user@example.com',
+);
+
+// Press back (Android)
+await $.platform.mobile.pressBack();
+
+// Press home
+await $.platform.mobile.pressHome();
+
+// Open notifications
+await $.platform.mobile.openNotifications();
+
+// Open quick settings (Android)
+await $.platform.mobile.openQuickSettings();
+```
+
+### Device Settings
+
+```dart
+// Dark mode
+await $.platform.mobile.enableDarkMode();
+await $.platform.mobile.disableDarkMode();
+
+// WiFi
+await $.platform.mobile.enableWifi();
+await $.platform.mobile.disableWifi();
+
+// Bluetooth
+await $.platform.mobile.enableBluetooth();
+await $.platform.mobile.disableBluetooth();
+
+// Airplane mode (Android)
+await $.platform.mobile.enableAirplaneMode();
+await $.platform.mobile.disableAirplaneMode();
+
+// Location
+await $.platform.mobile.enableLocation();
+await $.platform.mobile.disableLocation();
+```
+
+### Notifications
+
+```dart
+// Get notifications
+final notifications = await $.platform.mobile.getNotifications();
+
+// Tap on notification by index
+await $.platform.mobile.tapOnNotificationByIndex(0);
+
+// Tap on notification by selector
+await $.platform.mobile.tapOnNotificationBySelector(
+  Selector(text: 'New message'),
+);
+```
+
+### Camera & Gallery
+
+```dart
+// Take a photo
+await $.platform.mobile.takeCameraPhoto();
+
+// Pick image from gallery
+await $.platform.mobile.pickImageFromGallery();
+
+// Pick multiple images
+await $.platform.mobile.pickMultipleImagesFromGallery();
+```
+
+### Other Actions
+
+```dart
+// Open app
+await $.platform.mobile.openApp(appId: 'com.example.app');
+
+// Open URL (deep link)
+await $.platform.mobile.openUrl('https://example.com');
+
+// Swipe
+await $.platform.mobile.swipe(
+  start: Offset(100, 500),
+  end: Offset(100, 100),
+);
+
+// Pull to refresh
+await $.platform.mobile.pullToRefresh();
+
+// Swipe back (iOS)
+await $.platform.mobile.swipeBack();
+
+// Press volume buttons
+await $.platform.mobile.pressVolumeUp();
+await $.platform.mobile.pressVolumeDown();
+```
+
+## Web Automation
+
+```dart
+// Dark mode
+await $.platform.web.enableDarkMode();
+await $.platform.web.disableDarkMode();
+
+// Navigation
+await $.platform.web.goBack();
+await $.platform.web.goForward();
+
+// Cookies
+await $.platform.web.addCookie(name: 'token', value: 'abc123');
+final cookies = await $.platform.web.getCookies();
+await $.platform.web.clearCookies();
+
+// Permissions
+await $.platform.web.grantPermissions(['camera', 'microphone']);
+await $.platform.web.clearPermissions();
+
+// Keyboard
+await $.platform.web.pressKey('Enter');
+await $.platform.web.pressKeyCombo(['Control', 'c']);
+
+// File operations
+await $.platform.web.uploadFile('path/to/file.txt');
+await $.platform.web.verifyFileDownloads(['file.pdf']);
+
+// Dialogs
+await $.platform.web.acceptNextDialog();
+await $.platform.web.dismissNextDialog();
+
+// Window
+await $.platform.web.resizeWindow(width: 1920, height: 1080);
+
+// Clipboard
+await $.platform.web.setClipboard('Hello, World!');
+final text = await $.platform.web.getClipboard();
+```
+
+## CLI Commands
+
+```bash
+# Run tests
+patrol test
+
+# Run specific test
+patrol test -t patrol_test/login_test.dart
+
+# Run on specific device
+patrol test -d <device-id>
+
+# Run with tags
+patrol test --tags login
+patrol test --exclude-tags slow
+
+# Develop mode (hot restart)
+patrol develop
+
+# Build test APK/app
+patrol build android
+patrol build ios
+
+# Check setup
+patrol doctor
+
+# List devices
+patrol devices
+
+# Update Patrol CLI
+patrol update
+```
+
+## Configuration (pubspec.yaml)
+
+```yaml
+patrol:
+  app_name: My App
+  test_directory: patrol_test  # Default, can be customized
+  android:
+    package_name: com.example.myapp
+  ios:
+    bundle_id: com.example.MyApp
+  web:
+    base_url: http://localhost:8080
+```
+
+## Useful Tips
+
+```dart
+// Use keys for reliable finding
+const loginButtonKey = Key('loginButton');
+await $(loginButtonKey).tap();
+
+// Pass environment variables
+// Command: patrol test --dart-define="USERNAME=test"
+const username = String.fromEnvironment('USERNAME');
+
+// Setup and teardown
+patrolSetUp(() async {
+  // Runs before each test
+});
+
+patrolTearDown(() async {
+  // Runs after each test
+});
+
+// Logging
+$.log('Test checkpoint reached');
+
+// Wait for condition
+await $.waitUntilVisible($(#element));
+await $.waitUntilExists($(#element));
+
+// Check visibility/existence
+final exists = $(#element).exists;
+final visible = $(#element).visible;
+```
+
+## Common Patterns
+
+### Login Flow
+
+```dart
+patrolTest('user can log in', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  await $(#emailField).enterText('user@example.com');
+  await $(#passwordField).enterText('password123');
+  await $(#loginButton).tap();
+  
+  expect($(#homeScreen).visible, true);
+});
+```
+
+### Handling Permissions
+
+```dart
+patrolTest('camera permission', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  await $(#cameraButton).tap();
+  await $.platform.mobile.grantPermissionWhenInUse();
+  
+  expect($(#cameraPreview).visible, true);
+});
+```
+
+### Scrolling to Item
+
+```dart
+patrolTest('scroll to item', ($) async {
+  await $.pumpWidgetAndSettle(MyApp());
+  
+  await $(#listView).$("Item 50").scrollTo();
+  await $(#listView).$("Item 50").tap();
+  
+  expect($(#detailScreen).visible, true);
+});
+```
+
+## Resources
+
+- [Documentation](/quickstart)
+- [GitHub Repository](https://github.com/leancodepl/patrol)
+- [Discord Community](https://discord.gg/ukBK5t4EZg)
+- [pub.dev Package](https://pub.dev/packages/patrol)

@@ -1,0 +1,222 @@
+---
+title: CLI Overview
+description: Introduction to the Patrol CLI for Flutter integration testing
+---
+
+Patrol CLI is a powerful command-line tool for running Flutter integration tests on Android, iOS, macOS, and web platforms. It provides advanced features like Hot Restart for rapid test development, comprehensive test bundling, and native test execution.
+
+## Installation
+
+Install Patrol CLI globally using Dart's pub:
+
+```bash
+dart pub global activate patrol_cli
+```
+
+Verify the installation:
+
+```bash
+patrol --version
+```
+
+<Info>
+Make sure the Dart pub global bin directory is in your PATH. On macOS/Linux, this is typically `~/.pub-cache/bin`.
+</Info>
+
+## Quick Start
+
+After installing the CLI, you can start using Patrol in your Flutter project:
+
+<Steps>
+  <Step title="Add Patrol to your project">
+    Add the required dependencies to your `pubspec.yaml`:
+    
+    ```yaml
+    dev_dependencies:
+      patrol: ^3.0.0
+      patrol_finders: ^2.0.0
+    ```
+  </Step>
+  
+  <Step title="Complete native setup">
+    Follow the [native setup guide](/quickstart) to configure Android and iOS.
+  </Step>
+  
+  <Step title="Write your first test">
+    Create a test file in `patrol_test/app_test.dart`:
+    
+    ```dart
+    import 'package:patrol/patrol.dart';
+    
+    void main() {
+      patrol('counter app test', (\$) async {
+        await \$.pumpWidgetAndSettle(MyApp());
+        await \$(FloatingActionButton).tap();
+        expect(\$(#counterText).text, '1');
+      });
+    }
+    ```
+  </Step>
+  
+  <Step title="Run your tests">
+    Execute your tests with Patrol CLI:
+    
+    ```bash
+    patrol test
+    ```
+  </Step>
+</Steps>
+
+## Core Commands
+
+Patrol CLI provides several commands to help you throughout the testing lifecycle:
+
+### Testing Commands
+
+- **[patrol test](/cli/test)** - Run integration tests on devices
+- **[patrol develop](/cli/develop)** - Develop tests with Hot Restart
+- **[patrol build](/cli/build)** - Build app binaries for testing
+
+### Utility Commands
+
+- **[patrol devices](/cli/devices)** - List available devices and simulators
+- **[patrol doctor](/cli/doctor)** - Check installation and environment
+- **[patrol update](/cli/update)** - Update CLI to the latest version
+
+## Key Features
+
+### Advanced Test Bundling
+
+Patrol automatically bundles all your tests into a single app binary, which means:
+
+- Only one build is required for all tests
+- Faster CI/CD pipelines
+- Better isolation between test runs
+- Support for parallel test execution
+
+### Hot Restart Support
+
+With `patrol develop`, you can iterate quickly on your tests:
+
+- No need to rebuild after code changes
+- Press 'R' to restart tests instantly
+- Works on Android and iOS simulators
+
+### Multi-Platform Support
+
+Run your tests across platforms:
+
+- Android devices and emulators
+- iOS devices and simulators
+- macOS desktop
+- Web browsers (via Playwright)
+
+### Native Integration
+
+Patrol deeply integrates with native testing frameworks:
+
+- Uses Gradle and Android Test Orchestrator on Android
+- Uses XCTest and xcodebuild on iOS
+- Proper native test output and reporting
+
+## Common Workflows
+
+### Running all tests
+
+```bash
+patrol test
+```
+
+### Running a specific test file
+
+```bash
+patrol test --target patrol_test/login_test.dart
+```
+
+### Running tests with tags
+
+```bash
+patrol test --tags "smoke && !flaky"
+```
+
+### Developing with Hot Restart
+
+```bash
+patrol develop --target patrol_test/login_test.dart
+```
+
+### Building for CI/CD
+
+```bash
+patrol build android --release
+patrol build ios --release
+```
+
+## Getting Help
+
+For detailed information about any command, use the `--help` flag:
+
+```bash
+patrol --help
+patrol test --help
+patrol build android --help
+```
+
+## Environment Configuration
+
+### Flutter Command
+
+By default, Patrol uses the `flutter` command from your PATH. You can customize this:
+
+```bash
+# Using environment variable
+export PATROL_FLUTTER_COMMAND="fvm flutter"
+patrol test
+
+# Using command-line flag
+patrol test --flutter-command "fvm flutter"
+```
+
+### Configuration in pubspec.yaml
+
+You can configure Patrol's behavior in your `pubspec.yaml`:
+
+```yaml
+patrol:
+  app_name: MyApp
+  test_directory: patrol_test
+  android:
+    package_name: com.example.myapp
+  ios:
+    bundle_id: com.example.MyApp
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Test Command" icon="flask" href="/cli/test">
+    Learn how to run tests with patrol test
+  </Card>
+  <Card title="Develop Command" icon="code" href="/cli/develop">
+    Speed up test development with Hot Restart
+  </Card>
+  <Card title="Build Command" icon="hammer" href="/cli/build">
+    Build test binaries for CI/CD
+  </Card>
+  <Card title="Full Documentation" icon="book" href="/documentation">
+    Read the complete Patrol documentation
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+If you encounter issues:
+
+1. Run `patrol doctor` to check your environment
+2. Check the [documentation](/quickstart) for setup guides
+3. Search or create issues on [GitHub](https://github.com/leancodepl/patrol)
+4. Join the discussion on [Discord](https://discord.gg/patrol)
+
+<Warning>
+Make sure you've completed the [native setup](/quickstart) before running tests. Patrol requires native configuration for Android and iOS.
+</Warning>

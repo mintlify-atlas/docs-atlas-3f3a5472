@@ -1,0 +1,185 @@
+---
+title: patrolTest()
+description: Core function for writing Patrol integration tests with native automation support
+---
+
+`patrolTest()` is the main entry point for writing Patrol tests. It extends Flutter's `testWidgets()` with powerful custom finders and native automation capabilities.
+
+## Signature
+
+```dart
+void patrolTest(
+  String description,
+  PatrolTesterCallback callback, {
+  bool? skip,
+  Timeout? timeout,
+  bool semanticsEnabled = true,
+  TestVariant<Object?> variant = const DefaultTestVariant(),
+  dynamic tags,
+  PatrolTesterConfig config = const PatrolTesterConfig(
+    printLogs: true,
+  ),
+  PlatformAutomatorConfig? platformAutomatorConfig,
+  LiveTestWidgetsFlutterBindingFramePolicy framePolicy =
+      LiveTestWidgetsFlutterBindingFramePolicy.fullyLive,
+})
+```
+
+## Parameters
+
+<ParamField path="description" type="String" required>
+  A description of the test, which will appear in test output and reports.
+</ParamField>
+
+<ParamField path="callback" type="PatrolTesterCallback" required>
+  The test body function that receives a `PatrolIntegrationTester` instance (commonly named `$`).
+  
+  Signature: `Future<void> Function(PatrolIntegrationTester $)`
+</ParamField>
+
+<ParamField path="skip" type="bool">
+  Whether to skip this test. Defaults to `false`.
+</ParamField>
+
+<ParamField path="timeout" type="Timeout">
+  The timeout for this test. If not specified, uses the default test timeout.
+</ParamField>
+
+<ParamField path="semanticsEnabled" type="bool" default="true">
+  Whether to enable semantics in this test.
+</ParamField>
+
+<ParamField path="variant" type="TestVariant<Object?>" default="DefaultTestVariant()">
+  The test variant to use for parameterized testing.
+</ParamField>
+
+<ParamField path="tags" type="dynamic">
+  Tags to apply to this test for filtering or organization.
+</ParamField>
+
+<ParamField path="config" type="PatrolTesterConfig" default="PatrolTesterConfig(printLogs: true)">
+  Configuration for Patrol's custom finders and test behavior.
+  
+  Controls timeouts, settle policies, and logging.
+</ParamField>
+
+<ParamField path="platformAutomatorConfig" type="PlatformAutomatorConfig">
+  Configuration for native automation features. Controls timeouts and behavior for Android, iOS, and Web native interactions.
+</ParamField>
+
+<ParamField path="framePolicy" type="LiveTestWidgetsFlutterBindingFramePolicy" default="fullyLive">
+  Controls how frames are scheduled during the test.
+</ParamField>
+
+## Usage
+
+### Basic Test
+
+```dart
+import 'package:patrol/patrol.dart';
+
+void main() {
+  patrolTest(
+    'counter increments when button is tapped',
+    ($) async {
+      await $.pumpWidgetAndSettle(MyApp());
+      
+      // Tap the increment button
+      await $(Icons.add).tap();
+      
+      // Verify the counter increased
+      expect($(Text).containing('1').exists, true);
+    },
+  );
+}
+```
+
+### Using Native Automation
+
+```dart
+patrolTest(
+  'user can log in through Google',
+  ($) async {
+    await $.pumpWidgetAndSettle(MyApp());
+    
+    // Tap "Sign in with Google" in Flutter app
+    await $('Sign in with Google').tap();
+    
+    // Interact with native Google Sign-In dialog
+    await $.platform.tap(Selector(text: 'user@example.com'));
+    await $.platform.tap(Selector(text: 'Continue'));
+    
+    // Verify we're logged in
+    await $(Text).containing('Welcome').waitUntilVisible();
+  },
+);
+```
+
+### With Custom Configuration
+
+```dart
+patrolTest(
+  'test with custom timeouts',
+  ($) async {
+    // Test body
+  },
+  config: const PatrolTesterConfig(
+    visibleTimeout: Duration(seconds: 30),
+    settleTimeout: Duration(seconds: 20),
+    printLogs: true,
+  ),
+  platformAutomatorConfig: PlatformAutomatorConfig.defaultConfig(
+    findTimeout: const Duration(seconds: 15),
+  ),
+);
+```
+
+### Accessing Flutter's WidgetTester
+
+You can access the underlying `WidgetTester` for advanced operations:
+
+```dart
+patrolTest(
+  'test using WidgetTester',
+  ($) async {
+    await $.pumpWidgetAndSettle(MyApp());
+    
+    // Use Patrol's custom finder
+    await $(#loginButton).tap();
+    
+    // Access Flutter's WidgetTester directly
+    await $.tester.drag(find.byType(ListView), Offset(0, -300));
+    await $.tester.pumpAndSettle();
+  },
+);
+```
+
+## PatrolTesterCallback Type
+
+The callback parameter has this signature:
+
+```dart
+typedef PatrolTesterCallback = Future<void> Function(PatrolIntegrationTester $);
+```
+
+The `$` parameter is a `PatrolIntegrationTester` instance that provides:
+- All methods from `PatrolTester` (custom finders)
+- `platform` - Native automation capabilities
+- `tester` - Access to Flutter's `WidgetTester`
+
+## Related Functions
+
+<CardGroup cols={2}>
+  <Card title="patrolSetUp()" icon="gear">
+    Setup function that runs before each test with native automation support
+  </Card>
+  <Card title="patrolTearDown()" icon="broom">
+    Teardown function that runs after each test with native automation support
+  </Card>
+</CardGroup>
+
+## See Also
+
+- [PatrolIntegrationTester](/api/patrol-tester) - The tester object passed to your test
+- [PatrolFinder](/api/custom-finders) - Custom finder API for locating widgets
+- [PlatformAutomator](/api/native-automator) - Native automation interface

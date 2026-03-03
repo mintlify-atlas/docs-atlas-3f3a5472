@@ -1,0 +1,369 @@
+---
+title: Logging
+description: Understand and configure Patrol's logging system for better test debugging
+---
+
+Patrol includes a comprehensive logging system through the `patrol_log` package. This system provides structured, real-time feedback about test execution, making it easier to debug failures and understand test behavior.
+
+## Overview
+
+The `patrol_log` package is used internally by Patrol CLI to capture and display test execution information. While you typically don't need to interact with it directly, understanding how it works can help you debug tests more effectively.
+
+<Info>
+  Logging is automatically configured when you use `patrol test` or `patrol develop`. The logs appear in your terminal as tests run.
+</Info>
+
+## Log Structure
+
+Patrol logs are structured as JSON entries that get parsed and formatted for display. Each log entry has a specific type:
+
+### Entry Types
+
+<CardGroup cols={2}>
+  <Card title="Test Entries" icon="flask">
+    Mark the start, completion, failure, or skipping of individual tests.
+  </Card>
+  
+  <Card title="Step Entries" icon="shoe-prints">
+    Track individual test steps and actions within a test.
+  </Card>
+  
+  <Card title="Log Entries" icon="message">
+    Custom log messages from your test code.
+  </Card>
+  
+  <Card title="Error Entries" icon="exclamation-triangle">
+    Capture errors and exceptions that occur during testing.
+  </Card>
+  
+  <Card title="Warning Entries" icon="triangle-exclamation">
+    Display warnings about configuration or test execution.
+  </Card>
+  
+  <Card title="Config Entries" icon="gear">
+    Store configuration information passed to the logging system.
+  </Card>
+</CardGroup>
+
+## Log Output Format
+
+When you run Patrol tests, logs are displayed with emoji indicators for easy scanning:
+
+```bash
+🧪 patrol_test/example_test.dart counter test
+        ⏳   1. tap on increment button
+        ✅   1. tap on increment button
+        ⏳   2. verify counter incremented
+        ✅   2. verify counter incremented
+✅ patrol_test/example_test.dart counter test (3s)
+```
+
+### Log Components
+
+<Steps>
+  <Step title="Test lifecycle">
+    - 🧪 Test started
+    - ✅ Test passed
+    - ❌ Test failed
+    - ⏩ Test skipped
+  </Step>
+  
+  <Step title="Step execution">
+    - ⏳ Step in progress
+    - ✅ Step completed successfully
+    - ❌ Step failed
+  </Step>
+  
+  <Step title="Custom logs">
+    - 📝 Custom log message from test code
+  </Step>
+  
+  <Step title="Summary">
+    - 📊 Report file path
+    - ⏱️ Execution duration
+    - Test counts (total, successful, failed, skipped)
+  </Step>
+</Steps>
+
+## Configuration Options
+
+Patrol CLI provides several flags to control logging behavior:
+
+### Show Flutter Logs
+
+Capture and display Flutter framework logs:
+
+```bash
+patrol test --verbose
+```
+
+This shows all Flutter logs, including `print()` statements from your test code and framework debug output.
+
+### Hide Test Steps
+
+Reduce output by hiding individual test steps:
+
+```bash
+patrol test --no-test-steps
+```
+
+<Warning>
+  Hiding test steps can make it harder to debug failures, as you won't see which specific step failed.
+</Warning>
+
+### Clear Test Steps
+
+Automatically clear successful test steps from the console:
+
+```bash
+patrol test --clear-test-steps
+```
+
+This keeps the console clean by removing step logs after a test passes, but preserves them when tests fail.
+
+### Hide Test Lifecycle
+
+Hide test start/end messages:
+
+```bash
+patrol test --hide-test-lifecycle
+```
+
+## Test Summary
+
+After all tests complete, Patrol displays a summary:
+
+```bash
+Test summary:
+📝 Total: 10
+✅ Successful: 8
+❌ Failed: 2
+  - patrol_test/login_test.dart invalid credentials test
+  - patrol_test/checkout_test.dart payment failure test
+⏩ Skipped: 0
+📊 Report: /path/to/report.json
+⏱️  Duration: 2m 34s
+```
+
+<Tip>
+  Failed tests are listed with their full file paths, making it easy to locate and fix them.
+</Tip>
+
+## Advanced: Custom Logging
+
+While not commonly needed, you can use the `patrol_log` package directly in custom tooling:
+
+### PatrolLogWriter
+
+Creates and writes log entries:
+
+```dart
+import 'package:patrol_log/patrol_log.dart';
+
+final writer = PatrolLogWriter(config: {'printLogs': true});
+
+// Log a custom message
+writer.log(LogEntry(message: 'Custom log message'));
+
+// Log a test event
+writer.log(TestEntry(
+  name: 'my_test',
+  status: TestEntryStatus.start,
+));
+
+writer.close();
+```
+
+### PatrolLogReader
+
+Reads and parses log entries from test execution:
+
+```dart
+import 'package:patrol_log/patrol_log.dart';
+import 'package:dispose_scope/dispose_scope.dart';
+
+final scope = DisposeScope();
+
+final reader = PatrolLogReader(
+  scope: scope,
+  listenStdOut: (onData, {onError, onDone, cancelOnError}) {
+    // Set up stdout listener
+    return stdout.listen(onData, onError: onError, onDone: onDone);
+  },
+  log: print,
+  reportPath: '/path/to/report.json',
+  showFlutterLogs: true,
+  hideTestSteps: false,
+  clearTestSteps: false,
+);
+
+reader.listen();
+reader.startTimer();
+
+// After tests complete:
+reader.stopTimer();
+print(reader.summary);
+```
+
+<Note>
+  The `patrol_log` package is primarily for internal use by Patrol CLI. Most users don't need to interact with it directly.
+</Note>
+
+## Log Entry Details
+
+Each log entry type has specific fields:
+
+### Test Entry
+
+```dart
+TestEntry(
+  name: 'test_file.dart test name',
+  status: TestEntryStatus.start,  // or success, failure, skip
+  error: 'Error message if failed',
+)
+```
+
+### Step Entry
+
+```dart
+StepEntry(
+  action: 'tap on button',
+  status: StepEntryStatus.start,  // or success, failure
+  data: {'key': 'value'},  // Optional metadata
+)
+```
+
+### Log Entry
+
+```dart
+LogEntry(
+  message: 'Custom log message',
+)
+```
+
+### Error Entry
+
+```dart
+ErrorEntry(
+  message: 'Error description',
+  stackTrace: 'Stack trace string',
+)
+```
+
+## Platform-Specific Logs
+
+Patrol automatically parses platform-specific log formats:
+
+<AccordionGroup>
+  <Accordion title="Android Logs">
+    Patrol captures Flutter logs from logcat with the pattern:
+    
+    ```
+    I flutter : <log message>
+    ```
+  </Accordion>
+  
+  <Accordion title="iOS Logs">
+    Captures logs from the iOS console:
+    
+    ```
+    (Flutter) flutter: <log message>
+    ```
+    
+    Release mode uses a simpler format:
+    
+    ```
+    flutter: <log message>
+    ```
+  </Accordion>
+  
+  <Accordion title="Web Logs">
+    Captures Playwright logs for web testing:
+    
+    ```
+    Playwright: <log message>
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="No logs appearing">
+    Ensure you're running tests with `patrol test` or `patrol develop`, not `flutter test`. Patrol CLI is required for log capture.
+  </Accordion>
+  
+  <Accordion title="Logs are cluttered">
+    Use `--clear-test-steps` to automatically remove successful step logs, or `--no-test-steps` to hide them entirely.
+  </Accordion>
+  
+  <Accordion title="Missing Flutter logs">
+    Add the `--verbose` flag to `patrol test` to enable Flutter framework logging.
+  </Accordion>
+  
+  <Accordion title="Can't find failed test location">
+    Failed tests are listed in the summary with their full file paths. Look for the ❌ section in the test summary.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Steps>
+  <Step title="Keep test steps visible during development">
+    Don't hide test steps while developing tests. They provide valuable debugging information.
+  </Step>
+  
+  <Step title="Use clear test steps in CI">
+    In CI environments, use `--clear-test-steps` to reduce log output while preserving failure information.
+  </Step>
+  
+  <Step title="Add custom logs for complex tests">
+    Use Patrol's logging to add context to complex test scenarios:
+    
+    ```dart
+    patrolTest('complex test', ($) async {
+      $.log('Starting login flow');
+      await $(#emailField).enterText('user@example.com');
+      
+      $.log('Submitting credentials');
+      await $(#loginButton).tap();
+    });
+    ```
+  </Step>
+  
+  <Step title="Check the test summary">
+    Always review the test summary for execution time and failure patterns.
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="VS Code Extension" icon="code" href="/tools/vscode-extension">
+    View logs in real-time with the VS Code extension.
+  </Card>
+  
+  <Card title="CI Configuration" icon="gears" href="/documentation/ci/overview">
+    Configure logging for CI environments.
+  </Card>
+  
+  <Card title="Debugging Tests" icon="bug" href="/documentation/native/advanced">
+    Learn advanced debugging techniques.
+  </Card>
+  
+  <Card title="Writing Tests" icon="pen" href="/documentation/finders/usage">
+    Start writing Patrol tests.
+  </Card>
+</CardGroup>
+
+## Package Information
+
+<Info>
+  **Package**: `patrol_log`
+  
+  **Version**: 0.7.1
+  
+  **Repository**: [GitHub](https://github.com/leancodepl/patrol/tree/master/packages/patrol_log)
+  
+  **Pub.dev**: [patrol_log](https://pub.dev/packages/patrol_log)
+</Info>
