@@ -1,0 +1,203 @@
+{
+  "projectType": "framework",
+  "projectName": "Patrol",
+  "projectDescription": "Flutter-first UI testing framework enabling native automation and intuitive test writing with custom finders.",
+  "theme": "palm",
+  "primaryColor": "#0066FF",
+  "lightColor": "#3D8BFF",
+  "darkColor": "#0052CC",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "write-your-first-test",
+              "compatibility"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/custom-finders",
+              "concepts/native-automation",
+              "concepts/hot-restart",
+              "concepts/test-isolation"
+            ]
+          },
+          {
+            "group": "Custom Finders",
+            "pages": [
+              "finders/overview",
+              "finders/setup",
+              "finders/usage",
+              "finders/advanced"
+            ]
+          },
+          {
+            "group": "Native Automation",
+            "pages": [
+              "native/overview",
+              "native/setup",
+              "native/usage",
+              "native/advanced",
+              "native/feature-parity"
+            ]
+          },
+          {
+            "group": "Platform Support",
+            "pages": [
+              "platforms/android",
+              "platforms/ios",
+              "platforms/macos",
+              "platforms/web",
+              "platforms/physical-devices"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "cli/overview",
+              "cli/test",
+              "cli/develop",
+              "cli/build",
+              "cli/devices",
+              "cli/doctor",
+              "cli/update"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "CI/CD",
+            "pages": [
+              "ci/overview",
+              "ci/github-actions",
+              "ci/gitlab-ci",
+              "ci/bitrise"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/firebase-test-lab",
+              "integrations/browserstack",
+              "integrations/lambdatest",
+              "integrations/allure"
+            ]
+          },
+          {
+            "group": "Feature Guides",
+            "pages": [
+              "guides/permissions",
+              "guides/notifications",
+              "guides/webviews",
+              "guides/camera",
+              "guides/gallery",
+              "guides/bluetooth"
+            ]
+          },
+          {
+            "group": "Best Practices",
+            "pages": [
+              "best-practices/effective-patrol",
+              "best-practices/debugging",
+              "best-practices/tips-and-tricks"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core API",
+            "pages": [
+              "api/patrol-test",
+              "api/patrol-tester",
+              "api/custom-finders",
+              "api/native-automator"
+            ]
+          },
+          {
+            "group": "Platform APIs",
+            "pages": [
+              "api/android-automator",
+              "api/ios-automator",
+              "api/web-automator"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Tools",
+            "pages": [
+              "tools/devtools-extension",
+              "tools/vscode-extension",
+              "tools/logs"
+            ]
+          },
+          {
+            "group": "Migration",
+            "pages": [
+              "migration/v3-to-v4",
+              "migration/native-to-platform",
+              "migration/integration-test"
+            ]
+          },
+          {
+            "group": "Additional Resources",
+            "pages": [
+              "resources/cheatsheet",
+              "resources/faq",
+              "resources/contributing",
+              "resources/changelog"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Native platform automation (permissions, notifications, WebViews)",
+    "Custom finders with intuitive $ syntax",
+    "Hot Restart for fast test development",
+    "Full test isolation and sharding support",
+    "Cross-platform support (Android, iOS, macOS, Web)",
+    "Device farm integration (Firebase, BrowserStack, etc.)",
+    "CLI tool with develop and test commands",
+    "DevTools and VS Code extensions"
+  ],
+  "publicApiSurface": [
+    "patrolTest() - Main test function",
+    "PatrolIntegrationTester ($) - Test interface with custom finders",
+    "$() - Custom finder with text/key/widget selectors",
+    "$.platform - Native automation API",
+    "$.pumpWidgetAndSettle() - Widget initialization",
+    "patrol test - CLI command to run tests",
+    "patrol develop - CLI command with Hot Restart",
+    "patrol build - CLI command to build test apps",
+    "patrol doctor - CLI diagnostic command",
+    "patrol devices - CLI device listing",
+    "NativeAutomator - Native platform interaction interface",
+    "AndroidAutomator - Android-specific automation",
+    "IOSAutomator - iOS-specific automation",
+    "PatrolBinding - Test binding configuration",
+    "PatrolFinders - Standalone finders package"
+  ]
+}
