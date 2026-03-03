@@ -35,12 +35,12 @@ description: Common questions and answers about Patrol
   - macOS (alpha support)
   - Web (Chrome, Firefox, Safari, Edge, Webkit)
   
-  See the [Supported Platforms](/documentation/supported-platforms) page for details.
+  See the [Supported Platforms](/platforms/android) page for details.
 </Accordion>
 
 <Accordion title="Is Patrol free to use?">
   Yes, Patrol is open-source and free to use under the Apache 2.0 license.
-  We also offer premium support and consulting services. See our [Pricing](/pricing) page
+  We also offer premium support and consulting services. See our [Pricing](https://leancode.co/products/automated-ui-testing-in-flutter) page
   for more information.
 </Accordion>
 
@@ -48,7 +48,7 @@ description: Common questions and answers about Patrol
 
 <Accordion title="Testing fails with error inside 'patrol_test/test_bundle.dart'">
   This is usually caused by a version mismatch between `patrol` and `patrol_cli`.
-  Check the [Compatibility Table](/documentation/compatibility-table) to ensure
+  Check the [Compatibility Table](/compatibility) to ensure
   you're using compatible versions. Update both packages:
   
   ```bash
@@ -75,7 +75,7 @@ description: Common questions and answers about Patrol
   ```
   
   It's a good practice to create a setup wrapper function for your tests. See
-  [Initializing app inside a test](/documentation#initializing-app-inside-a-test).
+  [Initializing app inside a test](/quickstart#initializing-app-inside-a-test).
 </Accordion>
 
 <Accordion title="Where do I get package_name and bundle_id?">
@@ -176,7 +176,7 @@ description: Common questions and answers about Patrol
 
 <Accordion title="How do I run Patrol tests on physical iOS devices?">
   Physical iOS device setup requires additional configuration. See our detailed guide:
-  [Setup for Physical iOS Devices](/documentation/physical-ios-devices-setup)
+  [Setup for Physical iOS Devices](/platforms/physical-devices)
 </Accordion>
 
 <Accordion title="I get App Store warnings about non-public selectors">
@@ -195,7 +195,7 @@ description: Common questions and answers about Patrol
   - Icon: `$(Icons.add)`
   - Chaining: `$(Scaffold).$(ListView).$("Item")`
   
-  See [Finders documentation](/documentation/finders/usage) for more details.
+  See [Finders documentation](/finders/usage) for more details.
 </Accordion>
 
 <Accordion title="Should I use keys, text, or widget types to find widgets?">
@@ -204,7 +204,7 @@ description: Common questions and answers about Patrol
   - More semantic than widget types (which are implementation details)
   - Less likely to break when refactoring
   
-  See [Effective Patrol](/documentation/other/effective-patrol) for best practices.
+  See [Effective Patrol](/best-practices/effective-patrol) for best practices.
 </Accordion>
 
 <Accordion title="How do I interact with native UI elements like permission dialogs?">
@@ -224,7 +224,7 @@ description: Common questions and answers about Patrol
   );
   ```
   
-  See [Native Automation](/documentation/native/usage) for more examples.
+  See [Native Automation](/native/usage) for more examples.
 </Accordion>
 
 <Accordion title="How do I scroll to an item that's not yet visible?">
@@ -245,7 +245,7 @@ description: Common questions and answers about Patrol
   - Hardcoded timeouts: Use proper waiting mechanisms instead
   - Multiple matching widgets: Use `.at()`, `.first`, or `.last` to be specific
   
-  See [Tips and Tricks](/documentation/other/tips-and-tricks) for more guidance.
+  See [Tips and Tricks](/best-practices/tips-and-tricks) for more guidance.
 </Accordion>
 
 <Accordion title="Can I use environment variables in tests?">
@@ -272,7 +272,7 @@ description: Common questions and answers about Patrol
   - **Logging**: Use `$.log('message')` to add logs
   - **Breakpoints**: Standard Dart debugging with IDE breakpoints
   
-  See [Debugging Patrol Tests](/documentation/other/debugging-patrol-tests) for details.
+  See [Debugging Patrol Tests](/best-practices/debugging) for details.
 </Accordion>
 
 ## Web Testing
@@ -286,7 +286,7 @@ description: Common questions and answers about Patrol
   - File uploads/downloads
   - Dialog handling
   
-  See [Web Testing](/documentation/web) for more information.
+  See [Web Testing](/platforms/web) for more information.
 </Accordion>
 
 <Accordion title="Which browsers does Patrol support?">
@@ -312,14 +312,14 @@ description: Common questions and answers about Patrol
   - BrowserStack
   - LambdaTest
   
-  See [CI/CD Integration](/documentation/ci/overview) for setup instructions.
+  See [CI/CD Integration](/ci/overview) for setup instructions.
 </Accordion>
 
 <Accordion title="How do I run tests on cloud device farms?">
   Patrol supports major cloud testing platforms:
-  - [Firebase Test Lab](/documentation/integrations/firebase-test-lab)
-  - [BrowserStack](/documentation/integrations/browserstack)
-  - [LambdaTest](/documentation/integrations/lambdatest)
+  - [Firebase Test Lab](/integrations/firebase-test-lab)
+  - [BrowserStack](/integrations/browserstack)
+  - [LambdaTest](/integrations/lambdatest)
   
   Each platform has specific configuration requirements documented in the integration guides.
 </Accordion>

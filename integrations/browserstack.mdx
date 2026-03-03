@@ -89,7 +89,7 @@ That's it for Android! You can now proceed to running tests.
 ## Setup for iOS
 
 <Warning>
-  Before configuring BrowserStack for iOS, you must complete the [Setup for physical iOS devices](/physical-ios-devices-setup) guide.
+  Before configuring BrowserStack for iOS, you must complete the [Setup for physical iOS devices](/platforms/physical-devices) guide.
 </Warning>
 
 BrowserStack requires tests to use Xcode test plans. Follow these steps to convert your project:
@@ -106,7 +106,7 @@ BrowserStack requires tests to use Xcode test plans. Follow these steps to conve
   <Step title="Edit the scheme">
     Click on the scheme selector in the toolbar and select **Edit Scheme...**
 
-    ![Edit scheme](/assets/edit_scheme.png)
+    ![Edit scheme](https://raw.githubusercontent.com/leancodepl/patrol/master/docs/assets/edit_scheme.png)
   </Step>
 
   <Step title="Convert to test plans">
@@ -114,19 +114,19 @@ BrowserStack requires tests to use Xcode test plans. Follow these steps to conve
     1. Go to the **Test** tab
     2. Click **Convert to use Test Plans...**
 
-    ![Convert to test plans](/assets/convert_to_use_test_plans.png)
+    ![Convert to test plans](https://raw.githubusercontent.com/leancodepl/patrol/master/docs/assets/convert_to_use_test_plans.png)
   </Step>
 
   <Step title="Create from scheme">
     Select **Create from Scheme** when prompted:
 
-    ![Create from scheme](/assets/create_test_plan_from_scheme.png)
+    ![Create from scheme](https://raw.githubusercontent.com/leancodepl/patrol/master/docs/assets/create_test_plan_from_scheme.png)
   </Step>
 
   <Step title="Name the test plan">
     **Important:** Name the test plan exactly **"TestPlan"** (case-sensitive) and save it to the project root:
 
-    ![Rename to TestPlan](/assets/rename_to_testplan.png)
+    ![Rename to TestPlan](https://raw.githubusercontent.com/leancodepl/patrol/master/docs/assets/rename_to_testplan.png)
 
     <Warning>
       The test plan must be named "TestPlan" to work with the `bs_ios` script.
@@ -248,7 +248,7 @@ If you prefer to use BrowserStack's REST API directly, or if you're integrating 
     ```
     </CodeGroup>
 
-    See the [patrol build documentation](/cli-commands/build) for more options.
+    See the [patrol build documentation](/cli/build) for more options.
   </Step>
 
   <Step title="Upload app under test">
